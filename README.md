@@ -14,7 +14,7 @@
 Already in the repo ✅: Next.js scaffold, Tailwind, TS, ESLint, sidebar app shell (`app/page.tsx`), `CLAUDE.md`/`AGENTS.md`.
 
 Still to do:
-- [ ] **Make the repo private** (client project — even with dummy data, keep it private) and add all 3 as collaborators
+- [x] **Make the repo private** (client project — even with dummy data, keep it private) and add all 3 as collaborators
 - [ ] Create Neon project → `DATABASE_URL` in `dashboard/.env.local` + Vercel env vars
 - [ ] Get Groq API key → `GROQ_API_KEY` (server-side only, never `NEXT_PUBLIC_`)
 - [ ] Connect repo to Vercel — **set Root Directory to `dashboard/`** or builds will fail
