@@ -16,7 +16,7 @@ Already in the repo ✅: Next.js scaffold, Tailwind, TS, ESLint, sidebar app she
 Still to do:
 - [x] **Make the repo private** (client project — even with dummy data, keep it private) and add all 3 as collaborators
 - [ ] Create Neon project → `DATABASE_URL` in `dashboard/.env.local` + Vercel env vars
-- [ ] Get Groq API key → `GROQ_API_KEY` (server-side only, never `NEXT_PUBLIC_`)
+- [x] Get Groq API key → `GROQ_API_KEY` (server-side only, never `NEXT_PUBLIC_`)
 - [ ] Connect repo to Vercel — **set Root Directory to `dashboard/`** or builds will fail
 - [ ] `npm i prisma @prisma/client && npx prisma init` → schema + seed script with dummy patients/emails/tasks (base them on the real forms: intake 1-1/1-2/1-3, SOAP note, CMS-1500, ASH MNR, PI report)
 - [x] Add `.env.example` (keys listed, values blank)
