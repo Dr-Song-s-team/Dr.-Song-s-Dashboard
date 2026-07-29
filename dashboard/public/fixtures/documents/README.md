@@ -20,6 +20,12 @@ them and the UI can serve them at `/fixtures/documents/<filename>`.
 | `sample-ash-mnr.pdf` | ASH Medical Necessity Review | Lisa Park |
 | `sample-pi-report.pdf` | Personal Injury Report | David Rivera |
 
+Six of the seven files are blank form templates with no data filled in.
+`sample-pi-report.pdf` is a completed sample report; the patient it names,
+"Gil Dong Hong", is the standard Korean placeholder equivalent of "John Doe".
+The only contact details in any file are the clinic's own public business
+address, phone, and `info@` address.
+
 ## Adding files
 
 Copy your synthetic PDFs here using the filenames in the table above, then run:
@@ -28,6 +34,10 @@ Copy your synthetic PDFs here using the filenames in the table above, then run:
 npm run db:seed
 ```
 
-The seed script will create `Document` rows pointing to these paths.
+The filenames must match the table exactly — the seed script checks that each
+file exists and aborts with the list of missing names rather than creating
+`Document` rows whose paths 404. Rename source files to these names instead of
+changing the seed, so the paths stay URL-safe and free of patient identifiers.
+
 Document rows reference paths as `/fixtures/documents/<filename>` which Next.js
 serves directly from this `public/` subdirectory.

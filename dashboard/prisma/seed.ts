@@ -8,19 +8,42 @@ import { config } from "dotenv";
 config({ path: ".env.local" });
 config();
 
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../app/generated/prisma/client";
+import { requireEnv } from "../lib/env";
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
-  throw new Error("DATABASE_URL is not set. Add it to dashboard/.env.local.");
+const fixtureBase = "/fixtures/documents";
+
+/**
+ * Fails loudly when a fixture PDF is absent or misnamed, rather than seeding
+ * Document rows whose `fixturePath` 404s in the UI.
+ */
+function assertFixturesPresent(paths: string[]) {
+  const missing = paths.filter((p) => !existsSync(join("public", p)));
+
+  if (missing.length > 0) {
+    throw new Error(
+      `Missing fixture PDF(s) in public${fixtureBase}/:\n` +
+        missing.map((p) => `  - ${p.slice(fixtureBase.length + 1)}`).join("\n") +
+        `\n\nFilenames must match exactly. See public${fixtureBase}/README.md.`,
+    );
+  }
 }
 
-const adapter = new PrismaPg({ connectionString });
-const prisma = new PrismaClient({ adapter });
-
-async function main() {
+async function main(prisma: PrismaClient) {
   console.log("🌱  Seeding database with synthetic dummy data…");
+
+  // ------------------------------------------------------------------
+  // Reset derived rows so re-running the seed is idempotent.
+  // Deletion order follows the foreign keys: Task → Email → Document.
+  // Patients are upserted below, keeping their ids stable across runs.
+  // ------------------------------------------------------------------
+  await prisma.task.deleteMany();
+  await prisma.email.deleteMany();
+  await prisma.document.deleteMany();
 
   // ------------------------------------------------------------------
   // Patients — all names, DOBs, and IDs are completely fabricated
@@ -133,63 +156,62 @@ async function main() {
   // ------------------------------------------------------------------
   // Documents — fixture PDFs live in public/fixtures/documents/
   // ------------------------------------------------------------------
-  const fixtureBase = "/fixtures/documents";
+  const documents = [
+    {
+      title: "Intake Form 1-1 — Alex Thompson",
+      type: "INTAKE_1_1",
+      status: "APPROVED",
+      fixturePath: `${fixtureBase}/sample-intake-1-1.pdf`,
+      patientId: alex.id,
+    },
+    {
+      title: "Intake Form 1-2 — Alex Thompson",
+      type: "INTAKE_1_2",
+      status: "APPROVED",
+      fixturePath: `${fixtureBase}/sample-intake-1-2.pdf`,
+      patientId: alex.id,
+    },
+    {
+      title: "Intake Form 1-3 — Alex Thompson",
+      type: "INTAKE_1_3",
+      status: "PENDING_REVIEW",
+      fixturePath: `${fixtureBase}/sample-intake-1-3.pdf`,
+      patientId: alex.id,
+    },
+    {
+      title: "SOAP Note 2024-06-01 — Maria Santos",
+      type: "SOAP_NOTE",
+      status: "APPROVED",
+      fixturePath: `${fixtureBase}/sample-soap-note.pdf`,
+      patientId: maria.id,
+    },
+    {
+      title: "CMS-1500 Claim — James Mitchell",
+      type: "CMS_1500",
+      status: "PENDING_REVIEW",
+      fixturePath: `${fixtureBase}/sample-cms-1500.pdf`,
+      patientId: james.id,
+    },
+    {
+      title: "ASH Medical Necessity Review — Lisa Park",
+      type: "ASH_MNR",
+      status: "DRAFT",
+      fixturePath: `${fixtureBase}/sample-ash-mnr.pdf`,
+      patientId: lisa.id,
+      notes: "Awaiting visit notes from provider before submission.",
+    },
+    {
+      title: "Personal Injury Report — David Rivera",
+      type: "PI_REPORT",
+      status: "DRAFT",
+      fixturePath: `${fixtureBase}/sample-pi-report.pdf`,
+      patientId: david.id,
+    },
+  ] as const;
 
-  await prisma.document.createMany({
-    skipDuplicates: true,
-    data: [
-      {
-        title: "Intake Form 1-1 — Alex Thompson",
-        type: "INTAKE_1_1",
-        status: "APPROVED",
-        fixturePath: `${fixtureBase}/sample-intake-1-1.pdf`,
-        patientId: alex.id,
-      },
-      {
-        title: "Intake Form 1-2 — Alex Thompson",
-        type: "INTAKE_1_2",
-        status: "APPROVED",
-        fixturePath: `${fixtureBase}/sample-intake-1-2.pdf`,
-        patientId: alex.id,
-      },
-      {
-        title: "Intake Form 1-3 — Alex Thompson",
-        type: "INTAKE_1_3",
-        status: "PENDING_REVIEW",
-        fixturePath: `${fixtureBase}/sample-intake-1-3.pdf`,
-        patientId: alex.id,
-      },
-      {
-        title: "SOAP Note 2024-06-01 — Maria Santos",
-        type: "SOAP_NOTE",
-        status: "APPROVED",
-        fixturePath: `${fixtureBase}/sample-soap-note.pdf`,
-        patientId: maria.id,
-      },
-      {
-        title: "CMS-1500 Claim — James Mitchell",
-        type: "CMS_1500",
-        status: "PENDING_REVIEW",
-        fixturePath: `${fixtureBase}/sample-cms-1500.pdf`,
-        patientId: james.id,
-      },
-      {
-        title: "ASH Medical Necessity Review — Lisa Park",
-        type: "ASH_MNR",
-        status: "DRAFT",
-        fixturePath: `${fixtureBase}/sample-ash-mnr.pdf`,
-        patientId: lisa.id,
-        notes: "Awaiting visit notes from provider before submission.",
-      },
-      {
-        title: "Personal Injury Report — David Rivera",
-        type: "PI_REPORT",
-        status: "DRAFT",
-        fixturePath: `${fixtureBase}/sample-pi-report.pdf`,
-        patientId: david.id,
-      },
-    ],
-  });
+  assertFixturesPresent(documents.map((d) => d.fixturePath));
+
+  await prisma.document.createMany({ data: [...documents] });
 
   console.log("  ✓ Documents seeded");
 
@@ -343,11 +365,21 @@ async function main() {
   console.log("\n✅  Seed complete.");
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(async () => {
+async function run() {
+  // Constructed here rather than at module scope so a missing DATABASE_URL
+  // reports through the handler below instead of as an import-time stack trace.
+  const adapter = new PrismaPg({ connectionString: requireEnv("DATABASE_URL") });
+  const prisma = new PrismaClient({ adapter });
+
+  try {
+    await main(prisma);
+  } finally {
     await prisma.$disconnect();
-  });
+  }
+}
+
+run().catch((error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(`\n❌  Seed failed.\n\n${message}\n`);
+  process.exit(1);
+});
