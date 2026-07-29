@@ -1,0 +1,148 @@
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  // url is provided via prisma.config.ts / DATABASE_URL env var
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum DocumentType {
+  INTAKE_1_1
+  INTAKE_1_2
+  INTAKE_1_3
+  SOAP_NOTE
+  CMS_1500
+  ASH_MNR
+  PI_REPORT
+}
+
+enum DocumentStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum ClinicInbox {
+  INFO
+  BILLING
+  AUTHORIZATIONS
+  REFERRALS
+  SCHEDULING
+  CLAIMS
+}
+
+enum EmailStatus {
+  UNREAD
+  READ
+  NEEDS_ACTION
+  ARCHIVED
+}
+
+enum EmailClassification {
+  AUTHORIZATION
+  CLAIM
+  REFERRAL
+  SCHEDULING
+  BILLING
+  GENERAL
+  UNKNOWN
+}
+
+enum TaskStatus {
+  PENDING
+  COMPLETE
+  OVERDUE
+  ARCHIVED
+}
+
+// ---------------------------------------------------------------------------
+// Models
+// ---------------------------------------------------------------------------
+
+model Patient {
+  id          String   @id @default(cuid())
+  firstName   String
+  lastName    String
+  dob         DateTime
+  phone       String
+  email       String   @unique
+  address     String
+  city        String
+  state       String
+  zip         String
+  insurer     String
+  memberId    String
+  authLimit   Int
+  visitsUsed  Int      @default(0)
+  statusNotes String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  documents   Document[]
+  emails      Email[]
+  tasks       Task[]
+}
+
+/// A form or report associated with a patient. `fixturePath` is the
+/// public-folder path served by Next.js (e.g. /fixtures/documents/sample-cms-1500.pdf).
+model Document {
+  id          String         @id @default(cuid())
+  type        DocumentType
+  status      DocumentStatus @default(DRAFT)
+  title       String
+  fixturePath String
+  notes       String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  patientId   String?
+  patient     Patient?       @relation(fields: [patientId], references: [id])
+}
+
+/// A seeded inbox message received at one of the six clinic email addresses.
+model Email {
+  id             String              @id @default(cuid())
+  toInbox        ClinicInbox
+  fromName       String
+  fromEmail      String
+  subject        String
+  body           String
+  status         EmailStatus         @default(UNREAD)
+  classification EmailClassification @default(UNKNOWN)
+  aiSummary      String?
+  aiDraft        String?
+  receivedAt     DateTime
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  patientId      String?
+  patient        Patient?            @relation(fields: [patientId], references: [id])
+
+  tasks          Task[]
+}
+
+/// A calendar task; may originate from an email or be created manually.
+model Task {
+  id          String     @id @default(cuid())
+  title       String
+  description String?
+  dueDate     DateTime?
+  status      TaskStatus @default(PENDING)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  patientId   String?
+  patient     Patient?   @relation(fields: [patientId], references: [id])
+
+  emailId     String?
+  email       Email?     @relation(fields: [emailId], references: [id])
+}
