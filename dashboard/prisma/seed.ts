@@ -1,11 +1,23 @@
 /**
  * Deterministic seed script for dummy/synthetic data.
  * All patients, emails, and documents are entirely fictional.
- * Run: npm run db:seed
+ * Run: npx tsx prisma/seed.ts
  */
+import { config } from "dotenv";
+// Load .env.local first (Next.js convention) so DATABASE_URL is available
+config({ path: ".env.local" });
+config();
+
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../app/generated/prisma/client";
 
-const prisma = new PrismaClient();
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  throw new Error("DATABASE_URL is not set. Add it to dashboard/.env.local.");
+}
+
+const adapter = new PrismaPg({ connectionString });
+const prisma = new PrismaClient({ adapter });
 
 async function main() {
   console.log("🌱  Seeding database with synthetic dummy data…");
