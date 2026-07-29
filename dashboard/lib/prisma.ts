@@ -10,12 +10,10 @@
  */
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../app/generated/prisma/client";
+import { requireEnv } from "./env";
 
-const connectionString = process.env.DATABASE_URL;
-
-if (!connectionString) {
-  throw new Error("DATABASE_URL is not set. Add it to dashboard/.env.local.");
-}
+// Next.js loads .env.local itself, so no dotenv call is needed here.
+const connectionString = requireEnv("DATABASE_URL");
 
 // In Next.js development, module hot-reload would create multiple instances
 // without the global guard below.
