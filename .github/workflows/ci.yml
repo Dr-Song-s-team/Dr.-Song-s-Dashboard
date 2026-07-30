@@ -21,6 +21,10 @@ jobs:
       - name: Install dependencies
         working-directory: dashboard
         run: npm ci
+        env:
+          DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci"
+          DIRECT_URL: "postgresql://ci:ci@localhost:5432/ci"
+          GROQ_API_KEY: "ci-placeholder"
 
       - name: Type check
         working-directory: dashboard
