@@ -146,3 +146,12 @@ model Task {
   emailId     String?
   email       Email?     @relation(fields: [emailId], references: [id])
 }
+
+model Reminder {
+  id          Int        @id @default(autoincrement())
+
+  taskId      String
+  task        Task       @relation(fields: [taskId], references: [id])
+
+  remindAt    DateTime
+}
