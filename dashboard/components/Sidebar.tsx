@@ -1,17 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
-
-interface SidebarItem {
-  label: string;
-  href: string;
-  icon: React.ReactNode;
-}
-
-interface SidebarProps {
-  items: SidebarItem[];
-  title?: string;
-}
+import { useState } from "react";
+import { usePathname } from "next/navigation";
+import Link from "next/link";
 
 function EmailIcon({ className }: { className?: string }) {
   return (
@@ -87,10 +78,37 @@ function FormsIcon({ className }: { className?: string }) {
   );
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ items, title = "Dashboard" }) => {
-  const [isOpen, setIsOpen] = useState<boolean>(true);
+const navLinks = [
+  {
+    label: "Email",
+    href: "/",
+    icon: <EmailIcon className="size-5" />,
+  },
+  {
+    label: "Calendar",
+    href: "/calendar",
+    icon: <CalendarIcon className="size-5" />,
+  },
+  {
+    label: "Patient/Admin Info",
+    href: "/info",
+    icon: <UsersIcon className="size-5" />,
+  },
+  {
+    label: "Forms/Reports",
+    href: "/forms",
+    icon: <FormsIcon className="size-5" />,
+  },
+];
 
-  const toggleSidebar = () => setIsOpen(!isOpen);
+export default function Sidebar({ title = "Dashboard" }: { title?: string }) {
+  const [isOpen, setIsOpen] = useState(true);
+  const pathname = usePathname();
+
+  function isActive(href: string) {
+    if (href === "/") return pathname === "/";
+    return pathname === href || pathname.startsWith(href + "/") || pathname === href;
+  }
 
   return (
     <aside
@@ -118,7 +136,7 @@ const Sidebar: React.FC<SidebarProps> = ({ items, title = "Dashboard" }) => {
         )}
         <button
           type="button"
-          onClick={toggleSidebar}
+          onClick={() => setIsOpen(!isOpen)}
           className={`flex size-9 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-[#fffaf2] transition hover:border-[#d8b79d]/60 hover:bg-[#9b6a4b]/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#fffaf2] ${
             isOpen ? "ml-auto" : ""
           }`}
@@ -135,39 +153,43 @@ const Sidebar: React.FC<SidebarProps> = ({ items, title = "Dashboard" }) => {
         className={`flex-1 space-y-2 overflow-y-auto ${isOpen ? "p-3" : "px-2 py-3"}`}
         aria-label="Main navigation"
       >
-        {items.map((item, index) => (
-          <a
-            key={item.href}
-            href={item.href}
-            title={!isOpen ? item.label : undefined}
-            aria-label={item.label}
-            className={`group flex items-center rounded-2xl border transition-all duration-200 ${
-              isOpen
-                ? "gap-3 px-3 py-3"
-                : "justify-center px-0 py-2.5"
-            } ${
-              index === 0
-                ? "border-[#f3e8da]/35 bg-[#fffaf2]/20 shadow-sm"
-                : "border-transparent hover:border-white/20 hover:bg-white/10"
-            }`}
-          >
-            <span
-              className={`flex size-10 shrink-0 items-center justify-center rounded-xl transition-colors ${
-                index === 0
-                  ? "bg-[#fffaf2] text-[#76503b]"
-                  : "bg-[#143e54]/45 text-[#f7eee3] group-hover:bg-[#9b6a4b]"
+        {navLinks.map((item) => {
+          const active = isActive(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              title={!isOpen ? item.label : undefined}
+              aria-label={item.label}
+              aria-current={active ? "page" : undefined}
+              className={`group flex items-center rounded-2xl border transition-all duration-200 ${
+                isOpen
+                  ? "gap-3 px-3 py-3"
+                  : "justify-center px-0 py-2.5"
+              } ${
+                active
+                  ? "border-[#f3e8da]/35 bg-[#fffaf2]/20 shadow-sm"
+                  : "border-transparent hover:border-white/20 hover:bg-white/10"
               }`}
-              aria-hidden="true"
             >
-              {item.icon}
-            </span>
-            {isOpen && (
-              <span className="truncate text-sm font-medium tracking-wide">
-                {item.label}
+              <span
+                className={`flex size-10 shrink-0 items-center justify-center rounded-xl transition-colors ${
+                  active
+                    ? "bg-[#fffaf2] text-[#76503b]"
+                    : "bg-[#143e54]/45 text-[#f7eee3] group-hover:bg-[#9b6a4b]"
+                }`}
+                aria-hidden="true"
+              >
+                {item.icon}
               </span>
-            )}
-          </a>
-        ))}
+              {isOpen && (
+                <span className="truncate text-sm font-medium tracking-wide">
+                  {item.label}
+                </span>
+              )}
+            </Link>
+          );
+        })}
       </nav>
 
       {isOpen && (
@@ -175,63 +197,9 @@ const Sidebar: React.FC<SidebarProps> = ({ items, title = "Dashboard" }) => {
           <p className="text-xs uppercase tracking-[0.2em] text-[#d8c6b5]">
             Secure workspace
           </p>
-          <p className="mt-1 text-sm text-[#fffaf2]/90">
-            Administrative access
-          </p>
+          <p className="mt-1 text-sm text-[#fffaf2]/90">Administrative access</p>
         </div>
       )}
     </aside>
-  );
-};
-
-const iconClassName = "size-5";
-
-export default function Home() {
-  const navLinks: SidebarItem[] = [
-    {
-      label: "Email",
-      href: "/",
-      icon: <EmailIcon className={iconClassName} />,
-    },
-    {
-      label: "Calendar",
-      href: "/calendar",
-      icon: <CalendarIcon className={iconClassName} />,
-    },
-    {
-      label: "Patient/Admin Info",
-      href: "/info",
-      icon: <UsersIcon className={iconClassName} />,
-    },
-    {
-      label: "Forms/Reports",
-      href: "/forms",
-      icon: <FormsIcon className={iconClassName} />,
-    },
-  ];
-
-  return (
-    <div className="relative min-h-screen overflow-hidden bg-[#f5f0e8] font-sans text-[#513a2e]">
-      <div className="pointer-events-none absolute -right-24 -top-24 size-80 rounded-full bg-[#b8d4df]/45 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-28 left-1/3 size-96 rounded-full bg-[#cbb199]/25 blur-3xl" />
-
-      <main className="relative flex min-h-screen w-full gap-5 p-4 sm:gap-8 sm:p-6">
-        <Sidebar items={navLinks} title="Dr. Song" />
-        <section className="flex flex-1 items-center justify-center rounded-[2rem] border border-[#8c6349]/10 bg-[#fffaf2]/65 p-8 shadow-[0_24px_70px_rgba(93,63,44,0.08)] backdrop-blur-sm">
-          <div className="max-w-xl">
-            <p className="mb-4 inline-flex rounded-full bg-[#8d6248]/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-[#7a5138]">
-              Clinic operations
-            </p>
-            <h2 className="text-4xl font-semibold tracking-tight text-[#4a3327] sm:text-5xl">
-              Welcome to your dashboard.
-            </h2>
-            <p className="mt-5 max-w-lg text-base leading-7 text-[#765d4e]">
-              Select a section from the navigation to manage messages,
-              appointments, patient information, and reports.
-            </p>
-          </div>
-        </section>
-      </main>
-    </div>
   );
 }
