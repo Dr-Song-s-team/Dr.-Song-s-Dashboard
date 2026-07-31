@@ -5,12 +5,86 @@ import React, { useState } from "react";
 interface SidebarItem {
   label: string;
   href: string;
-  shortLabel: string;
+  icon: React.ReactNode;
 }
 
 interface SidebarProps {
   items: SidebarItem[];
   title?: string;
+}
+
+function EmailIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="m3 7 9 6 9-6" />
+    </svg>
+  );
+}
+
+function CalendarIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M8 3v4M16 3v4M3 11h18" />
+    </svg>
+  );
+}
+
+function UsersIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="9" cy="8" r="3.25" />
+      <path d="M3.5 19.5c.6-3 2.8-4.75 5.5-4.75s4.9 1.75 5.5 4.75" />
+      <circle cx="17" cy="9" r="2.5" />
+      <path d="M14.75 19.5c.4-2.1 1.8-3.4 3.75-3.4 1.1 0 2.05.4 2.75 1.15" />
+    </svg>
+  );
+}
+
+function FormsIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M8 3h6l4 4v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
+      <path d="M14 3v4h4M9 13h6M9 17h4" />
+    </svg>
+  );
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ items, title = "Dashboard" }) => {
@@ -45,7 +119,9 @@ const Sidebar: React.FC<SidebarProps> = ({ items, title = "Dashboard" }) => {
         <button
           type="button"
           onClick={toggleSidebar}
-          className="ml-auto flex size-9 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-[#fffaf2] transition hover:border-[#d8b79d]/60 hover:bg-[#9b6a4b]/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#fffaf2]"
+          className={`flex size-9 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-[#fffaf2] transition hover:border-[#d8b79d]/60 hover:bg-[#9b6a4b]/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#fffaf2] ${
+            isOpen ? "ml-auto" : ""
+          }`}
           aria-label="Toggle Sidebar"
           aria-expanded={isOpen}
         >
@@ -55,26 +131,35 @@ const Sidebar: React.FC<SidebarProps> = ({ items, title = "Dashboard" }) => {
         </button>
       </div>
 
-      <nav className="flex-1 space-y-2 overflow-y-auto p-3" aria-label="Main navigation">
+      <nav
+        className={`flex-1 space-y-2 overflow-y-auto ${isOpen ? "p-3" : "px-2 py-3"}`}
+        aria-label="Main navigation"
+      >
         {items.map((item, index) => (
           <a
             key={item.href}
             href={item.href}
-            className={`group flex items-center gap-3 rounded-2xl border px-3 py-3 transition-all duration-200 ${
+            title={!isOpen ? item.label : undefined}
+            aria-label={item.label}
+            className={`group flex items-center rounded-2xl border transition-all duration-200 ${
+              isOpen
+                ? "gap-3 px-3 py-3"
+                : "justify-center px-0 py-2.5"
+            } ${
               index === 0
                 ? "border-[#f3e8da]/35 bg-[#fffaf2]/20 shadow-sm"
                 : "border-transparent hover:border-white/20 hover:bg-white/10"
             }`}
           >
             <span
-              className={`flex size-10 shrink-0 items-center justify-center rounded-xl text-sm font-semibold transition-colors ${
+              className={`flex size-10 shrink-0 items-center justify-center rounded-xl transition-colors ${
                 index === 0
                   ? "bg-[#fffaf2] text-[#76503b]"
                   : "bg-[#143e54]/45 text-[#f7eee3] group-hover:bg-[#9b6a4b]"
               }`}
               aria-hidden="true"
             >
-              {item.shortLabel}
+              {item.icon}
             </span>
             {isOpen && (
               <span className="truncate text-sm font-medium tracking-wide">
@@ -99,12 +184,30 @@ const Sidebar: React.FC<SidebarProps> = ({ items, title = "Dashboard" }) => {
   );
 };
 
+const iconClassName = "size-5";
+
 export default function Home() {
   const navLinks: SidebarItem[] = [
-    { label: "Email", href: "/", shortLabel: "E" },
-    { label: "Calendar", href: "/calendar", shortLabel: "C" },
-    { label: "Patient/Admin Info", href: "/info", shortLabel: "P" },
-    { label: "Forms/Reports", href: "/forms", shortLabel: "F" },
+    {
+      label: "Email",
+      href: "/",
+      icon: <EmailIcon className={iconClassName} />,
+    },
+    {
+      label: "Calendar",
+      href: "/calendar",
+      icon: <CalendarIcon className={iconClassName} />,
+    },
+    {
+      label: "Patient/Admin Info",
+      href: "/info",
+      icon: <UsersIcon className={iconClassName} />,
+    },
+    {
+      label: "Forms/Reports",
+      href: "/forms",
+      icon: <FormsIcon className={iconClassName} />,
+    },
   ];
 
   return (
