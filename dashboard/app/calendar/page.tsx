@@ -183,7 +183,7 @@ const allEvents = [...scheduleEvents, ...dbEvents]
     return (
 
         <ScheduleDashboard
-          events={allEvents}
+          events={dbEvents}
           status = {scheduleStatus}
           onCreateEvent={createEvent}
           onUpdateEvent={updateEvent}

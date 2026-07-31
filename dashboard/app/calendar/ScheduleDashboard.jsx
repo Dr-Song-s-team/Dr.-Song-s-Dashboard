@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { EVENT_TYPE_LABELS } from '../utils/labels.js';
 import './ScheduleDashboard.css';
 import Holidays from "date-holidays";
+import ScheduleList from "./ScheduleList"
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
@@ -22,6 +23,7 @@ export default function ScheduleDashboard({ events, status, onCreateEvent, onUpd
     description: "",
     due: ""
   });
+  const [selectedDate, setSelectedDate] = useState(null);
 
   if (status === 'loading' || status === 'analyzing') {
     return (
@@ -138,11 +140,13 @@ for (let d = 1; d <= lastDay.getDate(); d++) {
           {/* <StatBubble value={deadlineCount} label="Deadlines" color="ins" />
           <StatBubble value={apptCount}     label="Appointments" color="appt" /> */}
         </div>
-        <button onClick={onRefresh}>
+        <button onClick={onRefresh}
+        className="cursor-pointer">
   Refresh
 </button>
         <button
         onClick={() => setShowCreateModal(true)}
+        className="cursor-pointer"
 >
   + New Event
 </button>
@@ -177,6 +181,8 @@ for (let d = 1; d <= lastDay.getDate(); d++) {
               return (
                 <div
                   key={day.date}
+                  onClick={() => setSelectedDate(day.date)}
+                  className="cursor-pointer"
                 >
                   <div className="cal-day-header">
                   <span className="cal-daynum">{day.day}</span>
@@ -356,8 +362,44 @@ for (let d = 1; d <= lastDay.getDate(); d++) {
     </div>
   </div>
 )}
+{selectedDate && (
+  <ScheduleList
+  events={events}
+  selectedDate={selectedDate}
+  onClose={() => setSelectedDate(null)}
+  onSelectEvent={(id) => setSelected(id)}
+  selectedEventId={selected}
+  />
+)}
     </div>
   );
+}
+
+function toInputTime(t) {
+  if (!t) return "";
+
+  const ampmMatch = t.trim().match(/^(\d{1,2}):(\d{2})\s*([AaPp][Mm])$/);
+  if (ampmMatch) {
+    let [, h, m, period] = ampmMatch;
+    h = parseInt(h, 10);
+    period = period.toUpperCase();
+
+    if (period === 'AM') {
+      if (h === 12) h = 0;       // 12 AM -> 00
+    } else {
+      if (h !== 12) h += 12;     // PM hours except 12 PM -> +12
+    }
+
+    return `${String(h).padStart(2, '0')}:${m}`;
+  }
+
+  const plainMatch = t.match(/^(\d{1,2}):(\d{2})$/);
+  if (plainMatch) {
+    const [, h, m] = plainMatch;
+    return `${h.padStart(2, '0')}:${m}`;
+  }
+
+  return t;
 }
 
   function EditEventForm({ event, onUpdateEvent, onCancel }) {
@@ -365,15 +407,17 @@ for (let d = 1; d <= lastDay.getDate(); d++) {
       title: event.title ?? "",
       description: event.description ?? "",
       date: event.date ?? "",
-      time: event.time ?? "",
+      time: toInputTime(event.time),
   })
+
+  console.log(event.time)
 
   useEffect(() => {
   setFormData({
     title: event.title ?? "",
     description: event.description ?? "",
     date: event.date ?? "",
-    time: event.time ?? "",
+    time: toInputTime(event.time),
   });
 }, [event]);
 
@@ -504,6 +548,7 @@ const [editing, setEditing] = useState(false);
   onClick={() =>
     setEditing(true)
   }
+  className="cursor-pointer"
 >
   Edit
 </button>
@@ -517,6 +562,7 @@ const [editing, setEditing] = useState(false);
 </>
 <button
   onClick={() => onDeleteEvent(event.id)}
+  className="cursor-pointer"
 >
   Delete
 </button>
@@ -534,6 +580,11 @@ function formatDate(iso) {
 }
 
 function formatTime(t) {
+  const pattern = /^\d{2}:\d{2} [A|P][M]$/;
+  if (pattern.test(t)) {
+    if (t[0] === "0") return t.substring(1)
+    return t;
+  }
   const [h, m] = t.split(':').map(Number);
   const ampm = h >= 12 ? 'PM' : 'AM';
   const hh = h % 12 || 12;
