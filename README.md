@@ -15,12 +15,12 @@ Already in the repo ✅: Next.js scaffold, Tailwind, TS, ESLint, sidebar app she
 
 Still to do:
 - [x] **Make the repo private** (client project — even with dummy data, keep it private) and add all 3 as collaborators
-- [ ] Create Neon project → paste connection string as `DATABASE_URL` in `dashboard/.env.local` + add to Vercel env vars
+- [x] Create Neon project → paste connection string as `DATABASE_URL` in `dashboard/.env.local` + add to Vercel env vars
 - [x] Get Groq API key → `GROQ_API_KEY` (server-side only, never `NEXT_PUBLIC_`)
-- [ ] Connect repo to Vercel — **set Root Directory to `dashboard/`** or builds will fail
+- [x] Connect repo to Vercel — deployed via GitHub Actions CLI (org repos paywalled on the integration). Live: https://songai-hazel.vercel.app
 - [x] Prisma installed + schema defined (Patient, Document, Email, Task) + seed script with synthetic dummy data. Copy synthetic PDFs to `dashboard/public/fixtures/documents/` (see README there), then run `npm run db:migrate && npm run db:seed`.
 - [x] Add `.env.example` (keys listed, values blank)
-- [ ] Protect `main` + create the GitHub issues (sections 2–3)
+- [x] Create GitHub issues ✓ — branch protection unavailable on free org plan; convention instead: PRs only, no direct pushes to main
 
 ## 2. Branch Setup
 
