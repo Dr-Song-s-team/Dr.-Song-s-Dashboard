@@ -499,4 +499,50 @@
   animation: spin 0.8s linear infinite;
 }
 
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  z-index:1000;
+}
+
+.modal {
+  width:450px;
+  background:white;
+  border-radius:12px;
+  padding:24px;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+
+.modal input,
+.modal textarea{
+  padding:10px;
+  border:1px solid #ccc;
+  border-radius:6px;
+}
+
+.modal-buttons{
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.form-group label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #555;
+}
+
 @keyframes spin { to { transform: rotate(360deg); } }

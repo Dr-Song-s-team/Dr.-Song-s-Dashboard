@@ -11,6 +11,7 @@ const [emailError, setEmailError]     = useState(null);
 const [scheduleEvents, setScheduleEvents]       = useState([]);
 const [scheduleStatus, setScheduleStatus]       = useState('loading');
 const [polling, setPolling]     = useState(true);
+const [dbEvents, setDbEvents] = useState([]);
 
 const fetchEmails = useCallback(async () => {
   try {
@@ -65,6 +66,7 @@ const handleRefresh = async () => {
   setScheduleEvents([]);
   try {
     const res = await fetch('http://localhost:3001/api/refresh', { method: 'POST' });
+    console.log(res.status);
     if (!res.ok) throw new Error(`Refresh failed (${res.status})`);
     setPolling(true);
   } catch (err) {
@@ -74,12 +76,119 @@ const handleRefresh = async () => {
   }
 };
 
+const fetchDbEvents = useCallback(async () => {
+  const res = await fetch("/api/events");
+
+  if (!res.ok) return;
+
+  const data = await res.json();
+
+  const events = data.map(event => {
+
+    const date = new Date(event.dueDate);
+
+    return {
+    id: event.id,
+    emailId: event.emailId,
+    title: event.title,
+    patientName: event.patient ? `${event.patient.firstName} ${event.patient.lastName}` : null,
+    date: date.toLocaleDateString("en-CA", {
+      timeZone: "America/Los_Angeles",
+    }),
+    time: date.toLocaleTimeString("en-US", {
+  timeZone: "America/Los_Angeles",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,}),
+  description: event.description
+};
+  })
+
+  setDbEvents(events);
+
+}, []);
+
+useEffect(() => {
+fetchDbEvents();
+}, []);
+
+const formatEvent = (event) => {
+  const date = new Date(event.dueDate);
+
+  return {
+    ...event,
+    date: date.toLocaleDateString("en-CA", {
+      timeZone: "America/Los_Angeles",
+    }),
+    time: date.toLocaleTimeString("en-US", {
+      timeZone: "America/Los_Angeles",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }),
+  };
+};
+
+const createEvent = async (event) => {
+
+  const res = await fetch("/api/events", {
+      method: "POST",
+      headers: {
+          "Content-Type": "application/json",
+      },
+      body: JSON.stringify(event),
+  });
+
+  const created = await res.json();
+
+  setDbEvents(prev => [...prev, formatEvent(created)]);
+};
+
+const updateEvent = async (id, updates) => {
+
+  const res = await fetch(`/api/events/${id}`, {
+      method: "PUT",
+      headers: {
+          "Content-Type": "application/json",
+      },
+      body: JSON.stringify(updates),
+  });
+
+  const updated = await res.json();
+
+  setDbEvents((prev) => 
+    prev.map((event) =>
+      event.id === id ? formatEvent(updated) : event
+      )
+  );
+};
+
+const deleteEvent = async (id) => {
+
+  await fetch(`/api/events/${id}`, {
+      method: "DELETE",
+  });
+
+  setDbEvents(events =>
+      events.filter(e => e.id !== id)
+  );
+};
+
+const allEvents = [...scheduleEvents, ...dbEvents]
+
+//console.log(allEvents)
   
+//console.log(allEvents)
+
     return (
 
         <ScheduleDashboard
-          events={scheduleEvents}
+          events={allEvents}
           status = {scheduleStatus}
+          onCreateEvent={createEvent}
+          onUpdateEvent={updateEvent}
+          onDeleteEvent={deleteEvent}
+          onRefresh={handleRefresh}
         />
       );
 }

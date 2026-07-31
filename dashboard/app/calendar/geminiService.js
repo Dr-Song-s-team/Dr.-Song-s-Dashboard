@@ -209,7 +209,7 @@ async function analyzeSchedulingEmails(emails) {
   if (!Array.isArray(parsed)) throw new Error('Schedule analysis did not return an array');
 
   return parsed.map(item => ({
-    emailId:     String(item.emailId || ''),
+    id:     String(item.emailId || ''),
     type:        ['appointment','reschedule','cancellation','deadline','inquiry'].includes(item.type)
                    ? item.type : 'inquiry',
     patientName: String(item.patientName || 'Unknown'),

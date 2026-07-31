@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { EVENT_TYPE_LABELS } from '../utils/labels.js';
 import './ScheduleDashboard.css';
 import Holidays from "date-holidays";
@@ -9,21 +9,19 @@ const hd = new Holidays("US")
 
 const UNSCHEDULED = 'unscheduled';
 
-function eventClass(event) {
-  if (event.category === 'insurance') {
-    return event.urgency === 'high' ? 'ev--ins-high' : 'ev--ins-med';
-  }
-  if (event.type === 'reschedule' || event.type === 'cancellation') return 'ev--resched';
-  if (event.urgency === 'high') return 'ev--client-high';
-  return 'ev--client';
-}
-
-export default function ScheduleDashboard({ events, status }) {
+export default function ScheduleDashboard({ events, status, onCreateEvent, onUpdateEvent, onDeleteEvent, onRefresh }) {
+  
   const CALENDAR_DAYS = []
   const [selected, setSelected] = useState(null);
-  const [categoryFilter, setCategoryFilter] = useState('all');
+  // const [categoryFilter, setCategoryFilter] = useState('all');
   const [currentMonth, setCurrentMonth] = useState(6); // July (0 = January)
   const [currentYear, setCurrentYear] = useState(2026);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newEvent, setNewEvent] = useState({
+    title: "",
+    description: "",
+    due: ""
+  });
 
   if (status === 'loading' || status === 'analyzing') {
     return (
@@ -81,14 +79,17 @@ for (let d = 1; d <= lastDay.getDate(); d++) {
 
 }
 
-  const filtered = categoryFilter === 'all'
-    ? events
-    : events.filter(e => e.category === categoryFilter);
+  // const filtered = categoryFilter === 'all'
+  //   ? events
+  //   : events.filter(e => e.category === categoryFilter);
+
+
 
   // Group events by date
   const byDate = {};
   const unscheduled = [];
-  filtered.forEach(ev => {
+  events.forEach(ev => {
+    console.log(ev)
     if (ev.date) {
       if (!byDate[ev.date]) byDate[ev.date] = [];
       byDate[ev.date].push(ev);
@@ -97,12 +98,14 @@ for (let d = 1; d <= lastDay.getDate(); d++) {
     }
   });
 
-  // Count urgent items
-  const urgentCount   = events.filter(e => e.urgency === 'high').length;
-  const deadlineCount = events.filter(e => e.type === 'deadline').length;
-  const apptCount     = events.filter(e => e.type === 'appointment' || e.type === 'reschedule').length;
+  //console.log(events)
 
-  const selectedEvent = selected ? events.find(e => e.emailId === selected) : null;
+  // Count urgent items
+  // const urgentCount   = events.filter(e => e.urgency === 'high').length;
+  //const deadlineCount = events.filter(e => e.type === 'deadline').length;
+  //const apptCount     = events.filter(e => e.type === 'appointment' || e.type === 'reschedule').length;
+
+  const selectedEvent = selected ? events.find(e => e.id === selected) : null;
 
   return (
     <div className="sched-root">
@@ -131,11 +134,20 @@ for (let d = 1; d <= lastDay.getDate(); d++) {
           <p className="sched-subtitle">Extracted from {events.length} scheduling emails</p>
         </div>
         <div className="sched-stats">
-          <StatBubble value={urgentCount}   label="Urgent" color="high" />
-          <StatBubble value={deadlineCount} label="Deadlines" color="ins" />
-          <StatBubble value={apptCount}     label="Appointments" color="appt" />
+          {/* <StatBubble value={urgentCount}   label="Urgent" color="high" /> */}
+          {/* <StatBubble value={deadlineCount} label="Deadlines" color="ins" />
+          <StatBubble value={apptCount}     label="Appointments" color="appt" /> */}
         </div>
-        <div className="sched-cat-filter">
+        <button onClick={onRefresh}>
+  Refresh
+</button>
+        <button
+        onClick={() => setShowCreateModal(true)}
+>
+  + New Event
+</button>
+
+        {/* <div className="sched-cat-filter">
           {['all', 'client', 'insurance'].map(c => (
             <button
               key={c}
@@ -145,7 +157,7 @@ for (let d = 1; d <= lastDay.getDate(); d++) {
               {c === 'all' ? 'All' : c === 'client' ? 'Patients' : 'Insurance'}
             </button>
           ))}
-        </div>
+        </div> */}
       </div>
 
       <div className="sched-body">
@@ -162,15 +174,13 @@ for (let d = 1; d <= lastDay.getDate(); d++) {
               const holidayName = holidayMap[day.date]
               const dayEvents = byDate[day.date] || [];
               const isWeekend = weekday === 'Sat' || weekday === 'Sun';
-              const hasHigh   = dayEvents.some(e => e.urgency === 'high');
               return (
                 <div
                   key={day.date}
-                  className={`cal-day ${isWeekend ? 'cal-day--weekend' : ''} ${hasHigh ? 'cal-day--has-high' : ''}`}
                 >
                   <div className="cal-day-header">
+                  <span className="cal-daynum">{day.day}</span>
                     <span className="cal-weekday">{weekday}</span>
-                    <span className={`cal-date ${hasHigh ? 'cal-date--high' : ''}`}>{day.day}</span>
                     {dayEvents.length > 0 && (
                       <span className="cal-count">{dayEvents.length}</span>
                     )}
@@ -186,16 +196,16 @@ for (let d = 1; d <= lastDay.getDate(); d++) {
                     ) : (
                       dayEvents.map(ev => (
                         <button
-                          key={ev.emailId}
-                          className={`cal-event ${eventClass(ev)} ${selected === ev.emailId ? 'cal-event--selected' : ''}`}
-                          onClick={() => setSelected(selected === ev.emailId ? null : ev.emailId)}
+                          key={ev.id}
+                          className={`cal-event ${selected === ev.id ? 'cal-event--selected' : ''}`}
+                          onClick={() => setSelected(selected === ev.id ? null : ev.id)}
                           title={ev.subject}
                         >
                           <div className="cal-event-type">
-                            {EVENT_TYPE_LABELS[ev.type] || ev.type}
+                            
                             {ev.time && <span className="cal-event-time"> {formatTime(ev.time)}</span>}
                           </div>
-                          <div className="cal-event-patient">{ev.patientName}</div>
+                          <div className="cal-event-patient">{ev.patientName ? ev.patientName : ev.title}</div>
                         </button>
                       ))
                     )}
@@ -215,11 +225,11 @@ for (let d = 1; d <= lastDay.getDate(); d++) {
               <div className="unscheduled-list">
                 {unscheduled.map(ev => (
                   <button
-                    key={ev.emailId}
-                    className={`unsched-item ${eventClass(ev)} ${selected === ev.emailId ? 'cal-event--selected' : ''}`}
-                    onClick={() => setSelected(selected === ev.emailId ? null : ev.emailId)}
+                    key={ev.id}
+                    className={`unsched-item ${selected === ev.id ? 'cal-event--selected' : ''}`}
+                    onClick={() => setSelected(selected === ev.id ? null : ev.id)}
                   >
-                    <span className="unsched-type">{EVENT_TYPE_LABELS[ev.type]}</span>
+                    
                     <span className="unsched-patient">{ev.patientName}</span>
                     <span className="unsched-title">{ev.title}</span>
                   </button>
@@ -232,7 +242,9 @@ for (let d = 1; d <= lastDay.getDate(); d++) {
         {/* Detail panel */}
         <div className="sched-detail">
           {selectedEvent ? (
-            <EventDetail event={selectedEvent} />
+            <EventDetail event={selectedEvent}
+            onUpdateEvent={onUpdateEvent}
+            onDeleteEvent={onDeleteEvent} />
           ) : (
             <div className="sched-detail-empty">
               <p className="detail-empty-icon">◷</p>
@@ -241,9 +253,205 @@ for (let d = 1; d <= lastDay.getDate(); d++) {
           )}
         </div>
       </div>
+      {showCreateModal && (
+  <div className="modal-overlay">
+    <div className="modal">
+
+      <h2>Create Event</h2>
+
+    <div className="form-group">
+    <label htmlFor="title">Title</label>
+      <input
+        id="title"
+        value={newEvent.title ?? ""}
+        onChange={e =>
+          setNewEvent({
+            ...newEvent,
+            title: e.target.value
+          })
+        }
+      />
+      </div>
+
+    <div className="form-group">
+    <label htmlFor="description">Description</label>
+      <textarea
+        id="description"
+        value={newEvent.description ?? ""}
+        onChange={e =>
+          setNewEvent({
+            ...newEvent,
+            description: e.target.value
+          })
+        }
+      />
+      </div>
+
+      <div className="form-group">
+    <label htmlFor="date">Due Date</label>
+      <input
+        id="date"
+        type="date"
+        value={newEvent.date ?? ""}
+        onChange={e =>
+          setNewEvent({
+            ...newEvent,
+            date: e.target.value
+          })
+        }
+      />
+      </div>
+
+      <div className="form-group">
+      <label htmlFor="time">Due Time</label>
+      <input
+        id="time"
+        type="time"
+        value={newEvent.time ?? ""}
+        onChange={e =>
+          setNewEvent({
+            ...newEvent,
+            time: e.target.value
+          })
+        }
+      />
+      </div>
+
+      
+
+      <div className="modal-buttons">
+
+        <button onClick={() => setShowCreateModal(false)}>
+          Cancel
+        </button>
+
+        <button
+          onClick={() => {
+
+            const dueDateTime = new Date(
+              `${newEvent.date}T${newEvent.time}`
+            );
+
+            onCreateEvent({
+              title: newEvent.title,
+              description: newEvent.description,
+              due: dueDateTime,
+            });
+
+            setShowCreateModal(false);
+
+            setNewEvent({
+              title: "",
+              description: "",
+              date: "",
+              time: "",
+            });
+          }}
+        >
+          Create
+        </button>
+
+      </div>
+
+    </div>
+  </div>
+)}
     </div>
   );
 }
+
+  function EditEventForm({ event, onUpdateEvent, onCancel }) {
+    const [formData, setFormData] = useState({
+      title: event.title ?? "",
+      description: event.description ?? "",
+      date: event.date ?? "",
+      time: event.time ?? "",
+  })
+
+  useEffect(() => {
+  setFormData({
+    title: event.title ?? "",
+    description: event.description ?? "",
+    date: event.date ?? "",
+    time: event.time ?? "",
+  });
+}, [event]);
+
+function handleChange(e) {
+
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault();
+
+    const dueDate = `${formData.date}T${formData.time}`
+
+    onUpdateEvent(event.id, {
+      ...event,
+      ...formData,
+      dueDate
+    });
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <div>
+        <label>Title: </label>
+        <input
+          name="title"
+          value={formData.title}
+          onChange={handleChange}
+        />
+      </div>
+
+      <div>
+        <label>Due Date: </label>
+        <input
+          type="date"
+          name="date"
+          value={formData.date}
+          onChange={handleChange}
+        />
+      </div>
+
+      <div>
+        <label>Due Time: </label>
+        <input
+          type="time"
+          name="time"
+          value={formData.time}
+          onChange={handleChange}
+        />
+      </div>
+
+      <div>
+        <label>Description:</label>
+        <textarea
+          name="description"
+          value={formData.description}
+          onChange={handleChange}
+        />
+      </div>
+
+      <div className="flex gap-4 mt-4">
+
+      <button type="submit">
+        Save
+      </button>
+
+      <button type="button" onClick={onCancel}>
+        Cancel
+      </button>
+
+      </div>
+    </form>
+  );
+
+  }
 
 function StatBubble({ value, label, color }) {
   return (
@@ -254,17 +462,14 @@ function StatBubble({ value, label, color }) {
   );
 }
 
-function EventDetail({ event }) {
+function EventDetail({ event, onUpdateEvent, onDeleteEvent }) {
+const [editing, setEditing] = useState(false);
+
   return (
     <div className="event-detail">
-      <div className={`event-detail-stripe ${eventClass(event)}`} />
+      
       <div className="event-detail-content">
         <div className="event-detail-meta">
-          <span className={`event-type-badge et--${event.type}`}>
-            {EVENT_TYPE_LABELS[event.type]}
-          </span>
-          <span className={`urgency-dot urgency-dot--${event.urgency}`} />
-          <span className="event-urgency-label">{event.urgency} urgency</span>
         </div>
         <h3 className="event-detail-title">{event.title}</h3>
         {event.date && (
@@ -293,19 +498,39 @@ function EventDetail({ event }) {
             </div>
           </div>
         )}
+        <>
+        {!editing ? (
+        <button
+  onClick={() =>
+    setEditing(true)
+  }
+>
+  Edit
+</button>
+        ) : (
+          <EditEventForm
+        event={event}
+        onUpdateEvent={onUpdateEvent}
+        onCancel={() => setEditing(false)}
+      />
+        )}
+</>
+<button
+  onClick={() => onDeleteEvent(event.id)}
+>
+  Delete
+</button>
       </div>
     </div>
   );
 }
 
 function formatDate(iso) {
-  const [, , dd] = iso.split('-');
+  const [y, m, dd] = iso.split('-').map(Number);
   const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const m = parseInt(iso.split('-')[1], 10);
-  const d = parseInt(dd, 10);
   const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const wd = weekdays[new Date(iso).getDay()];
-  return `${wd}, ${months[m]} ${d}, 2026`;
+  const wd = weekdays[new Date(y, m-1, dd).getDay()];
+  return `${wd}, ${months[m]} ${dd}, ${y}`;
 }
 
 function formatTime(t) {

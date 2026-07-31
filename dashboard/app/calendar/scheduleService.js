@@ -28,6 +28,13 @@ function ruleBasedSchedule(emails) {
     twenty: '20', twenty1: '21', twenty2: '22',
   };
 
+  console.log("Schedule email:", {
+  id: email.id,
+  emailId: email.emailId,
+  gmailId: email.gmailId,
+  keys: Object.keys(email)
+});
+
   return emails.map(email => {
     const text = (email.subject + ' ' + email.body).toLowerCase();
     const sender = email.sender.toLowerCase();
@@ -46,31 +53,28 @@ function ruleBasedSchedule(emails) {
     const urgencyWords = ['urgent', 'immediately', 'deadline', 'expires', 'denial', 'failure', 'final'];
     const urgency = urgencyWords.some(w => text.includes(w)) ? 'high' : 'medium';
 
-    const typeWords = {
-      reschedule: 'reschedule', cancel: 'cancellation',
-      deadline: 'deadline', book: 'appointment',
-      schedule: 'appointment', intake: 'appointment',
-    };
-    let type = 'inquiry';
-    for (const [word, t] of Object.entries(typeWords)) {
-      if (text.includes(word)) { type = t; break; }
-    }
-
     return {
+      id: email.id,
       emailId: email.id,
-      type,
       patientName: email.senderName,
       date,
       time: null,
       title: email.subject.slice(0, 50),
-      urgency,
-      category,
     };
   });
 }
 
 async function loadAndAnalyzeSchedule(forceRefresh = false) {
-  if (isScheduleReady && !forceRefresh) return;
+  console.log("Entered loadAndAnalyzeSchedule");
+
+  console.log("isScheduleReady =", isScheduleReady);
+  console.log("forceRefresh =", forceRefresh);
+
+  console.log(isScheduleReady)
+  if (isScheduleReady && !forceRefresh) { console.log("Returning early"); 
+    return;}
+console.log("Continuing analysis");
+
   isScheduleReady = false;
 
   const emails = loadSchedulingEmails();
@@ -91,6 +95,8 @@ async function loadAndAnalyzeSchedule(forceRefresh = false) {
     sender:  emailMap.get(ev.emailId)?.sender  || '',
     body:    emailMap.get(ev.emailId)?.body    || '',
   }));
+
+  //console.log(scheduleCache)
 
   isScheduleReady = true;
   console.log(`Schedule analysis complete — ${scheduleCache.length} events.`);
