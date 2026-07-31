@@ -15,27 +15,37 @@ let scheduleAnalyzing = false;
 let scheduleError = null;
 
 async function runAnalysis(forceRefresh = false) {
+  console.log("runAnalysis started")
     analyzing = true;
     scheduleAnalyzing = true;
+
+    console.log("Before inbox task");
     analysisError = null;
     scheduleError = null;
     console.log('Starting inbox + schedule analysis...');
   
-    const inboxTask = loadAndAnalyzeEmails(forceRefresh)
+    const inboxTask = Promise.resolve()
+  .then(() => loadAndAnalyzeEmails(forceRefresh))
       .catch(err => {
         analysisError = err.message;
         console.error('Inbox analysis error:', err.message);
       })
-      .finally(() => { analyzing = false; });
+      .finally(() => { console.log("Inbox finished");
+        analyzing = false; });
+
+        console.log("Before schedule task");
   
-    const scheduleTask = loadAndAnalyzeSchedule(forceRefresh)
+    const scheduleTask = Promise.resolve()
+  .then(() => loadAndAnalyzeSchedule(forceRefresh))
       .catch(err => {
         scheduleError = err.message;
         console.error('Schedule analysis error:', err.message);
       })
-      .finally(() => { scheduleAnalyzing = false; });
+      .finally(() => { console.log("Schedule finished");
+        scheduleAnalyzing = false; });
   
     await Promise.allSettled([inboxTask, scheduleTask]);
+    console.log("runAnalysis complete");
     console.log('All analysis complete.');
   }
 
@@ -52,6 +62,7 @@ app.get('/api/emails', (req, res) => {
   });
 
   app.get('/api/schedule', (req, res) => {
+    //console.log("Here")
     if (scheduleAnalyzing) return res.json({ status: 'analyzing', events: [] });
     if (scheduleError && getScheduleCache().length === 0) {
       return res.status(500).json({ error: scheduleError });
