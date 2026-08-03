@@ -38,7 +38,7 @@ interface ApiEvent {
 
 export default function CalendarPage() {
 
-const [emails, setEmails]       = useState<any[]>([]);
+//const [emails, setEmails]       = useState<any[]>([]);
 const [emailStatus, setEmailStatus]   = useState('loading');
 const [emailError, setEmailError]     = useState<string | null>(null);
 const [scheduleStatus, setScheduleStatus]       = useState('loading');
@@ -52,7 +52,7 @@ const fetchEmails = useCallback(async () => {
     if (!res.ok) throw new Error(`Server error ${res.status}`);
     const data = await res.json();
     if (data.status === 'analyzing') { setEmailStatus('analyzing'); return false; }
-    setEmails(data.emails || []);
+    //setEmails(data.emails || []);
     setEmailStatus('ready');
     return true;
   } catch (err) {
@@ -97,7 +97,7 @@ useEffect(() => {
 const handleRefresh = async () => {
   setEmailStatus('analyzing');
   setScheduleStatus('analyzing');
-  setEmails([]);
+  //setEmails([]);
   // setScheduleEvents([]);
   try {
     const res = await fetch('http://localhost:3001/api/refresh', { method: 'POST' });
