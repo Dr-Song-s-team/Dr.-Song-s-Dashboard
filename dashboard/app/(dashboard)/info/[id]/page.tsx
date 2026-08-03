@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 import { prisma } from "@/lib/prisma";
 import EditForm from "./EditForm";
 
@@ -8,6 +9,7 @@ export async function generateMetadata({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await connection();
   const { id } = await params;
   const patient = await prisma.patient.findUnique({
     where: { id },
@@ -33,6 +35,7 @@ export default async function PatientDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await connection();
   const { id } = await params;
   const patient = await prisma.patient.findUnique({ where: { id } });
 
