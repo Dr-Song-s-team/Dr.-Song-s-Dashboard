@@ -8,21 +8,30 @@ const MONTHS = ["January", "February", "March", "April", "May", "June", "July", 
 
 const hd = new Holidays("US")
 
-const UNSCHEDULED = 'unscheduled';
-
 export default function ScheduleDashboard({ events, status, onCreateEvent, onUpdateEvent, onDeleteEvent, onRefresh }) {
   
+  const m = new Date().getMonth();
+  const y = new Date().getFullYear();
+
   const CALENDAR_DAYS = []
   const [selected, setSelected] = useState(null);
   // const [categoryFilter, setCategoryFilter] = useState('all');
-  const [currentMonth, setCurrentMonth] = useState(6); // July (0 = January)
-  const [currentYear, setCurrentYear] = useState(2026);
+  const [currentMonth, setCurrentMonth] = useState(m);
+  const [currentYear, setCurrentYear] = useState(y);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newEvent, setNewEvent] = useState({
     title: "",
     description: "",
     due: ""
   });
+  const [reminders, setReminders] = useState([
+    {
+      //method: "popup",
+      amount: 15,
+      unit: "minutes"
+    }
+  ])
+  const [showReminders, setShowReminders] = useState(false)
   const [selectedDate, setSelectedDate] = useState(null);
 
   if (status === 'loading' || status === 'analyzing') {
@@ -30,14 +39,6 @@ export default function ScheduleDashboard({ events, status, onCreateEvent, onUpd
       <div className="sched-loading">
         <div className="spinner" />
         <p>Extracting schedule from emails…</p>
-      </div>
-    );
-  }
-
-  if (!events || events.length === 0) {
-    return (
-      <div className="sched-loading">
-        <p>No scheduling data available.</p>
       </div>
     );
   }
@@ -60,6 +61,21 @@ export default function ScheduleDashboard({ events, status, onCreateEvent, onUpd
     }
   }
 
+  function toMinutes(amount, unit) {
+  switch (unit) {
+    case "minutes":
+      return amount;
+    case "hours":
+      return amount * 60;
+    case "days":
+      return amount * 60 * 24;
+    case "weeks":
+      return amount * 60 * 24 * 7;
+    default:
+      return amount;
+  }
+}
+
   const holidays = hd.getHolidays(currentYear);
 
   const holidayMap = {};
@@ -68,7 +84,6 @@ export default function ScheduleDashboard({ events, status, onCreateEvent, onUpd
     holidayMap[h.date.slice(0, 10)] = h.name;
   });
 
-const firstDay = new Date(currentYear, currentMonth, 1);
 const lastDay = new Date(currentYear, currentMonth + 1, 0);
 
 for (let d = 1; d <= lastDay.getDate(); d++) {
@@ -91,7 +106,6 @@ for (let d = 1; d <= lastDay.getDate(); d++) {
   const byDate = {};
   const unscheduled = [];
   events.forEach(ev => {
-    console.log(ev)
     if (ev.date) {
       if (!byDate[ev.date]) byDate[ev.date] = [];
       byDate[ev.date].push(ev);
@@ -99,6 +113,29 @@ for (let d = 1; d <= lastDay.getDate(); d++) {
       unscheduled.push(ev);
     }
   });
+
+  function addReminder() {
+  setReminders(prev => [
+    ...prev,
+    {
+      method: "popup",
+      amount: 15,
+      unit: "minutes",
+    },
+  ]);
+}
+
+function removeReminder(index) {
+  setReminders(prev => prev.filter((_, i) => i !== index));
+}
+
+function updateReminder(index, field, value) {
+  setReminders(prev =>
+    prev.map((r, i) =>
+      i === index ? { ...r, [field]: value } : r
+    )
+  );
+}
 
   //console.log(events)
 
@@ -177,7 +214,6 @@ for (let d = 1; d <= lastDay.getDate(); d++) {
               });
               const holidayName = holidayMap[day.date]
               const dayEvents = byDate[day.date] || [];
-              const isWeekend = weekday === 'Sat' || weekday === 'Sun';
               return (
                 <div
                   key={day.date}
@@ -323,7 +359,62 @@ for (let d = 1; d <= lastDay.getDate(); d++) {
       />
       </div>
 
-      
+              <button
+  type="button"
+  onClick={() => setShowReminders(!showReminders)}
+>
+  {showReminders ? "Hide Reminders" : "+ Add Reminders"}
+</button>
+{showReminders && (
+  <div className="form-group">
+    <label>Reminders</label>
+
+    {reminders.map((r, index) => (
+      <div
+        key={index}
+        className="flex gap-2 items-center mb-2"
+      >
+
+        <input
+          type="number"
+          min="0"
+          value={r.amount}
+          onChange={(e) =>
+            updateReminder(index, "amount", Number(e.target.value))
+          }
+        />
+
+        <select
+          value={r.unit}
+          onChange={(e) =>
+            updateReminder(index, "unit", e.target.value)
+          }
+        >
+          <option value="minutes">Minutes</option>
+          <option value="hours">Hours</option>
+          <option value="days">Days</option>
+          <option value="weeks">Weeks</option>
+        </select>
+
+        <button
+          type="button"
+          onClick={() => removeReminder(index)}
+        >
+          ✕
+        </button>
+
+      </div>
+    ))}
+
+    <button
+      type="button"
+      onClick={addReminder}
+    >
+      + Add Another Reminder
+    </button>
+
+  </div>
+)}
 
       <div className="modal-buttons">
 
@@ -332,16 +423,42 @@ for (let d = 1; d <= lastDay.getDate(); d++) {
         </button>
 
         <button
-          onClick={() => {
+          onClick={async () => {
 
             const dueDateTime = new Date(
               `${newEvent.date}T${newEvent.time}`
             );
 
-            onCreateEvent({
+            const reminderData = reminders.map(r => ({
+  remindAt: new Date(
+    dueDateTime.getTime() - toMinutes(r.amount, r.unit) * 60 * 1000
+  ).toISOString(),
+}));
+
+//             const googleReminders = reminders.map(r => ({
+//   method: "popup",
+//   minutes: toMinutes(r.amount, r.unit),
+// }));
+
+  //           await fetch("api/calendar", {
+  //             method: "POST",
+  //             headers: {
+  //               "Content-Type": "application/json",
+  //             },
+  //             body: JSON.stringify({
+  //   title: newEvent.title,
+  //   description: newEvent.description,
+  //   dueDate: newEvent.date,
+  //   dueTime: newEvent.time,
+  //   reminders: reminderData,
+  // }),
+  //           });
+
+            await onCreateEvent({
               title: newEvent.title,
               description: newEvent.description,
               due: dueDateTime,
+              reminders: reminderData
             });
 
             setShowCreateModal(false);
@@ -352,6 +469,16 @@ for (let d = 1; d <= lastDay.getDate(); d++) {
               date: "",
               time: "",
             });
+
+            setReminders([
+    {
+        method:"popup",
+        amount:15,
+        unit:"minutes"
+    }
+]);
+
+setShowReminders(false);
           }}
         >
           Create
@@ -402,24 +529,94 @@ function toInputTime(t) {
   return t;
 }
 
+function convertReminder(remindAt, dueDate) {
+  const diff =
+    new Date(dueDate).getTime() -
+    new Date(remindAt).getTime();
+
+  const minutes = Math.round(diff / 60000);
+
+  if (minutes % 1440 === 0) {
+    return {
+      amount: minutes / 1440,
+      unit: "days"
+    };
+  }
+
+  if (minutes % 60 === 0) {
+    return {
+      amount: minutes / 60,
+      unit: "hours"
+    };
+  }
+
+  return {
+    amount: minutes,
+    unit: "minutes"
+  };
+}
+
   function EditEventForm({ event, onUpdateEvent, onCancel }) {
     const [formData, setFormData] = useState({
       title: event.title ?? "",
       description: event.description ?? "",
       date: event.date ?? "",
       time: toInputTime(event.time),
+      reminders: event.reminders ?? []
   })
 
-  console.log(event.time)
-
   useEffect(() => {
+
+    const reminders =
+    (event.reminders ?? []).map(r =>
+      convertReminder(
+        r.remindAt,
+        `${event.date}T${toInputTime(event.time)}`
+      )
+    );
+
   setFormData({
     title: event.title ?? "",
     description: event.description ?? "",
     date: event.date ?? "",
     time: toInputTime(event.time),
+    reminders
   });
 }, [event]);
+
+function addReminder() {
+  setFormData(prev => ({
+    ...prev,
+    reminders: [
+      ...prev.reminders,
+      {
+        amount: 15,
+        unit: "minutes"
+      }
+    ]
+  }));
+}
+
+function removeReminder(index) {
+  setFormData(prev => ({
+    ...prev,
+    reminders: prev.reminders.filter((_, i) => i !== index)
+  }));
+}
+
+function updateReminder(index, field, value) {
+  setFormData(prev => ({
+    ...prev,
+    reminders: prev.reminders.map((r, i) =>
+      i === index
+        ? {
+            ...r,
+            [field]: value
+          }
+        : r
+    )
+  }));
+}
 
 function handleChange(e) {
 
@@ -429,16 +626,27 @@ function handleChange(e) {
     });
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
 
-    const dueDate = `${formData.date}T${formData.time}`
+    const dueDateTime = new Date(`${formData.date}T${formData.time}`);
 
-    onUpdateEvent(event.id, {
+    const reminderData = formData.reminders.map(r => ({
+    remindAt: new Date(
+      dueDateTime.getTime()
+      -
+      toMinutes(r.amount,r.unit) * 60 * 1000
+    ).toISOString()
+  }));
+
+    await onUpdateEvent(event.id, {
       ...event,
       ...formData,
-      dueDate
+      dueDate: dueDateTime,
+      reminders: reminderData
     });
+
+    onCancel();
   }
 
   return (
@@ -481,6 +689,66 @@ function handleChange(e) {
         />
       </div>
 
+      <div className="form-group">
+
+<label>Reminders</label>
+
+{formData.reminders.map((r, index) => (
+  <div
+    key={index}
+    className="flex gap-1 items-center mb-2"
+  >
+
+    <input
+      type="number"
+      min="0"
+      value={r.amount ?? ""}
+      onChange={(e)=>
+        updateReminder(
+          index,
+          "amount",
+          Number(e.target.value)
+        )
+      }
+    />
+
+    <select
+      value={r.unit}
+      onChange={(e)=>
+        updateReminder(
+          index,
+          "unit",
+          e.target.value
+        )
+      }
+    >
+      <option value="minutes">Minutes</option>
+      <option value="hours">Hours</option>
+      <option value="days">Days</option>
+      <option value="weeks">Weeks</option>
+    </select>
+
+
+    <button
+      type="button"
+      onClick={() => removeReminder(index)}
+    >
+      ✕
+    </button>
+
+  </div>
+))}
+
+
+<button
+  type="button"
+  onClick={addReminder}
+>
+  + Add Reminder
+</button>
+
+</div>
+
       <div className="flex gap-4 mt-4">
 
       <button type="submit">
@@ -496,15 +764,6 @@ function handleChange(e) {
   );
 
   }
-
-function StatBubble({ value, label, color }) {
-  return (
-    <div className={`stat-bubble stat-bubble--${color}`}>
-      <span className="stat-bubble-val">{value}</span>
-      <span className="stat-bubble-label">{label}</span>
-    </div>
-  );
-}
 
 function EventDetail({ event, onUpdateEvent, onDeleteEvent }) {
 const [editing, setEditing] = useState(false);

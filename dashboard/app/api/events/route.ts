@@ -5,7 +5,8 @@ export async function GET() {
     const events = await prisma.task.findMany({
     include: {
 patient: true,
-email: true
+email: true,
+reminders: true
     },
       orderBy: {
         dueDate: "asc",
@@ -15,7 +16,8 @@ email: true
     return NextResponse.json(events);
   }
 
-  export async function POST(req: Request) {
+export async function POST(req: Request) {
+
     const body = await req.json();
   
     const event = await prisma.task.create({
@@ -23,6 +25,15 @@ email: true
         title: body.title,
         description: body.description,
         dueDate: new Date(body.due),
+
+        reminders: {
+          create: body.reminders.map((r: {remindAt: string}) => ({
+            remindAt: new Date(r.remindAt),
+          })),
+        },
+      },
+      include: {
+        reminders: true,
       },
     });
   

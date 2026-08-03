@@ -87,9 +87,9 @@ model Patient {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  documents   Document[]
-  emails      Email[]
-  tasks       Task[]
+  documents Document[]
+  emails    Email[]
+  tasks     Task[]
 }
 
 /// A form or report associated with a patient. `fixturePath` is the
@@ -104,8 +104,8 @@ model Document {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
-  patientId   String?
-  patient     Patient?       @relation(fields: [patientId], references: [id])
+  patientId String?
+  patient   Patient? @relation(fields: [patientId], references: [id])
 }
 
 /// A seeded inbox message received at one of the six clinic email addresses.
@@ -124,10 +124,10 @@ model Email {
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
 
-  patientId      String?
-  patient        Patient?            @relation(fields: [patientId], references: [id])
+  patientId String?
+  patient   Patient? @relation(fields: [patientId], references: [id])
 
-  tasks          Task[]
+  tasks Task[]
 }
 
 /// A calendar task; may originate from an email or be created manually.
@@ -140,18 +140,24 @@ model Task {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
-  patientId   String?
-  patient     Patient?   @relation(fields: [patientId], references: [id])
+  patientId String?
+  patient   Patient? @relation(fields: [patientId], references: [id])
 
-  emailId     String?
-  email       Email?     @relation(fields: [emailId], references: [id])
+  emailId String?
+  email   Email?  @relation(fields: [emailId], references: [id])
+
+  reminders Reminder[]
 }
 
 model Reminder {
-  id          Int        @id @default(autoincrement())
+  id Int @id @default(autoincrement())
 
-  taskId      String
-  task        Task       @relation(fields: [taskId], references: [id])
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
-  remindAt    DateTime
+  remindAt DateTime
+
+  sent Boolean @default(false)
+
+  createdAt DateTime @default(now())
 }

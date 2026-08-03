@@ -27,6 +27,14 @@ export async function PUT(
       title: body.title,
       description: body.description,
       dueDate: nDate,
+
+      reminders: {
+        deleteMany: {},
+
+        create: (body.reminders ?? []).map((r: {remindAt: string }) => ({
+          remindAt: new Date(r.remindAt),
+        })),
+      }
     },
   });
 
