@@ -1,5 +1,5 @@
-const { loadAllEmails } = require('./csvParser');
-const { analyzeEmails, clearTranslationCache } = require('./geminiService');
+import { loadAllEmails } from "./csvParser";
+import { analyzeEmails, clearTranslationCache } from "./geminiService";
 
 let cache = [];
 let isReady = false;

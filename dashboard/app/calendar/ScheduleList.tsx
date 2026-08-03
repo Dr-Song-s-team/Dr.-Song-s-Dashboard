@@ -3,8 +3,6 @@
 import { useMemo, useState } from "react";
 import TaskStatusIcon from "./TaskStatusIcon";
 
-type ChipColor = "jade" | "amber" | "red" | "blue" | "grey";
-
 type ScheduleEvent = {
   id: string;
   title: string;

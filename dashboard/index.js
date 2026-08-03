@@ -1,9 +1,17 @@
-require('dotenv').config({ path: require('path').join(__dirname, './.env') });
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import path from "path";
+import { loadAndAnalyzeEmails, getCache } from "./app/calendar/emailService";
+import { loadAndAnalyzeSchedule, getScheduleCache } from "./app/calendar/scheduleService";
+import { fileURLToPath } from "url";
 
-const express = require('express');
-const cors = require('cors');
-const { loadAndAnalyzeEmails, getCache } = require('./app/calendar/emailService');
-const { loadAndAnalyzeSchedule, getScheduleCache } = require('./app/calendar/scheduleService');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({
+  path: path.join(__dirname, "./.env"),
+});
 
 const app = express();
 app.use(cors());

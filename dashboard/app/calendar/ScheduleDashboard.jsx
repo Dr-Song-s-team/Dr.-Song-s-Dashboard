@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { EVENT_TYPE_LABELS } from '../utils/labels.js';
 import './ScheduleDashboard.css';
 import Holidays from "date-holidays";
 import ScheduleList from "./ScheduleList"
@@ -631,32 +630,25 @@ function convertReminder(remindAt, dueDate) {
 }
 
   function EditEventForm({ event, onUpdateEvent, onCancel }) {
-    const [formData, setFormData] = useState({
-      title: event.title ?? "",
-      description: event.description ?? "",
-      date: event.date ?? "",
-      time: toInputTime(event.time),
-      reminders: event.reminders ?? []
-  })
-
-  useEffect(() => {
-
-    const reminders =
-    (event.reminders ?? []).map(r =>
-      convertReminder(
-        r.remindAt,
-        `${event.date}T${toInputTime(event.time)}`
-      )
-    );
-
-  setFormData({
+    function createFormData(event) {
+  return {
     title: event.title ?? "",
     description: event.description ?? "",
     date: event.date ?? "",
     time: toInputTime(event.time),
-    reminders
-  });
-}, [event]);
+    reminders:
+      (event.reminders ?? []).map(r =>
+        convertReminder(
+          r.remindAt,
+          `${event.date}T${toInputTime(event.time)}`
+        )
+      )
+  };
+}
+
+    const [formData, setFormData] = useState(() =>
+      createFormData(event)
+    );
 
 function addReminder() {
   setFormData(prev => ({

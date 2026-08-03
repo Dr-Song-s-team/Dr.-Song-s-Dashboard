@@ -19,6 +19,23 @@ interface CalendarEvent {
   }[];
 }
 
+interface ApiEvent {
+  id: string;
+  emailId?: string;
+  title: string;
+  dueDate: string;
+  description?: string;
+  status: "PENDING" | "COMPLETE" | "ARCHIVED";
+  patient?: {
+    firstName: string;
+    lastName: string;
+  };
+  reminders?: {
+    id: string;
+    remindAt: string;
+  }[];
+}
+
 export default function CalendarPage() {
 
 const [emails, setEmails]       = useState<any[]>([]);
@@ -102,7 +119,7 @@ const fetchDbEvents = useCallback(async () => {
 
   const data = await res.json();
 
-  const events = data.map((event: any): CalendarEvent => {
+  const events = data.map((event: ApiEvent): CalendarEvent => {
 
     const date = new Date(event.dueDate);
 
@@ -131,8 +148,11 @@ const fetchDbEvents = useCallback(async () => {
 }, []);
 
 useEffect(() => {
-fetchDbEvents();
-}, []);
+  async function loadEvents() {
+    await fetchDbEvents();
+  }
+loadEvents();
+}, [fetchDbEvents]);
 
 const formatEvent = (event: CalendarEvent): CalendarEvent => {
   const date = new Date(event.dueDate);

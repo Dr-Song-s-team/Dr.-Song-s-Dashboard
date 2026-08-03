@@ -1,5 +1,5 @@
-const { loadSchedulingEmails } = require('./csvParser');
-const { analyzeSchedulingEmails } = require('./geminiService');
+import { loadSchedulingEmails } from "./csvParser";
+import { analyzeSchedulingEmails } from "./geminiService";
 
 let scheduleCache = [];
 let isScheduleReady = false;

@@ -1,6 +1,6 @@
-const fs = require('fs');
-const path = require('path');
-const { parse } = require('csv-parse/sync');
+import fs from "fs";
+import path from "path";
+import { parse } from "csv-parse/sync";
 
 const CSV_V1 = path.join(__dirname, '../data/mock_email_data.csv');
 const CSV_V2 = path.join(__dirname, '../data/mock_email_data_v2.csv');
