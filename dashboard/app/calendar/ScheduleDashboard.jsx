@@ -3,12 +3,28 @@ import { EVENT_TYPE_LABELS } from '../utils/labels.js';
 import './ScheduleDashboard.css';
 import Holidays from "date-holidays";
 import ScheduleList from "./ScheduleList"
+import TaskStatusIcon from "./TaskStatusIcon"
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 const hd = new Holidays("US")
 
-export default function ScheduleDashboard({ events, status, onCreateEvent, onUpdateEvent, onDeleteEvent, onRefresh }) {
+function toMinutes(amount, unit) {
+  switch (unit) {
+    case "minutes":
+      return amount;
+    case "hours":
+      return amount * 60;
+    case "days":
+      return amount * 60 * 24;
+    case "weeks":
+      return amount * 60 * 24 * 7;
+    default:
+      return amount;
+  }
+}
+
+export default function ScheduleDashboard({ events, status, onCreateEvent, onUpdateEvent, onDeleteEvent, onRefresh, onEventUpdated }) {
   
   const m = new Date().getMonth();
   const y = new Date().getFullYear();
@@ -43,6 +59,43 @@ export default function ScheduleDashboard({ events, status, onCreateEvent, onUpd
     );
   }
 
+function getTaskStatus(task) {
+  console.log("Checking status:", task)
+
+  if (task.status === "ARCHIVED") {
+        return "ARCHIVED";
+  }
+
+    if (task.status === "COMPLETE")
+        return "COMPLETE";
+
+    return "PENDING";
+}
+
+async function archiveEvent(id) {
+  const res = await fetch(`/api/events/${id}/archive`, {
+    method: "PATCH",
+  });
+
+  if (!res.ok) {
+    console.error("Failed to archive task");
+    return;
+  }
+
+  const updatedTask = await res.json();
+
+  onEventUpdated(prev =>
+    prev.map(event =>
+      event.id === id
+        ? {
+            ...event,
+            status: updatedTask.status,
+          }
+        : event
+    )
+  );
+}
+
   function previousMonth() {
     if (currentMonth === 0) {
       setCurrentMonth(11);
@@ -61,19 +114,28 @@ export default function ScheduleDashboard({ events, status, onCreateEvent, onUpd
     }
   }
 
-  function toMinutes(amount, unit) {
-  switch (unit) {
-    case "minutes":
-      return amount;
-    case "hours":
-      return amount * 60;
-    case "days":
-      return amount * 60 * 24;
-    case "weeks":
-      return amount * 60 * 24 * 7;
-    default:
-      return amount;
+async function toggleComplete(id) {
+  const res = await fetch(`/api/events/${id}/complete`, {
+    method: "PATCH",
+  });
+
+  if (!res.ok) {
+    console.error("Failed to update task");
+    return;
   }
+
+  const updatedTask = await res.json();
+
+  onEventUpdated(prev =>
+    prev.map(event =>
+      event.id === id
+        ? {
+            ...event,
+            status: updatedTask.status,
+          }
+        : event
+    )
+  );
 }
 
   const holidays = hd.getHolidays(currentYear);
@@ -247,7 +309,16 @@ function updateReminder(index, field, value) {
                             
                             {ev.time && <span className="cal-event-time"> {formatTime(ev.time)}</span>}
                           </div>
-                          <div className="cal-event-patient">{ev.patientName ? ev.patientName : ev.title}</div>
+                          <div className="cal-event-patient flex items-center gap-2">
+  <TaskStatusIcon
+    status={getTaskStatus(ev)}
+    dueDate={ev.dueDate}
+  />
+
+  <span>
+    {ev.patientName ? ev.patientName : ev.title}
+  </span>
+</div>
                         </button>
                       ))
                     )}
@@ -286,7 +357,8 @@ function updateReminder(index, field, value) {
           {selectedEvent ? (
             <EventDetail event={selectedEvent}
             onUpdateEvent={onUpdateEvent}
-            onDeleteEvent={onDeleteEvent} />
+            onDeleteEvent={onDeleteEvent}
+            onArchiveEvent={archiveEvent} />
           ) : (
             <div className="sched-detail-empty">
               <p className="detail-empty-icon">◷</p>
@@ -496,6 +568,8 @@ setShowReminders(false);
   onClose={() => setSelectedDate(null)}
   onSelectEvent={(id) => setSelected(id)}
   selectedEventId={selected}
+  onToggleComplete={toggleComplete}
+  getTaskStatus={getTaskStatus}
   />
 )}
     </div>
@@ -765,7 +839,7 @@ function handleChange(e) {
 
   }
 
-function EventDetail({ event, onUpdateEvent, onDeleteEvent }) {
+function EventDetail({ event, onUpdateEvent, onDeleteEvent, onArchiveEvent }) {
 const [editing, setEditing] = useState(false);
 
   return (
@@ -824,6 +898,12 @@ const [editing, setEditing] = useState(false);
   className="cursor-pointer"
 >
   Delete
+</button>
+<button
+  onClick={() => onArchiveEvent(event.id)}
+  className="cursor-pointer"
+>
+  Archive
 </button>
       </div>
     </div>

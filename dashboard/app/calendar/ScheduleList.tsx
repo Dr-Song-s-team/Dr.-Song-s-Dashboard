@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import TaskStatusIcon from "./TaskStatusIcon";
 
 type ChipColor = "jade" | "amber" | "red" | "blue" | "grey";
 
@@ -11,7 +12,9 @@ type ScheduleEvent = {
   date: string;
   time?: string;
   patientName?: string | null;
-}
+  status: "PENDING" | "COMPLETE" | "ARCHIVED";
+  dueDate?: string;
+};
 
 interface ScheduleListProps {
   events: ScheduleEvent[];
@@ -19,9 +22,11 @@ interface ScheduleListProps {
   onClose: () => void;
   onSelectEvent: (id: string) => void;
   selectedEventId?: string | null
-}
+  onToggleComplete: (id: string) => void;
+  getTaskStatus: (event: ScheduleEvent) => string;
+};
 
-export default function ScheduleList({ events, selectedDate, onClose, onSelectEvent, selectedEventId}: ScheduleListProps) 
+export default function ScheduleList({ events, selectedDate, onClose, onSelectEvent, selectedEventId, onToggleComplete, getTaskStatus}: ScheduleListProps) 
 {
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
 
@@ -58,6 +63,8 @@ export default function ScheduleList({ events, selectedDate, onClose, onSelectEv
   const suffix = secondsStr ? `:${secondsStr}` : '';
   return `${standardHours}:${minutesStr}${suffix} ${period}`;
 }
+
+console.log(events);
 
   return (
     <div
@@ -115,15 +122,30 @@ export default function ScheduleList({ events, selectedDate, onClose, onSelectEv
               </div>
 
               <div>
-                <div className="font-semibold text-[15px] text-[#1C1C1E]">
-                  {event.patientName ?? event.title}
-                </div>
+               <div className="font-semibold text-[15px] text-[#1C1C1E] flex items-center gap-2">
+  <TaskStatusIcon
+    status={getTaskStatus(event)}
+    dueDate={event.dueDate}
+  />
+
+  <span>
+    {event.patientName ?? event.title}
+  </span>
+</div>
 
                 {event.description && (
                   <div className="text-[14px] text-gray-500 mt-0.5">
                     {event.description}
                   </div>
                 )}
+                <input
+    type="checkbox"
+    checked={event.status === "COMPLETE"}
+    onChange={(e) => {
+      e.stopPropagation();
+      onToggleComplete(event.id);
+    }}
+/>
               </div>
             </div>
           ))

@@ -100,7 +100,10 @@ const fetchDbEvents = useCallback(async () => {
   hour: "2-digit",
   minute: "2-digit",
   hour12: false,}),
-  description: event.description
+  description: event.description,
+  status: event.status,
+  dueDate: event.dueDate,
+  reminders: event.reminders,
 };
   })
 
@@ -156,6 +159,8 @@ const updateEvent = async (id, updates) => {
 
   const updated = await res.json();
 
+  console.log("Updated event from API:", updated);
+
   setDbEvents((prev) => 
     prev.map((event) =>
       event.id === id ? formatEvent(updated) : event
@@ -189,6 +194,7 @@ const allEvents = [...scheduleEvents, ...dbEvents]
           onUpdateEvent={updateEvent}
           onDeleteEvent={deleteEvent}
           onRefresh={handleRefresh}
+          onEventUpdated={setDbEvents}
         />
       );
 }

@@ -36,6 +36,11 @@ export async function PUT(
         })),
       }
     },
+    include: {
+      patient: true,
+      email: true,
+      reminders: true
+    }
   });
 
   return NextResponse.json(updated);

@@ -60,7 +60,6 @@ enum EmailClassification {
 enum TaskStatus {
   PENDING
   COMPLETE
-  OVERDUE
   ARCHIVED
 }
 
