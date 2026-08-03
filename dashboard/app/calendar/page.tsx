@@ -3,15 +3,31 @@
 import { useState, useEffect, useCallback } from "react";
 import ScheduleDashboard from "./ScheduleDashboard";
 
+interface CalendarEvent {
+  id: string;
+  emailId?: string;
+  title: string;
+  patientName?: string | null;
+  date: string;
+  time?: string;
+  description?: string;
+  status: "PENDING" | "COMPLETE" | "ARCHIVED";
+  dueDate: string;
+  reminders?: {
+    id: string;
+    remindAt: string;
+  }[];
+}
+
 export default function CalendarPage() {
 
 const [emails, setEmails]       = useState([]);
 const [emailStatus, setEmailStatus]   = useState('loading');
-const [emailError, setEmailError]     = useState(null);
+const [emailError, setEmailError]     = useState<string | null>(null);
 const [scheduleStatus, setScheduleStatus]       = useState('loading');
-const [scheduleEvents, setScheduleEvents] = useState([]);
+const [scheduleEvents, setScheduleEvents] = useState<CalendarEvent[]>([]);
 const [polling, setPolling]     = useState(true);
-const [dbEvents, setDbEvents] = useState([]);
+const [dbEvents, setDbEvents] = useState<CalendarEvent[]>([]);
 
 const fetchEmails = useCallback(async () => {
   try {
@@ -85,7 +101,7 @@ const fetchDbEvents = useCallback(async () => {
 
   const data = await res.json();
 
-  const events = data.map(event => {
+  const events = data.map((event: any): CalendarEvent => {
 
     const date = new Date(event.dueDate);
 
@@ -134,7 +150,7 @@ const formatEvent = (event) => {
   };
 };
 
-const createEvent = async (event) => {
+const createEvent = async (event: Partial<CalendarEvent>) => {
 
   const res = await fetch("/api/events", {
       method: "POST",
@@ -149,7 +165,7 @@ const createEvent = async (event) => {
   setDbEvents(prev => [...prev, formatEvent(created)]);
 };
 
-const updateEvent = async (id, updates) => {
+const updateEvent = async (id: string, updates: Partial<CalendarEvent>) => {
 
   const res = await fetch(`/api/events/${id}`, {
       method: "PUT",
@@ -170,7 +186,7 @@ const updateEvent = async (id, updates) => {
   );
 };
 
-const deleteEvent = async (id) => {
+const deleteEvent = async (id: string) => {
 
   await fetch(`/api/events/${id}`, {
       method: "DELETE",

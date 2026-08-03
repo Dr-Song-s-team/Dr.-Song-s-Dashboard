@@ -340,7 +340,7 @@ async function main(prisma: PrismaClient) {
         description:
           "UHC auth limit of 16 reached. Submit continuation-of-care auth before next appointment.",
         dueDate: new Date("2024-07-04"),
-        status: "OVERDUE",
+        status: "PENDING",
         patientId: lisa.id,
       },
       {
