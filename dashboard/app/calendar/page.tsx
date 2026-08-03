@@ -21,7 +21,7 @@ interface CalendarEvent {
 
 export default function CalendarPage() {
 
-const [emails, setEmails]       = useState([]);
+const [emails, setEmails]       = useState<any[]>([]);
 const [emailStatus, setEmailStatus]   = useState('loading');
 const [emailError, setEmailError]     = useState<string | null>(null);
 const [scheduleStatus, setScheduleStatus]       = useState('loading');
@@ -43,6 +43,7 @@ const fetchEmails = useCallback(async () => {
     err instanceof Error ? err.message : "Unknown error"
   );
   setEmailStatus('error');
+  return true;
 }
 }, []);
 
@@ -133,7 +134,7 @@ useEffect(() => {
 fetchDbEvents();
 }, []);
 
-const formatEvent = (event) => {
+const formatEvent = (event: CalendarEvent): CalendarEvent => {
   const date = new Date(event.dueDate);
 
   return {
@@ -192,7 +193,7 @@ const deleteEvent = async (id: string) => {
       method: "DELETE",
   });
 
-  setDbEvents(events =>
+  setDbEvents((events: CalendarEvent[]) =>
       events.filter(e => e.id !== id)
   );
 };
