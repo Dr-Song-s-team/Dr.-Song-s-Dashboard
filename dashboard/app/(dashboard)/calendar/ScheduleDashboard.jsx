@@ -379,9 +379,7 @@ function updateReminder(index, field, value) {
               });
               const holidayName = holidayMap[day.date]
               const dayEvents = byDate[day.date] || [];
-              console.log("Calendar day:", day.date);
-console.log("Events for day:", byDate[day.date]);
-console.log("All event dates:", events.map(e => e.date));
+              
               return (
                 <div
                   key={day.date}
@@ -472,7 +470,7 @@ console.log("All event dates:", events.map(e => e.date));
                   weekday: "short",
                 })}
               </span>
-              
+
                     {dayEvents.length > 0 && (
                       <span className={`cal-count ${
                         dayEvents.length >= 4
@@ -491,27 +489,29 @@ console.log("All event dates:", events.map(e => e.date));
             <div className="cal-events">
               {dayEvents.map(ev => (
                 <button
-                  key={ev.id}
-                  className="cal-event"
-                  onClick={() =>
-                    setSelected(selected === ev.id ? null : ev.id)
-                  }
-                >
-                  <TaskStatusIcon
-                    status={getTaskStatus(ev)}
-                    dueDate={ev.dueDate}
-                  />
+  key={ev.id}
+  className="cal-event"
+  onClick={() =>
+    setSelected(selected === ev.id ? null : ev.id)
+  }
+>
+  <div className="flex items-center gap-1">
+    <TaskStatusIcon
+      status={getTaskStatus(ev)}
+      dueDate={ev.dueDate}
+    />
 
-                  {ev.time && (
-                    <span className="cal-event-time">
-                      {formatTime(ev.time)}
-                    </span>
-                  )}
+    {ev.time && (
+      <span className="cal-event-time">
+        {formatTime(ev.time)}
+      </span>
+    )}
+  </div>
 
-                  <span>
-                    {ev.patientName ?? ev.title}
-                  </span>
-                </button>
+  <div className="cal-event-patient">
+    {ev.patientName ?? ev.title}
+  </div>
+</button>
               ))}
             </div>
 

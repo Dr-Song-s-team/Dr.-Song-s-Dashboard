@@ -176,7 +176,6 @@
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(120px, 1fr));
-
   gap: 0;
   min-width: 900px;
 
@@ -184,7 +183,7 @@
   border-left: 1px solid #d1d5db;
 }
 
-.calendar-grid > .calendar-day {
+.calendar-grid > .cal-day {
   border-right: 1px solid #d1d5db;
   border-bottom: 1px solid #d1d5db;
 }
@@ -193,6 +192,8 @@
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
   overflow: hidden;
   min-height: 120px;
   display: flex;
@@ -206,7 +207,8 @@
 }
 
 .cal-day--has-high {
-  border-color: var(--urgency-high);
+  border-color: #ef4444;
+  background: rgba(239,68,68,.06);
 }
 
 .cal-day-header {
