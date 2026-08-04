@@ -2,8 +2,8 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
-import { loadAndAnalyzeEmails, getCache } from "./app/calendar/emailService";
-import { loadAndAnalyzeSchedule, getScheduleCache } from "./app/calendar/scheduleService";
+import { loadAndAnalyzeEmails, getCache } from "./app/(dashboard)/calendar/emailService";
+import { loadAndAnalyzeSchedule, getScheduleCache } from "./app/(dashboard)/calendar/scheduleService";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
