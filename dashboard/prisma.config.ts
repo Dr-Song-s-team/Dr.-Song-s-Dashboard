@@ -8,6 +8,8 @@ import { migrationUrl } from "./lib/env";
 config({ path: ".env.local" });
 config();
 
+console.log("DATABASE_URL:", process.env.DATABASE_URL);
+
 export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
