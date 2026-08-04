@@ -49,6 +49,7 @@ export default function ScheduleDashboard({ events, status, onCreateEvent, onUpd
   const [showReminders, setShowReminders] = useState(false)
   const [selectedDate, setSelectedDate] = useState(null);
   const [viewMode, setViewMode] = useState("month");
+  const [statusFilter, setStatusFilter] = useState("ALL");
 
 function getStartOfWeek(date) {
   const d = new Date(date);
@@ -187,7 +188,22 @@ for (let d = 1; d <= lastDay.getDate(); d++) {
   // Group events by date
   const byDate = {};
   const unscheduled = [];
-  events.forEach(ev => {
+  const now = new Date();
+
+const filteredEvents = events.filter(event => {
+  if (statusFilter === "ALL") return true;
+
+  if (statusFilter === "OVERDUE") {
+    return (
+      event.status === "PENDING" &&
+      new Date(event.dueDate) < now
+    );
+  }
+
+  return event.status === statusFilter;
+});
+
+  filteredEvents.forEach(ev => {
     if (ev.date) {
       if (!byDate[ev.date]) byDate[ev.date] = [];
       byDate[ev.date].push(ev);
@@ -260,6 +276,17 @@ function updateReminder(index, field, value) {
   </button>
 
 </div>
+
+<select
+    value={statusFilter}
+    onChange={(e) => setStatusFilter(e.target.value)}
+>
+    <option value="ALL">All</option>
+    <option value="PENDING">Pending</option>
+    <option value="COMPLETE">Completed</option>
+    <option value="OVERDUE">Overdue</option>
+    <option value="ARCHIVED">Archived</option>
+</select>
 
   <button
     className="month-arrow"
@@ -352,17 +379,24 @@ function updateReminder(index, field, value) {
               });
               const holidayName = holidayMap[day.date]
               const dayEvents = byDate[day.date] || [];
+              console.log("Calendar day:", day.date);
+console.log("Events for day:", byDate[day.date]);
+console.log("All event dates:", events.map(e => e.date));
               return (
                 <div
                   key={day.date}
                   onClick={() => setSelectedDate(day.date)}
-                  className="cursor-pointer"
+                  className={`cal-day ${dayEvents.length >= 4 ? "cal-day--has-high" : ""} cursor-pointer`}
                 >
                   <div className="cal-day-header">
                   <span className="cal-daynum">{day.day}</span>
                     <span className="cal-weekday">{weekday}</span>
                     {dayEvents.length > 0 && (
-                      <span className="cal-count">{dayEvents.length}</span>
+                      <span className={`cal-count ${
+                        dayEvents.length >= 4
+                        ? "cal-count-high" : "cal-count"
+                      }`}>{
+                        dayEvents.length}</span>
                     )}
                     {holidayName && (
     <div className="holiday-label">
@@ -410,7 +444,9 @@ function updateReminder(index, field, value) {
             <div className="calendar-grid week-grid">
       {weekDays.map(date => {
 
-        const dateString = date.toLocaleDateString("en-CA");
+        const dateString = date.toISOString().split("T")[0];
+
+        console.log(dateString)
 
         const holidayName = holidayMap[dateString];
         const dayEvents = byDate[dateString] || [];
@@ -419,7 +455,11 @@ function updateReminder(index, field, value) {
           <div
             key={dateString}
             onClick={() => setSelectedDate(dateString)}
-            className="cursor-pointer"
+            className={`calendar-day ${
+    dayEvents.length >= 4
+      ? "high"
+      : ""
+  }`}
           >
 
             <div className="cal-day-header">
@@ -432,6 +472,14 @@ function updateReminder(index, field, value) {
                   weekday: "short",
                 })}
               </span>
+              
+                    {dayEvents.length > 0 && (
+                      <span className={`cal-count ${
+                        dayEvents.length >= 4
+                        ? "cal-count-high" : "cal-count"
+                      }`}>{
+                        dayEvents.length}</span>
+                    )}
 
               {holidayName && (
                 <div className="holiday-label">
