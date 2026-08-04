@@ -48,6 +48,27 @@ export default function ScheduleDashboard({ events, status, onCreateEvent, onUpd
   ])
   const [showReminders, setShowReminders] = useState(false)
   const [selectedDate, setSelectedDate] = useState(null);
+  const [viewMode, setViewMode] = useState("month");
+
+function getStartOfWeek(date) {
+  const d = new Date(date);
+  const day = d.getDay(); // Sunday = 0
+
+  d.setDate(d.getDate() - day);
+  d.setHours(0, 0, 0, 0);
+
+  return d;
+}
+
+const [currentWeek, setCurrentWeek] = useState(
+  getStartOfWeek(new Date())
+);
+
+const weekDays = [...Array(7)].map((_, i) => {
+    const d = new Date(currentWeek);
+    d.setDate(d.getDate() + i);
+    return d;
+});
 
   if (status === 'loading' || status === 'analyzing') {
     return (
@@ -213,20 +234,73 @@ function updateReminder(index, field, value) {
       <div className="sched-header">
         <div className="sched-title-area">
         <div className="sched-title-nav">
+
+<div className="flex items-center gap-2">
+
+  <button
+    onClick={() => setViewMode("month")}
+    className={
+      viewMode === "month"
+        ? "bg-blue-600 text-white px-3 py-1 rounded"
+        : "bg-gray-200 px-3 py-1 rounded"
+    }
+  >
+    Month
+  </button>
+
+  <button
+    onClick={() => setViewMode("week")}
+    className={
+      viewMode === "week"
+        ? "bg-blue-600 text-white px-3 py-1 rounded"
+        : "bg-gray-200 px-3 py-1 rounded"
+    }
+  >
+    Week
+  </button>
+
+</div>
+
   <button
     className="month-arrow"
-    onClick={previousMonth}
+    onClick={() => {
+  if (viewMode === "month") {
+    previousMonth();
+  } else {
+    setCurrentWeek(prev => {
+      const d = new Date(prev);
+      d.setDate(d.getDate() - 7);
+      return d;
+    });
+  }
+}}
   >
     ←
   </button>
 
   <h2 className="sched-title">
-    Schedule — {MONTHS[currentMonth]} {currentYear}
-  </h2>
+  {viewMode === "month"
+    ? `Schedule — ${MONTHS[currentMonth]} ${currentYear}`
+    : `Week of ${currentWeek.toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      })}`}
+</h2>
 
   <button
     className="month-arrow"
-    onClick={nextMonth}
+    onClick={() => {
+  if (viewMode === "month") {
+    nextMonth();
+  } else {
+    setCurrentWeek(prev => {
+      const d = new Date(prev);
+      d.setDate(d.getDate() + 7);
+      return d;
+    });
+  }
+}}
   >
     →
   </button>
@@ -265,6 +339,9 @@ function updateReminder(index, field, value) {
       <div className="sched-body">
         {/* Calendar grid */}
         <div className="calendar-wrap">
+
+{viewMode === "month" ? (
+
           <div className="calendar-grid">
             {CALENDAR_DAYS.map(day => {
               const weekday = new Date(
@@ -325,7 +402,77 @@ function updateReminder(index, field, value) {
                 </div>
               );
             })}
+
           </div>
+
+          ) : (
+
+            <div className="calendar-grid week-grid">
+      {weekDays.map(date => {
+
+        const dateString = date.toLocaleDateString("en-CA");
+
+        const holidayName = holidayMap[dateString];
+        const dayEvents = byDate[dateString] || [];
+
+        return (
+          <div
+            key={dateString}
+            onClick={() => setSelectedDate(dateString)}
+            className="cursor-pointer"
+          >
+
+            <div className="cal-day-header">
+              <span className="cal-daynum">
+                {date.getDate()}
+              </span>
+
+              <span className="cal-weekday">
+                {date.toLocaleDateString("en-US", {
+                  weekday: "short",
+                })}
+              </span>
+
+              {holidayName && (
+                <div className="holiday-label">
+                  🎉 {holidayName}
+                </div>
+              )}
+            </div>
+
+            <div className="cal-events">
+              {dayEvents.map(ev => (
+                <button
+                  key={ev.id}
+                  className="cal-event"
+                  onClick={() =>
+                    setSelected(selected === ev.id ? null : ev.id)
+                  }
+                >
+                  <TaskStatusIcon
+                    status={getTaskStatus(ev)}
+                    dueDate={ev.dueDate}
+                  />
+
+                  {ev.time && (
+                    <span className="cal-event-time">
+                      {formatTime(ev.time)}
+                    </span>
+                  )}
+
+                  <span>
+                    {ev.patientName ?? ev.title}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+          </div>
+        );
+      })}
+    </div>
+
+          )}
 
           {/* Unscheduled */}
           {unscheduled.length > 0 && (
