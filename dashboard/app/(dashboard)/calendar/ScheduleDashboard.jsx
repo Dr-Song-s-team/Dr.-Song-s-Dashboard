@@ -167,12 +167,23 @@ async function toggleComplete(id) {
     holidayMap[h.date.slice(0, 10)] = h.name;
   });
 
+const firstDay = new Date(currentYear, currentMonth, 1);
+const startWeekday = firstDay.getDay();
+
+for (let i = 0; i < startWeekday; i++) {
+  CALENDAR_DAYS.push({
+    empty: true,
+    id: `empty-${i}`,
+  });
+}
+
 const lastDay = new Date(currentYear, currentMonth + 1, 0);
 
 for (let d = 1; d <= lastDay.getDate(); d++) {
   const date = new Date(currentYear, currentMonth, d);
 
   CALENDAR_DAYS.push({
+    empty: false,
     date: date.toISOString().split("T")[0],
     day: String(d),
   });
@@ -371,6 +382,16 @@ function updateReminder(index, field, value) {
 
           <div className="calendar-grid">
             {CALENDAR_DAYS.map(day => {
+
+            if (day.empty) {
+                return (
+                  <div
+                    key={day.id}
+                    className="cal-day cal-day--empty"
+                  />
+                );
+              }
+
               const weekday = new Date(
                 currentYear,
                 currentMonth,
@@ -379,19 +400,25 @@ function updateReminder(index, field, value) {
               });
               const holidayName = holidayMap[day.date]
               const dayEvents = byDate[day.date] || [];
+
+              const urgentCount = dayEvents.filter(ev => {
+  if (ev.status !== "PENDING") return false;
+
+  return new Date(ev.dueDate) <= now;
+}).length;
               
               return (
                 <div
                   key={day.date}
                   onClick={() => setSelectedDate(day.date)}
-                  className={`cal-day ${dayEvents.length >= 4 ? "cal-day--has-high" : ""} cursor-pointer`}
+                  className={`cal-day ${urgentCount >= 4 ? "cal-day--has-high" : ""} cursor-pointer`}
                 >
                   <div className="cal-day-header">
                   <span className="cal-daynum">{day.day}</span>
                     <span className="cal-weekday">{weekday}</span>
                     {dayEvents.length > 0 && (
                       <span className={`cal-count ${
-                        dayEvents.length >= 4
+                        urgentCount >= 4
                         ? "cal-count-high" : "cal-count"
                       }`}>{
                         dayEvents.length}</span>
@@ -449,12 +476,18 @@ function updateReminder(index, field, value) {
         const holidayName = holidayMap[dateString];
         const dayEvents = byDate[dateString] || [];
 
+        const urgentCount = dayEvents.filter(ev => {
+  if (ev.status !== "PENDING") return false;
+
+  return new Date(ev.dueDate) <= now;
+}).length;
+
         return (
           <div
             key={dateString}
             onClick={() => setSelectedDate(dateString)}
             className={`calendar-day ${
-    dayEvents.length >= 4
+    urgentCount >= 4
       ? "high"
       : ""
   }`}
@@ -473,7 +506,7 @@ function updateReminder(index, field, value) {
 
                     {dayEvents.length > 0 && (
                       <span className={`cal-count ${
-                        dayEvents.length >= 4
+                        urgentCount >= 4
                         ? "cal-count-high" : "cal-count"
                       }`}>{
                         dayEvents.length}</span>
