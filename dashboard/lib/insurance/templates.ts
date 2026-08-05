@@ -122,7 +122,7 @@ export const CMS_1500_TEMPLATE: FormTemplate = {
       required: true,
       section: "Clinical Information",
       aiFillable: true,
-      placeholder: "M54.5, M99.03",
+      placeholder: "e.g. M54.5",
       rows: 3,
     },
     {
@@ -148,7 +148,7 @@ export const CMS_1500_TEMPLATE: FormTemplate = {
       required: true,
       section: "Clinical Information",
       aiFillable: true,
-      placeholder: "98940, 98941",
+      placeholder: "e.g. 98940",
       rows: 3,
     },
     {
@@ -158,7 +158,7 @@ export const CMS_1500_TEMPLATE: FormTemplate = {
       required: true,
       section: "Clinical Information",
       aiFillable: true,
-      placeholder: "250.00",
+      placeholder: "0.00",
     },
 
     // Provider Information
@@ -169,7 +169,7 @@ export const CMS_1500_TEMPLATE: FormTemplate = {
       required: true,
       section: "Provider Information",
       aiFillable: true,
-      placeholder: "Dr. Song",
+      placeholder: "Provider name",
     },
     {
       key: "providerNPI",
@@ -178,7 +178,7 @@ export const CMS_1500_TEMPLATE: FormTemplate = {
       required: true,
       section: "Provider Information",
       aiFillable: true,
-      placeholder: "1234567890",
+      placeholder: "10-digit NPI",
     },
     {
       key: "providerAddress",
@@ -195,7 +195,7 @@ export const CMS_1500_TEMPLATE: FormTemplate = {
       required: true,
       section: "Provider Information",
       aiFillable: true,
-      placeholder: "555-0100",
+      placeholder: "Phone number",
     },
 
     // Signatures (manual only)
@@ -357,7 +357,7 @@ export const ASH_MNR_TEMPLATE: FormTemplate = {
       required: true,
       section: "Provider Information",
       aiFillable: true,
-      placeholder: "Dr. Song",
+      placeholder: "Provider name",
     },
     {
       key: "providerNPI",
@@ -366,7 +366,7 @@ export const ASH_MNR_TEMPLATE: FormTemplate = {
       required: true,
       section: "Provider Information",
       aiFillable: true,
-      placeholder: "1234567890",
+      placeholder: "10-digit NPI",
     },
     {
       key: "providerPhone",
@@ -375,7 +375,7 @@ export const ASH_MNR_TEMPLATE: FormTemplate = {
       required: true,
       section: "Provider Information",
       aiFillable: true,
-      placeholder: "555-0100",
+      placeholder: "Phone number",
     },
 
     // Signature (manual only)
@@ -430,7 +430,7 @@ export const PI_REPORT_TEMPLATE: FormTemplate = {
       required: true,
       section: "Patient Information",
       aiFillable: true,
-      placeholder: "555-0101",
+      placeholder: "Phone number",
     },
 
     // Accident Details

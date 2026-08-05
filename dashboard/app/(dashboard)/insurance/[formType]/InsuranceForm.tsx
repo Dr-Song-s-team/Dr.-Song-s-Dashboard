@@ -5,6 +5,8 @@ import Link from "next/link";
 import type { FormTemplate, FieldDefinition } from "@/lib/insurance/templates";
 import { getFieldsBySection } from "@/lib/insurance/templates";
 
+type AIFilledFields = Set<string>;
+
 const US_STATES = [
   "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA",
   "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD",
@@ -77,10 +79,12 @@ function FieldRenderer({
   field,
   value,
   onChange,
+  isAiFilled,
 }: {
   field: FieldDefinition;
   value: string;
   onChange: (value: string) => void;
+  isAiFilled: boolean;
 }) {
   const fieldId = `field-${field.key}`;
   const isManual = !field.aiFillable;
@@ -94,6 +98,11 @@ function FieldRenderer({
             Manual
           </span>
         )}
+        {isAiFilled && (
+          <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-amber-800">
+            AI draft — review required
+          </span>
+        )}
       </Label>
       {field.type === "textarea" ? (
         <textarea
@@ -104,7 +113,9 @@ function FieldRenderer({
           onChange={(e) => onChange(e.target.value)}
           placeholder={field.placeholder}
           rows={field.rows || 3}
-          className="w-full rounded-xl border border-[#d8c9ba] bg-white/70 px-3.5 py-2.5 text-sm text-[#513a2e] placeholder-[#9b8070] outline-none transition focus:border-[#9b6a4b] focus:ring-2 focus:ring-[#9b6a4b]/40"
+          className={`w-full rounded-xl border bg-white/70 px-3.5 py-2.5 text-sm text-[#513a2e] placeholder-[#9b8070] outline-none transition focus:border-[#9b6a4b] focus:ring-2 focus:ring-[#9b6a4b]/40 ${
+            isAiFilled ? "border-l-4 border-amber-400" : "border-[#d8c9ba]"
+          }`}
         />
       ) : field.type === "select" ? (
         <select
@@ -113,7 +124,9 @@ function FieldRenderer({
           required={field.required}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full rounded-xl border border-[#d8c9ba] bg-white/70 px-3.5 py-2.5 text-sm text-[#513a2e] outline-none transition focus:border-[#9b6a4b] focus:ring-2 focus:ring-[#9b6a4b]/40"
+          className={`w-full rounded-xl border bg-white/70 px-3.5 py-2.5 text-sm text-[#513a2e] outline-none transition focus:border-[#9b6a4b] focus:ring-2 focus:ring-[#9b6a4b]/40 ${
+            isAiFilled ? "border-l-4 border-amber-400" : "border-[#d8c9ba]"
+          }`}
         >
           <option value="">Select...</option>
           {field.key === "patientState" || field.key.toLowerCase().includes("state") ? (
@@ -139,6 +152,7 @@ function FieldRenderer({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={field.placeholder}
+          className={isAiFilled ? "border-l-4 border-amber-400" : ""}
         />
       )}
     </div>
@@ -167,12 +181,134 @@ export default function InsuranceForm({ template, patient, sections }: Insurance
     return initial;
   });
 
+  // Track which fields were filled by AI
+  const [aiFilledFields, setAiFilledFields] = useState<AIFilledFields>(new Set());
+
+  // Autofill loading/error states
+  const [isAutofilling, setIsAutofilling] = useState(false);
+  const [autofillError, setAutofillError] = useState<string | null>(null);
+
+  // Save loading/error states
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
   const handleFieldChange = (key: string, value: string) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
+    // Clear AI-filled marker when user manually edits field
+    if (aiFilledFields.has(key)) {
+      setAiFilledFields((prev) => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+    }
+  };
+
+  const handleAutofill = async () => {
+    setIsAutofilling(true);
+    setAutofillError(null);
+
+    try {
+      const response = await fetch("/api/insurance/autofill", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          formType: template.type,
+          patientId: patient.id,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      const { fields, filledCount } = data;
+
+      // Update form data with AI-filled fields
+      setFormData((prev) => ({ ...prev, ...fields }));
+
+      // Mark AI-filled fields
+      setAiFilledFields(new Set(Object.keys(fields)));
+
+      // Show success message (optional)
+      if (filledCount === 0) {
+        setAutofillError("No fields could be filled with available data");
+      }
+    } catch (error) {
+      console.error("Autofill failed:", error);
+      setAutofillError(
+        error instanceof Error ? error.message : "Failed to autofill form"
+      );
+    } finally {
+      setIsAutofilling(false);
+    }
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    setSaveError(null);
+    setSaveSuccess(false);
+
+    try {
+      const response = await fetch("/api/insurance/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          formType: template.type,
+          patientId: patient.id,
+          formData,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
+      setSaveSuccess(true);
+      // Clear success message after 3 seconds
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (error) {
+      console.error("Save failed:", error);
+      setSaveError(
+        error instanceof Error ? error.message : "Failed to save form"
+      );
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
     <form noValidate className="space-y-8">
+      {/* Autofill button at top */}
+      <div className="flex items-center justify-between gap-4 rounded-xl border border-amber-200 bg-amber-50/50 p-4">
+        <div className="flex-1">
+          <p className="text-sm font-medium text-amber-900">AI Autofill</p>
+          <p className="text-xs text-amber-700">
+            Fill form fields automatically using patient data and documents
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleAutofill}
+          disabled={isAutofilling}
+          className="rounded-xl bg-amber-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isAutofilling ? "Autofilling..." : "Autofill with AI"}
+        </button>
+      </div>
+
+      {/* Error message */}
+      {autofillError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+          <p className="text-sm font-medium text-red-900">Autofill Error</p>
+          <p className="text-xs text-red-700">{autofillError}</p>
+        </div>
+      )}
+
       {sections.map((section) => {
         const fields = getFieldsBySection(template, section);
         return (
@@ -194,6 +330,7 @@ export default function InsuranceForm({ template, patient, sections }: Insurance
                     field={field}
                     value={formData[field.key] || ""}
                     onChange={(value) => handleFieldChange(field.key, value)}
+                    isAiFilled={aiFilledFields.has(field.key)}
                   />
                 </div>
               ))}
@@ -210,15 +347,23 @@ export default function InsuranceForm({ template, patient, sections }: Insurance
           Back to Forms
         </Link>
         <div className="flex items-center gap-3">
-          <p className="text-xs text-[#9b8070]">
-            Save functionality will be added in a future update
-          </p>
+          {saveSuccess && (
+            <p className="text-xs font-medium text-green-700">
+              Form saved successfully!
+            </p>
+          )}
+          {saveError && (
+            <p className="text-xs font-medium text-red-700">
+              {saveError}
+            </p>
+          )}
           <button
             type="button"
-            disabled
-            className="cursor-not-allowed rounded-xl bg-[#9b6a4b] px-6 py-2.5 text-sm font-medium text-[#fffaf2] opacity-50 shadow-sm"
+            onClick={handleSave}
+            disabled={isSaving}
+            className="rounded-xl bg-[#9b6a4b] px-6 py-2.5 text-sm font-medium text-[#fffaf2] shadow-sm transition hover:bg-[#7a5138] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Save Form
+            {isSaving ? "Saving..." : "Save Form"}
           </button>
         </div>
       </div>
