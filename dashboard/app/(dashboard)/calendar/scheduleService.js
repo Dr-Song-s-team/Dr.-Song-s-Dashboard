@@ -1,5 +1,5 @@
 import { loadSchedulingEmails } from "./csvParser";
-import { analyzeSchedulingEmails } from "./geminiService";
+import { analyzeSchedulingEmails } from "./aiService";
 
 let scheduleCache = [];
 let isScheduleReady = false;

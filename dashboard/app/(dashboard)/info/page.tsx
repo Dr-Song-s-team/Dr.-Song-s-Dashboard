@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { connection } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export const metadata = { title: "Patient / Admin Info — Dr. Song" };
@@ -31,6 +32,7 @@ function VisitBar({ used, limit }: { used: number; limit: number }) {
 }
 
 export default async function PatientListPage() {
+  await connection();
   const patients = await prisma.patient.findMany({
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     select: {
