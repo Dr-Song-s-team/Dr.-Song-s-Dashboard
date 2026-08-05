@@ -486,4 +486,106 @@ describe("Redaction Test Suite", () => {
       expect(() => scanText(fakeAIResponse)).toThrow();
     });
   });
+
+  // ================================================================
+  // 6. TOKEN COLLISION TESTS (MULTI-EMAIL SCENARIO)
+  // ================================================================
+  describe("Token uniqueness across separate redact() calls", () => {
+    it("should generate unique tokens when redacting multiple emails with different patient names", () => {
+      resetTokenCounter();
+
+      // Simulate two emails with different patient names
+      const email1Sender = "Maria Santos";
+      const email1Subject = "Appointment for Maria Santos";
+      const email1Body = "Hi, this is Maria Santos requesting an appointment.";
+
+      const email2Sender = "Alex Thompson";
+      const email2Subject = "Question from Alex Thompson";
+      const email2Body = "Hello, Alex Thompson here with a question.";
+
+      // Redact each email's fields separately (mimicking aiService.ts approach)
+      const sender1Redaction = redact(email1Sender, entityData);
+      const subject1Redaction = redact(email1Subject, entityData);
+      const body1Redaction = redact(email1Body, entityData);
+
+      const sender2Redaction = redact(email2Sender, entityData);
+      const subject2Redaction = redact(email2Subject, entityData);
+      const body2Redaction = redact(email2Body, entityData);
+
+      // Merge token maps (as done in aiService.ts)
+      const tokenMap1 = new Map([
+        ...sender1Redaction.tokenMap,
+        ...subject1Redaction.tokenMap,
+        ...body1Redaction.tokenMap,
+      ]);
+
+      const tokenMap2 = new Map([
+        ...sender2Redaction.tokenMap,
+        ...subject2Redaction.tokenMap,
+        ...body2Redaction.tokenMap,
+      ]);
+
+      // Verify: All tokens across both emails should be unique
+      const allTokens1 = Array.from(tokenMap1.keys());
+      const allTokens2 = Array.from(tokenMap2.keys());
+      const allTokensCombined = [...allTokens1, ...allTokens2];
+      const uniqueTokens = new Set(allTokensCombined);
+
+      expect(allTokensCombined.length).toBe(uniqueTokens.size);
+
+      // Verify: Unredacting with correct token map restores original values
+      const testText1 = `Email from ${sender1Redaction.redactedText} about ${subject1Redaction.redactedText}`;
+      const unredacted1 = unredact(testText1, tokenMap1);
+      expect(unredacted1.originalText).toContain("Maria Santos");
+      expect(unredacted1.originalText).not.toContain("Alex Thompson");
+
+      const testText2 = `Email from ${sender2Redaction.redactedText} about ${subject2Redaction.redactedText}`;
+      const unredacted2 = unredact(testText2, tokenMap2);
+      expect(unredacted2.originalText).toContain("Alex Thompson");
+      expect(unredacted2.originalText).not.toContain("Maria Santos");
+    });
+
+    it("should handle same name appearing in multiple emails with unique tokens", () => {
+      resetTokenCounter();
+
+      // Two emails both mentioning "Maria Santos"
+      const email1 = "Appointment for Maria Santos on Monday";
+      const email2 = "Follow-up needed for Maria Santos";
+
+      const redacted1 = redact(email1, entityData);
+      const redacted2 = redact(email2, entityData);
+
+      // Each occurrence of "Maria Santos" should get a different token
+      const tokens1 = Array.from(redacted1.tokenMap.keys());
+      const tokens2 = Array.from(redacted2.tokenMap.keys());
+
+      // Tokens should be different (counter increments)
+      expect(tokens1).not.toEqual(tokens2);
+
+      // But both should unredact to "Maria Santos"
+      const unredacted1 = unredact(redacted1.redactedText, redacted1.tokenMap);
+      const unredacted2 = unredact(redacted2.redactedText, redacted2.tokenMap);
+
+      expect(unredacted1.originalText).toBe(email1);
+      expect(unredacted2.originalText).toBe(email2);
+    });
+
+    it("should prevent cross-email token map pollution", () => {
+      resetTokenCounter();
+
+      const email1 = "Call Maria Santos at 555-0102";
+      const email2 = "Email Alex Thompson at alex@example.com";
+
+      const redacted1 = redact(email1, entityData);
+      const redacted2 = redact(email2, entityData);
+
+      // Try unredacting email1's redacted text with email2's token map (wrong!)
+      const wrongUnredact = unredact(redacted1.redactedText, redacted2.tokenMap);
+
+      // Should have unknown tokens because token maps don't match
+      expect(wrongUnredact.unknownTokens.length).toBeGreaterThan(0);
+      expect(wrongUnredact.originalText).not.toBe(email1);
+      expect(wrongUnredact.originalText).toContain("{{"); // Tokens left in place
+    });
+  });
 });

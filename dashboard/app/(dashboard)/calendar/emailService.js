@@ -1,5 +1,5 @@
 import { loadAllEmails } from "./csvParser";
-import { analyzeEmails, clearTranslationCache } from "./geminiService";
+import { analyzeEmails, clearTranslationCache } from "./aiService";
 
 let cache = [];
 let isReady = false;
