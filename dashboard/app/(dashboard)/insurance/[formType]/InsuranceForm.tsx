@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import type { FormTemplate, FieldDefinition } from "@/lib/insurance/templates";
 import { getFieldsBySection } from "@/lib/insurance/templates";
+import AiDraftLabel from "@/components/AiDraftLabel";
 
 type AIFilledFields = Set<string>;
 
@@ -98,11 +99,7 @@ function FieldRenderer({
             Manual
           </span>
         )}
-        {isAiFilled && (
-          <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-amber-800">
-            AI draft — review required
-          </span>
-        )}
+        {isAiFilled && <AiDraftLabel />}
       </Label>
       {field.type === "textarea" ? (
         <textarea

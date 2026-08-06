@@ -154,7 +154,7 @@ describe("Email AI Redaction Pipeline", () => {
 
       const mockScanText = vi.mocked(redactionModule.scanText);
 
-      await translateEmailContent("test-id", "Patient inquiry", "Appointment request");
+      await translateEmailContent("test-id", "Patient inquiry", "Appointment request", "ko");
 
       // Verify AI was called
       expect(mockCallAI).toHaveBeenCalledTimes(1);
@@ -164,6 +164,76 @@ describe("Email AI Redaction Pipeline", () => {
       const scanCalls = mockScanText.mock.calls.map(call => call[0]);
       expect(scanCalls).toContain("환자 문의");
       expect(scanCalls).toContain("약속 요청");
+    });
+
+    it("should return original text for 'en' without calling AI", async () => {
+      const mockCallAI = vi.spyOn(aiProvider, "callAI");
+
+      const result = await translateEmailContent(
+        "test-en",
+        "English summary",
+        "English body",
+        "en"
+      );
+
+      // Verify no AI call was made
+      expect(mockCallAI).not.toHaveBeenCalled();
+
+      // Verify original text returned
+      expect(result).toEqual({
+        summary: "English summary",
+        body: "English body",
+      });
+    });
+
+    it("should send Spanish prompt for 'es' target language", async () => {
+      const mockCallAI = vi.spyOn(aiProvider, "callAI");
+      mockCallAI.mockResolvedValueOnce(`
+        <summary_translation>Resumen en español</summary_translation>
+        <body_translation>Cuerpo en español</body_translation>
+      `);
+
+      await translateEmailContent("test-es", "Summary", "Body", "es");
+
+      // Verify AI was called
+      expect(mockCallAI).toHaveBeenCalledTimes(1);
+
+      // Verify the prompt mentions Spanish
+      const calledPrompt = mockCallAI.mock.calls[0][0];
+      expect(calledPrompt).toContain("Spanish");
+      expect(calledPrompt).toContain("Español");
+    });
+
+    it("should use separate cache keys for different languages", async () => {
+      const mockCallAI = vi.spyOn(aiProvider, "callAI");
+
+      mockCallAI.mockResolvedValueOnce(`
+        <summary_translation>한국어 요약</summary_translation>
+        <body_translation>한국어 본문</body_translation>
+      `);
+      mockCallAI.mockResolvedValueOnce(`
+        <summary_translation>Resumen español</summary_translation>
+        <body_translation>Cuerpo español</body_translation>
+      `);
+
+      // First call with Korean
+      const resultKo = await translateEmailContent("same-id", "Summary", "Body", "ko");
+
+      // Second call with Spanish (same emailId)
+      const resultEs = await translateEmailContent("same-id", "Summary", "Body", "es");
+
+      // Both should have called AI (not cached together)
+      expect(mockCallAI).toHaveBeenCalledTimes(2);
+
+      // Results should be different
+      expect(resultKo.summary).toContain("한국어");
+      expect(resultEs.summary).toContain("español");
+
+      // Third call with Korean should use cache (no new AI call)
+      mockCallAI.mockClear();
+      const resultKoCached = await translateEmailContent("same-id", "Summary", "Body", "ko");
+      expect(mockCallAI).not.toHaveBeenCalled();
+      expect(resultKoCached).toEqual(resultKo);
     });
   });
 

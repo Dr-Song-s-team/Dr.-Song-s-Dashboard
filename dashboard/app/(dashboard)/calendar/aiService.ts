@@ -257,23 +257,32 @@ const translationCache = new Map<
 >();
 
 /**
- * Translate email content to Korean.
+ * Translate email content to the target language.
  *
  * Uses XML delimiters to avoid JSON parse failures. Results are cached
- * by emailId.
+ * by emailId and targetLang.
  *
  * @param emailId - Unique identifier for caching
- * @param summary - English summary text to translate
- * @param body - English body text to translate
+ * @param summary - Summary text to translate
+ * @param body - Body text to translate
+ * @param targetLang - Target language ("en" | "es" | "ko")
  * @returns Promise resolving to translated summary and body
  */
 export async function translateEmailContent(
   emailId: string,
   summary: string,
-  body: string
+  body: string,
+  targetLang: "en" | "es" | "ko"
 ): Promise<{ summary: string; body: string }> {
-  if (translationCache.has(emailId)) {
-    return translationCache.get(emailId)!;
+  // Early return for English - no translation needed
+  if (targetLang === "en") {
+    return { summary, body };
+  }
+
+  // Cache key includes language to avoid collisions
+  const cacheKey = `${emailId}:${targetLang}`;
+  if (translationCache.has(cacheKey)) {
+    return translationCache.get(cacheKey)!;
   }
 
   // Load entities for redaction
@@ -289,16 +298,23 @@ export async function translateEmailContent(
     ...bodyRedaction.tokenMap,
   ]);
 
-  const prompt = `Translate the following two text sections into natural, professional Korean.
+  // Language-specific prompt
+  const languageMap = {
+    ko: "natural, professional Korean",
+    es: "natural, professional Spanish (Español)",
+  };
+  const targetLanguage = languageMap[targetLang];
 
-Place each Korean translation inside the corresponding XML tags exactly as shown.
+  const prompt = `Translate the following two text sections into ${targetLanguage}.
+
+Place each translation inside the corresponding XML tags exactly as shown.
 Do not add any text outside the XML tags.
 
 <summary_translation>
-[Korean translation of the SUMMARY below]
+[Translation of the SUMMARY below]
 </summary_translation>
 <body_translation>
-[Korean translation of the BODY below]
+[Translation of the BODY below]
 </body_translation>
 
 SUMMARY:
@@ -347,7 +363,7 @@ ${bodyRedaction.redactedText}`;
     console.error("[translateEmailContent] scanText error:", err);
   }
 
-  translationCache.set(emailId, output);
+  translationCache.set(cacheKey, output);
   return output;
 }
 
