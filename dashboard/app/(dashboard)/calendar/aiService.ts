@@ -7,7 +7,7 @@
  */
 
 import { callAI } from "@/lib/ai/provider";
-import { loadEntities, redact, unredact } from "@/lib/redaction";
+import { loadEntities, redact, unredact, scanText } from "@/lib/redaction";
 import type { EntityData } from "@/lib/redaction";
 
 const EMAIL_BATCH_SIZE = 25;
@@ -226,6 +226,28 @@ export async function analyzeEmails(
     batches.map((batch) => analyzeEmailBatch(batch, entities))
   );
 
+  // Scan all final values for PII leaks (warn only, don't throw)
+  for (const result of results.flat()) {
+    try {
+      scanText(result.summaryTitle, { throwOnHighSeverityMiss: false });
+      for (const detail of result.summaryDetails) {
+        scanText(detail, { throwOnHighSeverityMiss: false });
+      }
+      for (const tag of result.clientTags) {
+        scanText(tag, { throwOnHighSeverityMiss: false });
+      }
+      if (result.recommendedAction) {
+        scanText(result.recommendedAction, { throwOnHighSeverityMiss: false });
+      }
+      if (result.draftResponse) {
+        scanText(result.draftResponse, { throwOnHighSeverityMiss: false });
+      }
+    } catch (err) {
+      // Should never throw with throwOnHighSeverityMiss: false, but log just in case
+      console.error("[analyzeEmails] scanText error:", err);
+    }
+  }
+
   return results.flat();
 }
 
@@ -316,6 +338,14 @@ ${bodyRedaction.redactedText}`;
     summary: summaryMatch[1].trim(),
     body: bodyMatch[1].trim(),
   };
+
+  // Scan final translations for PII leaks (warn only, don't throw)
+  try {
+    scanText(output.summary, { throwOnHighSeverityMiss: false });
+    scanText(output.body, { throwOnHighSeverityMiss: false });
+  } catch (err) {
+    console.error("[translateEmailContent] scanText error:", err);
+  }
 
   translationCache.set(emailId, output);
   return output;
@@ -411,7 +441,7 @@ export async function analyzeSchedulingEmails(
     throw new Error("Schedule analysis did not return an array");
 
   // Validate and normalize results
-  return parsed.map((item: UnknownJSON): SchedulingResult => ({
+  const results = parsed.map((item: UnknownJSON): SchedulingResult => ({
     id: String(item.emailId || ""),
     type: [
       "appointment",
@@ -432,6 +462,20 @@ export async function analyzeSchedulingEmails(
       : "medium",
     category: item.category === "insurance" ? "insurance" : "client",
   }));
+
+  // Scan all final values for PII leaks (warn only, don't throw)
+  for (const result of results) {
+    try {
+      scanText(result.patientName, { throwOnHighSeverityMiss: false });
+      scanText(result.title, { throwOnHighSeverityMiss: false });
+      if (result.date) scanText(result.date, { throwOnHighSeverityMiss: false });
+      if (result.time) scanText(result.time, { throwOnHighSeverityMiss: false });
+    } catch (err) {
+      console.error("[analyzeSchedulingEmails] scanText error:", err);
+    }
+  }
+
+  return results;
 }
 
 /**

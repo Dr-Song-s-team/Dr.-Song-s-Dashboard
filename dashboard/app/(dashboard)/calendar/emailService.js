@@ -102,7 +102,7 @@ async function loadAndAnalyzeEmails(forceRefresh = false) {
   try {
     analyses = await analyzeEmails(emails);
   } catch (err) {
-    console.warn('Gemini analysis failed, using rule-based fallback:', err.message);
+    console.warn('AI analysis failed, using rule-based fallback:', err.message);
     analyses = ruleBasedFallback(emails);
   }
 
