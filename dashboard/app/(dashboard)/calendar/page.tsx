@@ -38,31 +38,9 @@ interface ApiEvent {
 
 export default function CalendarPage() {
 
-//const [emails, setEmails]       = useState<any[]>([]);
-const [emailStatus, setEmailStatus]   = useState('loading');
-const [emailError, setEmailError]     = useState<string | null>(null);
 const [scheduleStatus, setScheduleStatus]       = useState('loading');
-const [scheduleEvents, setScheduleEvents] = useState<CalendarEvent[]>([]);
 const [polling, setPolling]     = useState(true);
 const [dbEvents, setDbEvents] = useState<CalendarEvent[]>([]);
-
-const fetchEmails = useCallback(async () => {
-  try {
-    const res = await fetch('http://localhost:3001/api/emails');
-    if (!res.ok) throw new Error(`Server error ${res.status}`);
-    const data = await res.json();
-    if (data.status === 'analyzing') { setEmailStatus('analyzing'); return false; }
-    //setEmails(data.emails || []);
-    setEmailStatus('ready');
-    return true;
-  } catch (err) {
-  setEmailError(
-    err instanceof Error ? err.message : "Unknown error"
-  );
-  setEmailStatus('error');
-  return true;
-}
-}, []);
 
 const fetchSchedule = useCallback(async () => {
   try {
@@ -70,7 +48,6 @@ const fetchSchedule = useCallback(async () => {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `Server error ${res.status}`);
     if (data.status === 'analyzing') { setScheduleStatus('analyzing'); return false; }
-    setScheduleEvents(data.events || []);
     setScheduleStatus('ready');
     return true;
   } catch {
@@ -83,8 +60,8 @@ useEffect(() => {
   if (!polling) return undefined;
   let cancelled = false;
   const poll = async () => {
-    const [inboxDone, schedDone] = await Promise.all([fetchEmails(), fetchSchedule()]);
-    if (!cancelled && inboxDone && schedDone) setPolling(false);
+    const schedDone = await fetchSchedule();
+    if (!cancelled && schedDone) setPolling(false);
   };
   poll();
   const interval = setInterval(poll, 2500);
@@ -92,24 +69,18 @@ useEffect(() => {
     cancelled = true;
     clearInterval(interval);
   };
-}, [fetchEmails, fetchSchedule, polling]);
+}, [fetchSchedule, polling]);
 
 const handleRefresh = async () => {
-  setEmailStatus('analyzing');
   setScheduleStatus('analyzing');
-  //setEmails([]);
-  // setScheduleEvents([]);
   try {
     const res = await fetch('http://localhost:3001/api/refresh', { method: 'POST' });
     console.log(res.status);
     if (!res.ok) throw new Error(`Refresh failed (${res.status})`);
     setPolling(true);
-  } catch (err) {
-  setEmailError(
-    err instanceof Error ? err.message : "Unknown error"
-  );
-  setEmailStatus('error');
-}
+  } catch {
+    setScheduleStatus('error');
+  }
 };
 
 const fetchDbEvents = useCallback(async () => {
