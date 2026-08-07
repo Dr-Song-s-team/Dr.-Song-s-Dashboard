@@ -83,6 +83,20 @@ const handleRefresh = async () => {
   }
 };
 
+const handleImportGmail = async () => {
+  const res = await fetch("/api/import-gmail", {
+    method: "POST",
+  });
+
+  if (!res.ok) {
+    console.error("Failed to import Gmail");
+    return;
+  }
+
+  // Reload calendar events
+  await fetchDbEvents();
+};
+
 const fetchDbEvents = useCallback(async () => {
   const res = await fetch("/api/events");
 
@@ -197,7 +211,7 @@ const deleteEvent = async (id: string) => {
           onCreateEvent={createEvent}
           onUpdateEvent={updateEvent}
           onDeleteEvent={deleteEvent}
-          onRefresh={handleRefresh}
+          onRefresh={handleImportGmail}
           onEventUpdated={setDbEvents}
         />
       );

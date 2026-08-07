@@ -10,7 +10,7 @@ import { callAI } from "@/lib/ai/provider";
 import { loadEntities, redact, unredact, scanText } from "@/lib/redaction";
 import type { EntityData } from "@/lib/redaction";
 
-const EMAIL_BATCH_SIZE = 25;
+const EMAIL_BATCH_SIZE = 12;
 
 const ANALYSIS_SYSTEM = `You are an AI assistant for Dr. Huy, a licensed acupuncturist. Analyze clinic emails and return a JSON array.
 
@@ -21,7 +21,22 @@ For each email return an object with:
 - "summaryTitle": an 8-14 word plain-language gist of what the email is about
 - "summaryDetails": an array of 3-6 concise, easy-to-understand detail strings. Include concrete names, dates, times, requests, deadlines, and consequences when present.
 - "clientTags": an array of every patient/client full name mentioned or directly associated with the email. For a patient email, include the sender's name. Use an empty array only when no client is identifiable.
-- "recommendedAction": specific action string for staff, or null if none needed
+- "recommendedActions": an array of short staff tasks, or null if none needed
+
+Each task should:
+- begin with a verb
+- be concise (3–10 words)
+- describe one concrete action
+- be independently actionable
+
+Examples:
+[
+  "Call patient to confirm appointment",
+  "Upload insurance documentation",
+  "Verify coverage with Blue Shield",
+  "Schedule follow-up visit"
+]
+
 - "draftResponse": a warm, professional response the clinic can edit and send. Address the sender by first name when appropriate, directly acknowledge their request, and state the next step. Use null for spam or messages that should not receive a reply.
 
 Urgency rules:
@@ -37,6 +52,7 @@ Category rules:
 Return ONLY a valid JSON array with no markdown, no explanation.`;
 
 interface Email {
+  id: string;
   sender: string;
   subject: string;
   body: string;
@@ -50,7 +66,7 @@ interface AnalyzedEmail {
   summaryDetails: string[];
   clientTags: string[];
   summary: string;
-  recommendedAction: string | null;
+  recommendedActions: string[] | null;
   draftResponse: string | null;
 }
 
@@ -137,6 +153,9 @@ async function analyzeEmailBatchOnce(
         .trim()
     : unredactedResponse;
 
+  console.log("RAW AI RESPONSE:");
+console.log(jsonText);
+
   const parsed = JSON.parse(jsonText);
 
   if (!Array.isArray(parsed) || parsed.length !== emails.length) {
@@ -167,9 +186,15 @@ async function analyzeEmailBatchOnce(
         ].slice(0, 6) as string[])
       : [],
     summary: String(item.summary || item.summaryTitle || "").trim(),
-    recommendedAction: item.recommendedAction
-      ? String(item.recommendedAction).trim()
-      : null,
+    recommendedActions: Array.isArray(item.recommendedActions)
+  ? [
+      ...new Set<string>(
+        item.recommendedActions
+          .map((action: UnknownJSON): string => String(action).trim())
+          .filter(Boolean)
+      ),
+    ].slice(0, 10)
+  : null,
     draftResponse: item.draftResponse
       ? String(item.draftResponse).trim()
       : null,
@@ -236,8 +261,12 @@ export async function analyzeEmails(
       for (const tag of result.clientTags) {
         scanText(tag, { throwOnHighSeverityMiss: false });
       }
-      if (result.recommendedAction) {
-        scanText(result.recommendedAction, { throwOnHighSeverityMiss: false });
+      if (result.recommendedActions) {
+        for (const action of result.recommendedActions) {
+          scanText(action, {
+            throwOnHighSeverityMiss: false,
+          });
+        }
       }
       if (result.draftResponse) {
         scanText(result.draftResponse, { throwOnHighSeverityMiss: false });

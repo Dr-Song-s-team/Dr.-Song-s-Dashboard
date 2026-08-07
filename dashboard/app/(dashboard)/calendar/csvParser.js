@@ -32,18 +32,18 @@ function parseCsv(filePath, idPrefix) {
   }));
 }
 
-function loadEmails() {
+export function loadEmails() {
   return parseCsv(CSV_V1, 'email');
 }
 
-function loadSchedulingEmails() {
+export function loadSchedulingEmails() {
   return parseCsv(CSV_V2, 'sched');
 }
 
-function loadAllEmails() {
+export function loadAllEmails() {
   const v1 = parseCsv(CSV_V1, 'email');
   const v2 = parseCsv(CSV_V2, 'sched');
   return [...v1, ...v2];
 }
 
-module.exports = { loadEmails, loadSchedulingEmails, loadAllEmails };
+//module.exports = { loadEmails, loadSchedulingEmails, loadAllEmails };

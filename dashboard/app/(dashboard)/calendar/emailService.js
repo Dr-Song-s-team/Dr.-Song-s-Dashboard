@@ -1,5 +1,5 @@
 import { loadAllEmails } from "./csvParser";
-import { analyzeEmails, clearTranslationCache } from "./aiService";
+import { AnalyzedEmail, analyzeEmails, clearTranslationCache } from "./aiService";
 
 let cache = [];
 let isReady = false;
@@ -90,6 +90,74 @@ function ruleBasedFallback(emails) {
   });
 }
 
+function getDueDate(analysis) {
+  const due = new Date();
+
+  switch (analysis.urgency) {
+    case "high":
+      due.setDate(due.getDate() + 1);
+      break;
+
+    case "medium":
+      due.setDate(due.getDate() + 3);
+      break;
+
+    default:
+      due.setDate(due.getDate() + 7);
+      break;
+  }
+
+  return due.toISOString();
+}
+
+export async function createTasksFromAnalysis(emails, analyses) {
+  for (let i = 0; i < analyses.length; i++) {
+    const email = emails[i];
+    const analysis = analyses[i];
+
+    if (!analysis.actionRequired) continue;
+    if (!analysis.recommendedActions?.length) continue;
+
+    const description = [
+      analysis.summaryTitle,
+      ...analysis.summaryDetails,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    for (const action of analysis.recommendedActions) {
+      try {
+        const res = await fetch("http://localhost:3001/api/events", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            title: action,
+            description,
+            due: getDueDate(analysis),
+
+            // Include these if available
+            emailId: email.id ?? null,
+            reminders: [],
+          }),
+        });
+
+        if (!res.ok) {
+          console.error(
+            `Failed creating task "${action}" (${res.status})`
+          );
+        }
+      } catch (err) {
+        console.error(
+          `Failed creating task "${action}" for "${email.subject}"`,
+          err
+        );
+      }
+    }
+  }
+}
+
 async function loadAndAnalyzeEmails(forceRefresh = false) {
   if (isReady && !forceRefresh) return;
 
@@ -101,6 +169,13 @@ async function loadAndAnalyzeEmails(forceRefresh = false) {
   let analyses;
   try {
     analyses = await analyzeEmails(emails);
+
+    await createTasksFromAnalysis(emails, analyses);
+
+    cache = emails.map((email, i) => ({
+        ...email,
+        ...analyses[i],
+    }));
   } catch (err) {
     console.warn('AI analysis failed, using rule-based fallback:', err.message);
     analyses = ruleBasedFallback(emails);
