@@ -117,6 +117,7 @@ model Email {
   body           String
   status         EmailStatus         @default(UNREAD)
   classification EmailClassification @default(UNKNOWN)
+  insurerLabel   String?
   aiSummary      String?
   aiDraft        String?
   receivedAt     DateTime
@@ -127,6 +128,10 @@ model Email {
   patient   Patient? @relation(fields: [patientId], references: [id])
 
   tasks Task[]
+
+  @@index([receivedAt])
+  @@index([status])
+  @@index([insurerLabel])
 }
 
 /// A calendar task; may originate from an email or be created manually.
