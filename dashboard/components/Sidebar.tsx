@@ -99,7 +99,7 @@ function InsuranceIcon({ className }: { className?: string }) {
 const navLinks = [
   {
     label: "Email",
-    href: "/",
+    href: "/email",
     icon: <EmailIcon className="size-5" />,
   },
   {

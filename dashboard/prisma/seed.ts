@@ -8,14 +8,39 @@ import { config } from "dotenv";
 config({ path: ".env.local" });
 config();
 
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { PrismaPg } from "@prisma/adapter-pg";
+import { parse } from "csv-parse/sync";
 import { PrismaClient } from "../app/generated/prisma/client";
 import { requireEnv } from "../lib/env";
 
 const fixtureBase = "/fixtures/documents";
+const clinicInboxes = [
+  "INFO",
+  "BILLING",
+  "AUTHORIZATIONS",
+  "REFERRALS",
+  "SCHEDULING",
+  "CLAIMS",
+] as const;
+
+type ClinicInbox = (typeof clinicInboxes)[number];
+type EmailStatus = "UNREAD" | "READ" | "NEEDS_ACTION" | "ARCHIVED";
+type EmailClassification =
+  | "AUTHORIZATION"
+  | "CLAIM"
+  | "REFERRAL"
+  | "SCHEDULING"
+  | "BILLING"
+  | "GENERAL";
+
+type CsvEmail = {
+  sender: string;
+  subject: string;
+  body: string;
+};
 
 /**
  * Fails loudly when a fixture PDF is absent or misnamed, rather than seeding
@@ -31,6 +56,97 @@ function assertFixturesPresent(paths: string[]) {
         `\n\nFilenames must match exactly. See public${fixtureBase}/README.md.`,
     );
   }
+}
+
+function senderNameFromEmail(email: string) {
+  return email
+    .split("@")[0]
+    .split(/[._-]/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function inferInbox(email: CsvEmail, index: number): ClinicInbox {
+  const content = `${email.subject} ${email.body}`.toLowerCase();
+
+  if (/\bclaim|cms-1500|eob|explanation of benefits\b/.test(content)) {
+    return "CLAIMS";
+  }
+  if (/\bauthori[sz]|auth limit|pre-?approval\b/.test(content)) {
+    return "AUTHORIZATIONS";
+  }
+  if (/\breferral|referring provider\b/.test(content)) {
+    return "REFERRALS";
+  }
+  if (/\bschedule|appointment|reschedul|availability|book(?:ing)?\b/.test(content)) {
+    return "SCHEDULING";
+  }
+  if (/\bbill|invoice|payment|insurance card|coverage\b/.test(content)) {
+    return "BILLING";
+  }
+
+  // Distribute general clinic correspondence so every logical clinic inbox
+  // has representative synthetic messages for the EMS demo.
+  return clinicInboxes[index % clinicInboxes.length];
+}
+
+function inferInsurerLabel(email: CsvEmail) {
+  const content = `${email.sender} ${email.subject} ${email.body}`.toLowerCase();
+  if (/\banthem\b/.test(content)) return "Anthem";
+  if (/\bblue cross\b|\bbcbs\b/.test(content)) return "Blue Cross";
+  if (/\baetna\b/.test(content)) return "Aetna";
+  if (/\b(united health|uhc)\b/.test(content)) return "United Health";
+  if (/\bcigna\b/.test(content)) return "Cigna";
+  return null;
+}
+
+function classificationForInbox(inbox: ClinicInbox): EmailClassification {
+  switch (inbox) {
+    case "AUTHORIZATIONS":
+      return "AUTHORIZATION";
+    case "CLAIMS":
+      return "CLAIM";
+    case "REFERRALS":
+      return "REFERRAL";
+    case "SCHEDULING":
+      return "SCHEDULING";
+    case "BILLING":
+      return "BILLING";
+    case "INFO":
+      return "GENERAL";
+  }
+}
+
+function statusForEmail(email: CsvEmail, index: number): EmailStatus {
+  const content = `${email.subject} ${email.body}`.toLowerCase();
+  if (/\burgent|as soon as possible|deadline|required|denied|resubmit\b/.test(content)) {
+    return "NEEDS_ACTION";
+  }
+  if (index % 11 === 0) return "ARCHIVED";
+  if (index % 3 === 0) return "READ";
+  return "UNREAD";
+}
+
+function loadMockEmails(): CsvEmail[] {
+  const dataDirectory = join(process.cwd(), "app", "data");
+  const files = ["mock_email_data.csv", "mock_email_data_v2.csv"];
+
+  return files.flatMap((file) => {
+    const records = parse(readFileSync(join(dataDirectory, file), "utf-8"), {
+      columns: ["sender", "subject", "body"],
+      from_line: 2,
+      skip_empty_lines: true,
+      trim: true,
+      relax_quotes: true,
+    }) as CsvEmail[];
+
+    return records.map((record) => ({
+      sender: record.sender.trim(),
+      subject: record.subject.trim(),
+      body: record.body.trim(),
+    }));
+  });
 }
 
 async function main(prisma: PrismaClient) {
@@ -231,6 +347,7 @@ async function main(prisma: PrismaClient) {
         body: "We are writing to confirm authorization for 12 additional visits (units 7–18) for member ANT-2024-001. Auth #: AUTH-2024-07-001. Please reference this number on all claims. Questions: 1-800-555-0001.",
         status: "NEEDS_ACTION",
         classification: "AUTHORIZATION",
+        insurerLabel: "Anthem",
         receivedAt: h(0),
         patientId: alex.id,
       },
@@ -244,6 +361,7 @@ async function main(prisma: PrismaClient) {
         body: "Claim #CLM-2024-0301 for DOS 2024-06-15 has been denied. Reason: missing diagnosis code on line 21. Please resubmit with corrected CMS-1500. Resubmission deadline: 90 days from DOS. Questions: 1-800-555-0003.",
         status: "NEEDS_ACTION",
         classification: "CLAIM",
+        insurerLabel: "Aetna",
         receivedAt: h(2),
         patientId: james.id,
       },
@@ -257,6 +375,7 @@ async function main(prisma: PrismaClient) {
         body: "Please see Maria Santos (DOB on file, BCBS-2024-002) for evaluation and treatment. Diagnosis: cervical strain (M54.2). Requesting up to 12 visits. Please fax results to 555-0200. Thank you.",
         status: "UNREAD",
         classification: "REFERRAL",
+        insurerLabel: "Blue Cross",
         receivedAt: h(4),
         patientId: maria.id,
       },
@@ -273,6 +392,7 @@ async function main(prisma: PrismaClient) {
         body: "Hi, I would like to schedule my next appointment. I am available Tuesday and Thursday afternoons. Please let me know what is open. Thank you, Lisa Park.",
         status: "UNREAD",
         classification: "SCHEDULING",
+        insurerLabel: "United Health",
         receivedAt: h(5),
         patientId: lisa.id,
       },
@@ -284,6 +404,7 @@ async function main(prisma: PrismaClient) {
         body: "Attached is the Explanation of Benefits for claim CLM-2024-0501 processed 2024-07-01. Patient responsibility: $0.00. Amount paid to provider: $145.00. Questions: 1-800-555-0005.",
         status: "READ",
         classification: "BILLING",
+        insurerLabel: "Cigna",
         receivedAt: h(6),
         patientId: david.id,
       },
@@ -295,13 +416,34 @@ async function main(prisma: PrismaClient) {
         body: "This is a notification that member UHC-2024-004 has reached their authorized visit limit of 16. A new authorization request must be submitted before additional services are rendered. Submit via provider portal or call 1-800-555-0004.",
         status: "NEEDS_ACTION",
         classification: "AUTHORIZATION",
+        insurerLabel: "United Health",
         receivedAt: h(8),
         patientId: lisa.id,
       },
     ],
   });
 
-  console.log("  ✓ Emails seeded");
+  const mockEmails = loadMockEmails();
+  const mockEmailStart = new Date("2024-07-10T08:00:00Z");
+
+  await prisma.email.createMany({
+    data: mockEmails.map((email, index) => {
+      const toInbox = inferInbox(email, index);
+      return {
+        toInbox,
+        fromName: senderNameFromEmail(email.sender),
+        fromEmail: email.sender,
+        subject: email.subject,
+        body: email.body,
+        status: statusForEmail(email, index),
+        classification: classificationForInbox(toInbox),
+        insurerLabel: inferInsurerLabel(email),
+        receivedAt: new Date(mockEmailStart.getTime() + index * 3_600_000),
+      };
+    }),
+  });
+
+  console.log(`  ✓ ${mockEmails.length + 6} emails seeded from clinic fixtures`);
 
   // ------------------------------------------------------------------
   // Tasks
