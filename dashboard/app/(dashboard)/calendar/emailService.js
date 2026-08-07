@@ -82,41 +82,50 @@ function ruleBasedFallback(emails) {
       summaryDetails: detailSentences,
       clientTags,
       summary: email.subject,
-      recommendedAction: actionRequired
-        ? 'Review and respond to this email'
-        : null,
+      recommendedActions:
+  actionRequired
+    ? [
+        "Review and respond to this email"
+      ]
+    : null,
       draftResponse,
     };
   });
 }
 
-function getDueDate(analysis) {
-  const due = new Date();
+function formatDueDate(date, time) {
+  if (!date) return null;
 
-  switch (analysis.urgency) {
-    case "high":
-      due.setDate(due.getDate() + 1);
-      break;
+  // Default task time if AI does not provide one
+  const finalTime = time || "09:00 AM";
 
-    case "medium":
-      due.setDate(due.getDate() + 3);
-      break;
+  const parsed = new Date(`${date} ${finalTime}`);
 
-    default:
-      due.setDate(due.getDate() + 7);
-      break;
+  if (isNaN(parsed.getTime())) {
+    return null;
   }
 
-  return due.toISOString();
+  return parsed.toISOString();
 }
 
+
 export async function createTasksFromAnalysis(emails, analyses) {
+
   for (let i = 0; i < analyses.length; i++) {
+
     const email = emails[i];
     const analysis = analyses[i];
 
+
     if (!analysis.actionRequired) continue;
-    if (!analysis.recommendedActions?.length) continue;
+
+    if (
+      !analysis.recommendedActions ||
+      analysis.recommendedActions.length === 0
+    ) {
+      continue;
+    }
+
 
     const description = [
       analysis.summaryTitle,
@@ -125,35 +134,88 @@ export async function createTasksFromAnalysis(emails, analyses) {
       .filter(Boolean)
       .join("\n");
 
-    for (const action of analysis.recommendedActions) {
-      try {
-        const res = await fetch("http://localhost:3001/api/events", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            title: action,
-            description,
-            due: getDueDate(analysis),
 
-            // Include these if available
-            emailId: email.id ?? null,
-            reminders: [],
-          }),
-        });
+    for (const action of analysis.recommendedActions) {
+
+      try {
+
+        const dueDate = formatDueDate(
+          analysis.dueDate,
+          analysis.dueTime
+        );
+
+
+        const res = await fetch(
+          "http://localhost:3000/api/events",
+          {
+            method: "POST",
+
+            headers:{
+              "Content-Type":"application/json",
+            },
+
+            body: JSON.stringify({
+
+              title: action,
+
+              description,
+
+              // Example:
+              // 2026-07-27T10:00:00.000Z
+              due: dueDate,
+
+
+              emailId:
+                email.id ?? null,
+
+
+              reminders:
+                dueDate
+                ? [
+                    {
+                      remindAt:
+                        new Date(
+                          new Date(dueDate).getTime()
+                          -
+                          15 * 60 * 1000
+                        ).toISOString()
+                    }
+                  ]
+                : []
+
+            }),
+          }
+        );
+
 
         if (!res.ok) {
+
+          const error =
+            await res.text();
+
           console.error(
-            `Failed creating task "${action}" (${res.status})`
+            `Failed creating task "${action}":`,
+            error
           );
+
+        } else {
+
+          console.log(
+            `Created task: ${action}`
+          );
+
         }
-      } catch (err) {
+
+
+      } catch(err){
+
         console.error(
-          `Failed creating task "${action}" for "${email.subject}"`,
+          `Error creating task "${action}"`,
           err
         );
+
       }
+
     }
   }
 }
@@ -168,18 +230,26 @@ async function loadAndAnalyzeEmails(forceRefresh = false) {
 
   let analyses;
   try {
-    analyses = await analyzeEmails(emails);
+  analyses = await analyzeEmails(emails);
+}
+catch(err){
+  console.warn("AI failed:", err.message);
+  analyses = ruleBasedFallback(emails);
+}
 
-    await createTasksFromAnalysis(emails, analyses);
 
-    cache = emails.map((email, i) => ({
-        ...email,
-        ...analyses[i],
-    }));
-  } catch (err) {
-    console.warn('AI analysis failed, using rule-based fallback:', err.message);
-    analyses = ruleBasedFallback(emails);
-  }
+try {
+  await createTasksFromAnalysis(
+    emails,
+    analyses
+  );
+}
+catch(err){
+  console.error(
+    "Task creation failed:",
+    err
+  );
+}
 
   cache = emails.map((email, i) => ({
     ...email,

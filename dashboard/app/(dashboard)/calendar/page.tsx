@@ -89,9 +89,15 @@ const handleImportGmail = async () => {
   });
 
   if (!res.ok) {
-    console.error("Failed to import Gmail");
-    return;
-  }
+  const error = await res.json().catch(() => null);
+
+  console.error(
+    "Failed to import Gmail:",
+    error
+  );
+
+  return;
+}
 
   // Reload calendar events
   await fetchDbEvents();

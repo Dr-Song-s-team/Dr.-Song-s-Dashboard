@@ -29,7 +29,9 @@ import type { RedactedText } from "@/lib/redaction";
  * Default Groq model for LLM calls.
  * Can be overridden via GROQ_MODEL environment variable.
  */
-export const DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile";
+//export const DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile";
+
+export const DEFAULT_GROQ_MODEL = "groq/compound";
 
 /**
  * Default timeout for API calls in milliseconds (30 seconds).

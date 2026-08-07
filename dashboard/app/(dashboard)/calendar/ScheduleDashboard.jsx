@@ -81,7 +81,6 @@ const weekDays = [...Array(7)].map((_, i) => {
   }
 
 function getTaskStatus(task) {
-  console.log("Checking status:", task)
 
   if (task.status === "ARCHIVED") {
         return "ARCHIVED";
@@ -246,6 +245,41 @@ function updateReminder(index, field, value) {
   );
 }
 
+async function enableNotifications() {
+
+  const permission =
+    await Notification.requestPermission();
+
+  if(permission !== "granted")
+    return;
+
+
+  const registration =
+    await navigator.serviceWorker.register(
+      "/sw.js"
+    );
+
+
+  const subscription =
+    await registration.pushManager.subscribe({
+      userVisibleOnly:true,
+
+      applicationServerKey:
+        process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+    });
+
+
+  await fetch("/api/push/subscribe", {
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json"
+    },
+    body:
+      JSON.stringify(subscription)
+  });
+
+}
+
   //console.log(events)
 
   // Count urgent items
@@ -350,6 +384,18 @@ function updateReminder(index, field, value) {
           {/* <StatBubble value={deadlineCount} label="Deadlines" color="ins" />
           <StatBubble value={apptCount}     label="Appointments" color="appt" /> */}
         </div>
+        <button
+  onClick={() => {
+    window.location.href = "/api/connect-gmail";
+  }}
+  className="cursor-pointer"
+>
+  Connect Gmail
+</button>
+        <button onClick={enableNotifications}
+        className="cursor-pointer">
+Enable Notifications
+</button>
         <button onClick={onRefresh}
         className="cursor-pointer">
   Refresh
@@ -470,8 +516,6 @@ function updateReminder(index, field, value) {
       {weekDays.map(date => {
 
         const dateString = date.toISOString().split("T")[0];
-
-        console.log(dateString)
 
         const holidayName = holidayMap[dateString];
         const dayEvents = byDate[dateString] || [];

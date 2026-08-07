@@ -10,7 +10,7 @@ import { callAI } from "@/lib/ai/provider";
 import { loadEntities, redact, unredact, scanText } from "@/lib/redaction";
 import type { EntityData } from "@/lib/redaction";
 
-const EMAIL_BATCH_SIZE = 12;
+const EMAIL_BATCH_SIZE = 2;
 
 const ANALYSIS_SYSTEM = `You are an AI assistant for Dr. Huy, a licensed acupuncturist. Analyze clinic emails and return a JSON array.
 
@@ -22,6 +22,8 @@ For each email return an object with:
 - "summaryDetails": an array of 3-6 concise, easy-to-understand detail strings. Include concrete names, dates, times, requests, deadlines, and consequences when present.
 - "clientTags": an array of every patient/client full name mentioned or directly associated with the email. For a patient email, include the sender's name. Use an empty array only when no client is identifiable.
 - "recommendedActions": an array of short staff tasks, or null if none needed
+- "dueDate": ISO datetime string for the task deadline, or null
+- "dueTime": time in format "HH:MM AM/PM", or null
 
 Each task should:
 - begin with a verb
@@ -36,6 +38,19 @@ Examples:
   "Verify coverage with Blue Shield",
   "Schedule follow-up visit"
 ]
+
+For each recommended action:
+- Extract the actual deadline mentioned in the email.
+- If no deadline exists, estimate a reasonable due date:
+  - high urgency: within 1 day
+  - medium urgency: within 3 days
+  - low urgency: within 7 days
+
+Return dueDate as:
+YYYY-MM-DD
+
+Return dueTime as:
+HH:MM AM/PM
 
 - "draftResponse": a warm, professional response the clinic can edit and send. Address the sender by first name when appropriate, directly acknowledge their request, and state the next step. Use null for spam or messages that should not receive a reply.
 
@@ -62,11 +77,18 @@ interface AnalyzedEmail {
   category: "client" | "insurance" | "spam";
   urgency: "high" | "medium" | "low";
   actionRequired: boolean;
+
   summaryTitle: string;
   summaryDetails: string[];
   clientTags: string[];
+
   summary: string;
+
   recommendedActions: string[] | null;
+
+  dueDate: string | null;
+  dueTime: string | null;
+
   draftResponse: string | null;
 }
 
@@ -92,6 +114,63 @@ interface SchedulingResult {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type UnknownJSON = any;
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function callAIWithRetry(
+  prompt: string,
+  options: {
+    systemPrompt?: string;
+    jsonMode?: boolean;
+    timeoutMs?: number;
+  },
+  maxRetries = 3
+): Promise<string> {
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+
+    try {
+
+      return await callAI(prompt, options);
+
+    } catch (err: unknown) {
+
+      const message =
+        err instanceof Error
+          ? err.message
+          : String(err);
+
+
+      const isRateLimit =
+        message.includes("429") ||
+        message.toLowerCase().includes("rate limit");
+
+
+      if (!isRateLimit || attempt === maxRetries) {
+        throw err;
+      }
+
+
+      const delay =
+        3000 * Math.pow(2, attempt);
+
+
+      console.warn(
+        `AI rate limited. Retrying in ${delay}ms...`
+      );
+
+
+      await sleep(delay);
+    }
+  }
+
+
+  throw new Error(
+    "AI request failed after retries"
+  );
+}
+
 /**
  * Analyze a batch of emails once (no retry logic).
  * @internal
@@ -100,6 +179,8 @@ async function analyzeEmailBatchOnce(
   emails: Email[],
   entities: EntityData
 ): Promise<AnalyzedEmail[]> {
+  
+
   // Redact each email's sender, subject, and body
   const redactedEmails = emails.map((e) => {
     const senderRedaction = redact(e.sender, entities);
@@ -133,7 +214,7 @@ async function analyzeEmailBatchOnce(
   const finalRedaction = redact(prompt, entities);
 
   // Call AI with redacted text
-  const aiResponse = await callAI(finalRedaction.redactedText, {
+  const aiResponse = await callAIWithRetry(finalRedaction.redactedText, {
     systemPrompt: ANALYSIS_SYSTEM,
     jsonMode: true,
     timeoutMs: 60000,
@@ -154,7 +235,7 @@ async function analyzeEmailBatchOnce(
     : unredactedResponse;
 
   console.log("RAW AI RESPONSE:");
-console.log(jsonText);
+  console.log(jsonText);
 
   const parsed = JSON.parse(jsonText);
 
@@ -198,6 +279,16 @@ console.log(jsonText);
     draftResponse: item.draftResponse
       ? String(item.draftResponse).trim()
       : null,
+      dueDate:
+  item.dueDate &&
+  /^\d{4}-\d{2}-\d{2}$/.test(item.dueDate)
+    ? item.dueDate
+    : null,
+
+dueTime:
+  item.dueTime
+    ? String(item.dueTime)
+    : null,
   }));
 }
 
@@ -247,9 +338,23 @@ export async function analyzeEmails(
   }
 
   // Process all batches
-  const results = await Promise.all(
-    batches.map((batch) => analyzeEmailBatch(batch, entities))
+  const results = [];
+
+for (const batch of batches) {
+
+  const result =
+    await analyzeEmailBatch(
+      batch,
+      entities
+    );
+
+  results.push(result);
+
+  // prevent rate limits
+  await new Promise(
+    resolve => setTimeout(resolve, 1500)
   );
+}
 
   // Scan all final values for PII leaks (warn only, don't throw)
   for (const result of results.flat()) {
@@ -340,7 +445,7 @@ ${bodyRedaction.redactedText}`;
   const finalRedaction = redact(prompt, entities);
 
   // Call AI with redacted text
-  const aiResponse = await callAI(finalRedaction.redactedText, {
+  const aiResponse = await callAIWithRetry(finalRedaction.redactedText, {
     timeoutMs: 60000,
   });
 
@@ -444,7 +549,7 @@ export async function analyzeSchedulingEmails(
   const finalRedaction = redact(prompt, entities);
 
   // Call AI with redacted text
-  const aiResponse = await callAI(finalRedaction.redactedText, {
+  const aiResponse = await callAIWithRetry(finalRedaction.redactedText, {
     systemPrompt: SCHEDULE_SYSTEM,
     jsonMode: true,
     timeoutMs: 60000,

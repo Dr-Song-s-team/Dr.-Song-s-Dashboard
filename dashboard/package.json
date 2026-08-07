@@ -8,11 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-<<<<<<< HEAD
     "test": "vitest run && node --experimental-strip-types --test 'lib/__tests__/**/*.test.mjs'",
-=======
-    "test": "node --experimental-strip-types --test lib/__tests__/**/*.test.mjs",
->>>>>>> 14105d548d0c9b73f1b9b12296650b931b5f89ac
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
@@ -35,7 +31,8 @@
     "prisma": "^7.9.1",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "trigger.dev": "^4.5.9"
+    "trigger.dev": "^4.5.9",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

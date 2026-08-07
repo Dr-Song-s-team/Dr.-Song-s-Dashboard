@@ -1,76 +1,84 @@
 // lib/fetchEmails.js
 
-import { getGmailService } from "./gmail";
+import { prisma } from "@/lib/prisma";
+import { getGmailService } from "@/lib/gmail";
 
 function extractBody(payload) {
   if (!payload) return "";
 
   if (payload.body?.data) {
-    return Buffer.from(
-      payload.body.data.replace(/-/g, "+").replace(/_/g, "/"),
-      "base64"
-    ).toString("utf8");
+    return Buffer.from(payload.body.data, "base64").toString("utf8");
   }
 
   if (!payload.parts) return "";
 
   for (const part of payload.parts) {
     if (
-      part.mimeType === "text/plain" &&
+      (part.mimeType === "text/plain" ||
+        part.mimeType === "text/html") &&
       part.body?.data
     ) {
-      return Buffer.from(
-        part.body.data.replace(/-/g, "+").replace(/_/g, "/"),
-        "base64"
-      ).toString("utf8");
+      return Buffer.from(part.body.data, "base64").toString("utf8");
     }
 
-    const nested = extractBody(part);
-
-    if (nested) return nested;
+    if (part.parts) {
+      const nested = extractBody(part);
+      if (nested) return nested;
+    }
   }
 
   return "";
 }
 
+
 export async function fetchEmails(maxResults = 25) {
-  const gmail = await getGmailService();
+  const accounts = await prisma.gmailAccount.findMany();
 
-  const { data } = await gmail.users.messages.list({
-    userId: "me",
-    maxResults,
-    q: "-in:spam -in:trash",
-  });
+  const allEmails = [];
 
-  if (!data.messages) return [];
+  for (const account of accounts) {
+    const gmail = await getGmailService(account);
 
-  const emails = await Promise.all(
-    data.messages.map(async ({ id }) => {
-      const { data: message } = await gmail.users.messages.get({
-        userId: "me",
-        id,
-        format: "full",
-      });
+    const { data } = await gmail.users.messages.list({
+      userId: "me",
+      maxResults,
+      q: "-in:spam -in:trash",
+    });
 
-      const headers = message.payload?.headers ?? [];
+    if (!data.messages) continue;
 
-      const getHeader = (name) =>
-        headers.find(
-          (h) => h.name.toLowerCase() === name.toLowerCase()
-        )?.value || "";
+    const emails = await Promise.all(
+      data.messages.map(async ({ id }) => {
+        const { data: message } =
+          await gmail.users.messages.get({
+            userId: "me",
+            id,
+            format: "full",
+          });
 
-      const body = extractBody(message.payload);
+        const headers = message.payload.headers || [];
 
-      return {
-        id: message.id,
-        threadId: message.threadId,
-        sender: getHeader("From"),
-        subject: getHeader("Subject"),
-        date: getHeader("Date"),
-        body,
-      };
-    })
-  );
+        // Define getHeader here
+        const getHeader = (name) =>
+          headers.find(
+            (h) =>
+              h.name.toLowerCase() === name.toLowerCase()
+          )?.value || "";
 
-  return emails;
+        return {
+          id: message.id,
+          threadId: message.threadId,
+          sender: getHeader("From"),
+          subject: getHeader("Subject"),
+          date: getHeader("Date"),
+          body: extractBody(message.payload),
+          gmailAccount: account.email,
+        };
+      })
+    );
+
+    allEmails.push(...emails);
+  }
+
+  return allEmails;
 }
