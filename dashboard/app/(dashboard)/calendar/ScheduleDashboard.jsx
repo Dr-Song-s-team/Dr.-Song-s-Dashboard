@@ -289,6 +289,9 @@ async function enableNotifications() {
 
   const selectedEvent = selected ? events.find(e => e.id === selected) : null;
 
+//    console.log("EVENTS:", events);
+//  console.log("SELECTED EVENT:", selectedEvent);
+
   return (
     <div className="sched-root">
       {/* Dashboard header */}
@@ -1123,19 +1126,34 @@ const [editing, setEditing] = useState(false);
           <span className="detail-field">Patient / Entity</span>
           {event.patientName}
         </p>
-        {event.subject && (
+       {event.emailId && (
           <div className="event-detail-section">
-            <span className="detail-field">Email Subject</span>
-            <p className="event-detail-subject">{event.subject}</p>
-          </div>
-        )}
-        {event.body && (
-          <div className="event-detail-section event-detail-body-wrap">
-            <span className="detail-field">Email Body</span>
-            <div className="event-detail-body">
-              {event.body.split('\n').map((line, i) =>
-                line.trim() === '' ? <br key={i} /> : <p key={i}>{line}</p>
-              )}
+            <span className="detail-field">Source Email</span>
+
+            <div className="source-email">
+              <p className="event-detail-subject">
+                {event.email?.subject}
+              </p>
+
+              <p className="source-email-sender">
+                From: {event.email?.fromName} ({event.email?.fromEmail})
+              </p>
+
+              <p className="source-email-date">
+                {new Date(event.email?.receivedAt).toLocaleString()}
+              </p>
+
+              <details className="source-email-details">
+                <summary>View Email</summary>
+
+                <div className="event-detail-body">
+                  {event.email?.body.split("\n").map((line, i) =>
+                    line.trim() === ""
+                      ? <br key={i} />
+                      : <p key={i}>{line}</p>
+                  )}
+                </div>
+              </details>
             </div>
           </div>
         )}

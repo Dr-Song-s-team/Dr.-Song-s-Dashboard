@@ -122,10 +122,10 @@ model GmailAccount {
 model Email {
   id             String              @id @default(cuid())
 
-// Gmail identifiers
+  // Gmail identifiers
   gmailMessageId String              @unique
   gmailThreadId  String?
-  
+
   // Which Gmail account imported this
   gmailAccountId String?
   gmailAccount   GmailAccount? @relation(fields: [gmailAccountId], references: [id])
@@ -142,6 +142,9 @@ model Email {
   insurerLabel   String?
   aiSummary      String?
   aiDraft        String?
+
+  // Full structured AI analysis
+  aiAnalysis     Json?
 
   receivedAt     DateTime
   createdAt      DateTime            @default(now())

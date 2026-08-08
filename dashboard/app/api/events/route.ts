@@ -2,148 +2,116 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
-  const events = await prisma.task.findMany({
-    include: {
-      patient: true,
-      email: true,
-      reminders: true,
-    },
-    orderBy: {
-      dueDate: "asc",
-    },
-  });
+  try {
+    const tasks = await prisma.task.findMany({
+      include: {
+        patient: true,
+        email: true,
+        reminders: true,
+      },
+      orderBy: {
+        dueDate: "asc",
+      },
+    });
 
-  return NextResponse.json(events);
+    const events = tasks.map((task) => {
+      const due = task.dueDate ? new Date(task.dueDate) : null;
+
+      return {
+        id: task.id,
+
+        title: task.title,
+        description: task.description,
+
+        dueDate: task.dueDate,
+
+        // Fields your calendar currently expects
+        date: due
+          ? due.toISOString().split("T")[0]
+          : null,
+
+        time: due
+          ? due.toLocaleTimeString("en-US", {
+              hour: "numeric",
+              minute: "2-digit",
+              hour12: true,
+            })
+          : null,
+
+        status: task.status,
+
+        patientId: task.patientId,
+        patientName: task.patient
+          ? task.patient.name
+          : null,
+
+        // Source email
+        emailId: task.emailId,
+        email: task.email
+          ? {
+              id: task.email.id,
+              gmailMessageId: task.email.gmailMessageId,
+              gmailThreadId: task.email.gmailThreadId,
+              fromName: task.email.fromName,
+              fromEmail: task.email.fromEmail,
+              subject: task.email.subject,
+              body: task.email.body,
+              receivedAt: task.email.receivedAt,
+            }
+          : null,
+
+        reminders: task.reminders,
+      };
+    });
+
+    return NextResponse.json(events);
+  } catch (error) {
+    console.error("Failed to fetch tasks:", error);
+
+    return NextResponse.json(
+      { error: "Failed to fetch tasks" },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    /*
-     * Find the existing Email.
-     *
-     * emailId coming from emailService is the Gmail message ID,
-     * while Task.emailId must contain the Prisma Email.id.
-     */
-    let email = null;
-
-    if (body.gmailMessageId) {
-      email = await prisma.email.findUnique({
-        where: {
-          gmailMessageId: body.gmailMessageId,
-        },
-      });
-    }
-
-    /*
-     * If the email doesn't exist yet, create it.
-     */
-    if (!email && body.email) {
-      email = await prisma.email.create({
-        data: {
-          gmailMessageId: body.email.gmailMessageId,
-
-          gmailThreadId:
-            body.email.gmailThreadId ?? null,
-
-          gmailAccountId:
-            body.email.gmailAccountId ?? null,
-
-          toInbox:
-            body.email.toInbox ?? "GENERAL",
-
-          fromName:
-            body.email.fromName ??
-            body.email.senderName ??
-            "",
-
-          fromEmail:
-            body.email.fromEmail ??
-            body.email.senderEmail ??
-            "",
-
-          subject:
-            body.email.subject ?? "",
-
-          body:
-            body.email.body ?? "",
-
-          receivedAt:
-            body.email.receivedAt
-              ? new Date(body.email.receivedAt)
-              : new Date(),
-
-          patientId:
-            body.email.patientId ?? null,
-
-          aiSummary:
-            body.email.aiSummary ?? null,
-
-          aiDraft:
-            body.email.aiDraft ?? null,
-        },
-      });
-
-      console.log(
-        `Created Email ${email.id} for Gmail message ${email.gmailMessageId}`
-      );
-    }
-
-    /*
-     * If we still don't have an Email, return a useful error
-     * instead of causing a Prisma foreign-key error.
-     */
-    if (!email) {
-      return NextResponse.json(
-        {
-          error:
-            "Could not find or create the source email.",
-        },
-        { status: 400 }
-      );
-    }
-
-    /*
-     * Prevent duplicate tasks for the same email/action.
-     */
     const existing = await prisma.task.findFirst({
       where: {
-        emailId: email.id,
+        emailId: body.emailId ?? null,
         title: body.title,
       },
+      include: {
+        reminders: true,
+        patient: true,
+        email: true,
+      }
     });
 
     if (existing) {
       return NextResponse.json(existing);
     }
 
-    /*
-     * Create the task using the Prisma Email.id.
-     */
     const event = await prisma.task.create({
       data: {
         title: body.title,
+        description: body.description ?? null,
 
-        description:
-          body.description ?? null,
+        dueDate: body.due
+          ? new Date(body.due)
+          : null,
 
-        dueDate:
-          body.due
-            ? new Date(body.due)
-            : null,
+        emailId: body.emailId ?? null,
 
-        emailId: email.id,
-
-        patientId:
-          body.patientId ?? null,
+        patientId: body.patientId ?? null,
 
         reminders: {
-          create: (body.reminders ?? []).map(
-            (r: { remindAt: string }) => ({
-              remindAt: new Date(r.remindAt),
-            })
-          ),
+          create: (body.reminders ?? []).map((r) => ({
+            remindAt: new Date(r.remindAt),
+          })),
         },
       },
 
@@ -156,14 +124,12 @@ export async function POST(req: Request) {
 
     return NextResponse.json(event);
   } catch (error) {
-    console.error("Failed creating task:", error);
+    console.error("Failed to create task:", error);
 
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed creating task",
+        error: "Failed to create task",
+        details: error instanceof Error ? error.message : String(error),
       },
       { status: 500 }
     );

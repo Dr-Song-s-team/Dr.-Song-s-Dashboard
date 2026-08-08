@@ -1,12 +1,12 @@
 export default function TaskStatusIcon({ status, dueDate }) {
 
-    console.log({
-    status,
-    dueDate,
-    parsedDueDate: dueDate ? new Date(dueDate) : null,
-    now: new Date(),
-    overdueCheck: status === "PENDING" && dueDate && new Date(dueDate) < new Date()
-  });
+  //   console.log({
+  //   status,
+  //   dueDate,
+  //   parsedDueDate: dueDate ? new Date(dueDate) : null,
+  //   now: new Date(),
+  //   overdueCheck: status === "PENDING" && dueDate && new Date(dueDate) < new Date()
+  // });
     
   const isOverdue =
     status === "PENDING" &&

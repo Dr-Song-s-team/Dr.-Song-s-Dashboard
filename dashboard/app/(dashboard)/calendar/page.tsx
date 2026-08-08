@@ -6,6 +6,7 @@ import ScheduleDashboard from "./ScheduleDashboard";
 interface CalendarEvent {
   id: string;
   emailId?: string;
+
   title: string;
   patientName?: string | null;
   date: string;
@@ -13,6 +14,18 @@ interface CalendarEvent {
   description?: string;
   status: "PENDING" | "COMPLETE" | "ARCHIVED";
   dueDate: string;
+
+  email?: {
+    id: string;
+    gmailMessageId: string;
+    gmailThreadId?: string | null;
+    fromName: string;
+    fromEmail: string;
+    subject: string;
+    body: string;
+    receivedAt: string;
+  } | null;
+
   reminders?: {
     id: string;
     remindAt: string;
@@ -26,10 +39,23 @@ interface ApiEvent {
   dueDate: string;
   description?: string;
   status: "PENDING" | "COMPLETE" | "ARCHIVED";
+
   patient?: {
     firstName: string;
     lastName: string;
   };
+
+  email?: {
+    id: string;
+    gmailMessageId: string;
+    gmailThreadId?: string | null;
+    fromName: string;
+    fromEmail: string;
+    subject: string;
+    body: string;
+    receivedAt: string;
+  } | null;
+
   reminders?: {
     id: string;
     remindAt: string;
@@ -115,21 +141,32 @@ const fetchDbEvents = useCallback(async () => {
     const date = new Date(event.dueDate);
 
     return {
-    id: event.id,
-    emailId: event.emailId,
-    title: event.title,
-    patientName: event.patient ? `${event.patient.firstName} ${event.patient.lastName}` : null,
-    date: date.toLocaleDateString("en-CA", {
-      timeZone: "America/Los_Angeles",
-    }),
-    time: date.toLocaleTimeString("en-US", {
-  timeZone: "America/Los_Angeles",
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: false,}),
+  id: event.id,
+  emailId: event.emailId,
+  title: event.title,
+
+  patientName: event.patient
+    ? `${event.patient.firstName} ${event.patient.lastName}`
+    : null,
+
+  date: date.toLocaleDateString("en-CA", {
+    timeZone: "America/Los_Angeles",
+  }),
+
+  time: date.toLocaleTimeString("en-US", {
+    timeZone: "America/Los_Angeles",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }),
+
   description: event.description,
   status: event.status,
   dueDate: event.dueDate,
+
+  // THIS WAS MISSING
+  email: event.email,
+
   reminders: event.reminders,
 };
   })

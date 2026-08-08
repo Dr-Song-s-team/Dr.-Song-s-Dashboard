@@ -171,8 +171,7 @@ Examples:
 dueDate:
 - Use the actual deadline mentioned in the email when available
 - Format exactly as YYYY-MM-DD
-- If there is no task deadline, use a week from the task
-- Do not invent a date unless a recommended action requires one
+- If there is no task deadline, put it a week from the task creation, but do not use null
 
 dueTime:
 - Use the actual deadline time when explicitly stated
@@ -540,8 +539,10 @@ for (const email of redactedEmails) {
     : null,
 
 dueTime:
-  item.dueTime
-    ? String(item.dueTime)
+  item.dueTime && /^(0?[1-9]|1[0-2]):[0-5]\d\s?(AM|PM)$/i.test(
+    String(item.dueTime)
+  )
+    ? String(item.dueTime).trim().toUpperCase()
     : null,
   }));
 }
@@ -865,10 +866,34 @@ for (const email of redactedEmails) {
         .trim()
     : unredactedResponse;
 
-  const parsed = JSON.parse(jsonText);
+  let parsed;
 
-  if (!Array.isArray(parsed))
-    throw new Error("Schedule analysis did not return an array");
+try {
+  parsed = JSON.parse(jsonText);
+} catch (err) {
+  console.error("Failed to parse AI response:", jsonText);
+  throw new Error("AI returned invalid JSON");
+}
+
+// Groq sometimes returns one object instead of an array
+if (!Array.isArray(parsed)) {
+  parsed = [parsed];
+}
+
+if (parsed.length !== emails.length) {
+  console.error(
+    "AI result count mismatch:",
+    {
+      expected: emails.length,
+      received: parsed.length,
+      response: parsed,
+    }
+  );
+
+  throw new Error(
+    `Expected ${emails.length} results, got ${parsed.length}`
+  );
+}
 
   // Validate and normalize results
   const results = parsed.map((item: UnknownJSON): SchedulingResult => ({
