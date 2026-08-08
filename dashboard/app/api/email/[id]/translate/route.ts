@@ -19,7 +19,7 @@ export async function POST(
       },
       select: {
         id: true,
-        aiDraft: true,
+        body: true,
         aiSummary: true,
       },
     });
@@ -33,19 +33,10 @@ export async function POST(
       );
     }
 
-    if (!email.aiDraft) {
-      return NextResponse.json(
-        {
-          error: "This email does not have an AI draft.",
-        },
-        { status: 400 }
-      );
-    }
-
     const translated = await translateEmailContent(
       email.id,
       email.aiSummary ?? "",
-      email.aiDraft
+      email.body
     );
 
     return NextResponse.json({

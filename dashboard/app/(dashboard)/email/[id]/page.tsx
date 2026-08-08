@@ -6,6 +6,7 @@ import EmailStatusToggle from "@/components/email/EmailStatusToggle";
 import AiDraftLabel from "@/components/AiDraftLabel";
 import AiDraftReply from "@/components/email/AiDraftReply";
 import { prisma } from "@/lib/prisma";
+import TranslateEmailButton from "@/components/email/TranslateEmailButton";
 
 export const metadata = {
   title: "Inbox Message — Dr. Song",
@@ -145,14 +146,20 @@ export default async function InboxMessagePage({
         </dl>
 
         <div className="mt-6">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-[#765d4e]">
-            Original message
-          </h2>
+  <div className="flex items-center justify-between gap-3">
+    <h2 className="text-sm font-semibold uppercase tracking-wide text-[#765d4e]">
+      Original message
+    </h2>
 
-          <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-[#513a2e]">
-            {email.body}
-          </p>
-        </div>
+    <TranslateEmailButton
+      emailId={email.id}
+    />
+  </div>
+
+  <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-[#513a2e]">
+    {email.body}
+  </p>
+</div>
       </article>
 
       {/* AI ANALYSIS */}
