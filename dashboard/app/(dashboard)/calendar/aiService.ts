@@ -8,63 +8,271 @@
 
 import { callAI } from "@/lib/ai/provider";
 import { loadEntities, redact, unredact, scanText } from "@/lib/redaction";
-import type { EntityData } from "@/lib/redaction";
+import type { EntityData, RedactedText } from "@/lib/redaction";
 
-const EMAIL_BATCH_SIZE = 2;
+const EMAIL_BATCH_SIZE = 3;
 
-const ANALYSIS_SYSTEM = `You are an AI assistant for Dr. Huy, a licensed acupuncturist. Analyze clinic emails and return a JSON array.
+const MAX_EMAIL_BODY_LENGTH = 4000;
 
-For each email return an object with:
-- "category": "client" | "insurance" | "spam"
-- "urgency": "high" | "medium" | "low"
-- "actionRequired": true | false
-- "summaryTitle": an 8-14 word plain-language gist of what the email is about
-- "summaryDetails": an array of 3-6 concise, easy-to-understand detail strings. Include concrete names, dates, times, requests, deadlines, and consequences when present.
-- "clientTags": an array of every patient/client full name mentioned or directly associated with the email. For a patient email, include the sender's name. Use an empty array only when no client is identifiable.
-- "recommendedActions": an array of short staff tasks, or null if none needed
-- "dueDate": ISO datetime string for the task deadline, or null
-- "dueTime": time in format "HH:MM AM/PM", or null
+function truncateEmailBody(body: string): string {
+  if (body.length <= MAX_EMAIL_BODY_LENGTH) {
+    return body;
+  }
 
-Each task should:
-- begin with a verb
-- be concise (3–10 words)
-- describe one concrete action
-- be independently actionable
+  const truncated = body.slice(0, MAX_EMAIL_BODY_LENGTH);
+
+  return `${truncated}
+
+[EMAIL BODY TRUNCATED — ONLY THE FIRST ${MAX_EMAIL_BODY_LENGTH} CHARACTERS WERE PROVIDED]`;
+}
+
+// const ANALYSIS_SYSTEM = `You are an AI assistant for Dr. Song, a licensed acupuncturist. Analyze clinic emails and return a JSON array.
+
+// For each input email, return EXACTLY ONE object with:
+// {
+// "category": "client" | "insurance" | "spam"
+// "urgency": "high" | "medium" | "low"
+// "actionRequired": true | false
+// "summaryTitle": an 8-14 word plain-language gist of what the email is about
+// "summaryDetails": an array of 3-6 concise, easy-to-understand detail strings. Include concrete names, dates, times, requests, deadlines, and consequences when present.
+// - "clientTags": an array of every patient/client full name mentioned or directly associated with the email. For a patient email, include the sender's name. Use an empty array only when no client is identifiable.
+// - "recommendedActions": an array of short staff tasks including appointments, follow-ups, and forms, or null if none needed
+// - "dueDate": ISO datetime string for the task deadline, or null
+// - "dueTime": time in format "HH:MM AM/PM", or null
+
+// Each task should:
+// - begin with a verb
+// - be concise (3–10 words)
+// - describe one concrete action
+// - be independently actionable
+
+// Examples:
+// [
+//   "Call patient to confirm appointment",
+//   "Upload insurance documentation",
+//   "Verify coverage with Blue Shield",
+//   "Schedule follow-up visit"
+// ]
+
+// For each recommended action:
+// - Extract the actual deadline mentioned in the email.
+// - If no deadline exists, estimate a reasonable due date:
+//   - high urgency: within 1 day
+//   - medium urgency: within 3 days
+//   - low urgency: within 7 days
+
+// Return dueDate as:
+// YYYY-MM-DD
+
+// Return dueTime as:
+// HH:MM AM/PM
+
+// - "draftResponse": a warm, professional response the clinic can edit and send. Address the sender by first name when appropriate, directly acknowledge their request, and state the next step. Use null for spam or messages that should not receive a reply.
+
+// Urgency rules:
+// - "high": immediate deadline or consequence (claim denial risk, documentation due <14 days, urgent medical concern)
+// - "medium": needs attention soon (patient questions needing reply, new intake requests, doc requests with reasonable timeline)
+// - "low": informational only (progress updates, payment confirmations, spam/marketing)
+
+// Category rules:
+// - "client": emails from patients about care, symptoms, appointments, or billing
+// - "insurance": emails from insurance companies about coverage, claims, documentation
+// - "spam": marketing, promotional, vendor, or irrelevant emails
+
+// Length requirements:
+// - summaryTitle: 8-14 words
+// - summaryDetails: 3-6 items, each under 20 words
+// - recommendedActions: 1-5 items, each 3-10 words
+// - draftResponse: 60-120 words
+
+// Return ONLY a valid JSON array with no markdown, no explanation.`;
+
+const ANALYSIS_SYSTEM = `
+You analyze emails for Dr. Song's acupuncture clinic.
+
+Return EXACTLY ONE JSON ARRAY.
+
+For each input email, return EXACTLY ONE object with these fields:
+
+{
+  "category": "client" | "insurance" | "spam",
+  "urgency": "high" | "medium" | "low",
+  "actionRequired": true | false,
+  "summaryTitle": "string",
+  "summaryDetails": ["string"],
+  "clientTags": ["string"],
+  "recommendedActions": ["string"] | null,
+  "dueDate": "YYYY-MM-DD" | null,
+  "dueTime": "HH:MM AM/PM" | null,
+  "draftResponse": "string" | null
+}
+
+IMPORTANT JSON RULES:
+
+- Return valid JSON only.
+- Do not use Markdown.
+- Do not use code fences.
+- Do not add commentary before or after the JSON.
+- Use double quotes around every JSON key and string.
+- Never use a backslash before a colon.
+- Never include trailing commas.
+- Use true and false for booleans.
+- Use null for missing values.
+- The number of output objects MUST equal the number of input emails.
+- Preserve the input order.
+
+FIELD RULES:
+
+category:
+- "client" = patient/client email about care, symptoms, appointments, or billing
+- "insurance" = insurance company email about coverage, claims, or documentation
+- "spam" = marketing, promotional, vendor, job, newsletter, or irrelevant email
+
+urgency:
+- "high" = immediate deadline, claim denial risk, documentation due within 14 days, or urgent medical concern
+- "medium" = requires staff attention soon
+- "low" = informational, completed transaction, newsletter, marketing, or spam
+
+actionRequired:
+- true if clinic staff needs to perform an action
+- false if no action is needed
+
+summaryTitle:
+- 8-14 words
+- Plain language
+- Describe the main point of the email
+
+summaryDetails:
+- 3-6 concise strings
+- Include important names, dates, times, requests, deadlines, and consequences
+- Do not repeat unnecessary information
+
+clientTags:
+- Include every patient/client full name mentioned or directly associated with the email
+- For a patient email, include the sender's name
+- For insurance emails, include identifiable patient names
+- For spam, return []
+
+recommendedActions:
+- If staff needs to do something, return an array of concrete actions
+- Each action must begin with a verb
+- Each action must be 3-10 words
+- Each action must describe exactly one task
+- If no action is needed, return null
 
 Examples:
 [
   "Call patient to confirm appointment",
   "Upload insurance documentation",
-  "Verify coverage with Blue Shield",
+  "Verify coverage with insurance",
   "Schedule follow-up visit"
 ]
 
-For each recommended action:
-- Extract the actual deadline mentioned in the email.
-- If no deadline exists, estimate a reasonable due date:
-  - high urgency: within 1 day
-  - medium urgency: within 3 days
-  - low urgency: within 7 days
+dueDate:
+- Use the actual deadline mentioned in the email when available
+- Format exactly as YYYY-MM-DD
+- If there is no task deadline, use a week from the task
+- Do not invent a date unless a recommended action requires one
 
-Return dueDate as:
-YYYY-MM-DD
+dueTime:
+- Use the actual deadline time when explicitly stated
+- Format exactly as HH:MM AM/PM
+- If no deadline time is stated, use null
+- Do not invent a time
 
-Return dueTime as:
-HH:MM AM/PM
+draftResponse:
+- For client or insurance emails requiring a response, write a warm, professional response
+- Address the sender by first name when appropriate
+- Acknowledge their request
+- State the next step
+- Keep it concise
+- Return null for spam or emails that do not require a response
 
-- "draftResponse": a warm, professional response the clinic can edit and send. Address the sender by first name when appropriate, directly acknowledge their request, and state the next step. Use null for spam or messages that should not receive a reply.
+Remember:
+OUTPUT ONLY VALID JSON.
+`
 
-Urgency rules:
-- "high": immediate deadline or consequence (claim denial risk, documentation due <14 days, urgent medical concern)
-- "medium": needs attention soon (patient questions needing reply, new intake requests, doc requests with reasonable timeline)
-- "low": informational only (progress updates, payment confirmations, spam/marketing)
 
-Category rules:
-- "client": emails from patients about care, symptoms, appointments, or billing
-- "insurance": emails from insurance companies about coverage, claims, documentation
-- "spam": marketing, promotional, vendor, or irrelevant emails
+const ANALYSIS_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    emails: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          category: {
+            type: "string",
+            enum: ["client", "insurance", "spam"],
+          },
 
-Return ONLY a valid JSON array with no markdown, no explanation.`;
+          urgency: {
+            type: "string",
+            enum: ["high", "medium", "low"],
+          },
+
+          actionRequired: {
+            type: "boolean",
+          },
+
+          summaryTitle: {
+            type: "string",
+          },
+
+          summaryDetails: {
+            type: "array",
+            items: {
+              type: "string",
+            },
+          },
+
+          clientTags: {
+            type: "array",
+            items: {
+              type: "string",
+            },
+          },
+
+          recommendedActions: {
+            type: ["array", "null"],
+            items: {
+              type: "string",
+            },
+          },
+
+          dueDate: {
+            type: ["string", "null"],
+          },
+
+          dueTime: {
+            type: ["string", "null"],
+          },
+
+          draftResponse: {
+            type: ["string", "null"],
+          },
+        },
+
+        required: [
+          "category",
+          "urgency",
+          "actionRequired",
+          "summaryTitle",
+          "summaryDetails",
+          "clientTags",
+          "recommendedActions",
+          "dueDate",
+          "dueTime",
+          "draftResponse",
+        ],
+      },
+    },
+  },
+
+  required: ["emails"],
+};
 
 interface Email {
   id: string;
@@ -119,7 +327,7 @@ function sleep(ms: number): Promise<void> {
 }
 
 async function callAIWithRetry(
-  prompt: string,
+  prompt: RedactedText,
   options: {
     systemPrompt?: string;
     jsonMode?: boolean;
@@ -127,49 +335,66 @@ async function callAIWithRetry(
   },
   maxRetries = 3
 ): Promise<string> {
-
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
-
     try {
-
       return await callAI(prompt, options);
-
     } catch (err: unknown) {
-
       const message =
         err instanceof Error
           ? err.message
           : String(err);
 
+      const lowerMessage = message.toLowerCase();
 
       const isRateLimit =
         message.includes("429") ||
-        message.toLowerCase().includes("rate limit");
+        lowerMessage.includes("rate limit") ||
+        lowerMessage.includes("rate_limit_exceeded");
 
-
-      if (!isRateLimit || attempt === maxRetries) {
+      if (!isRateLimit) {
         throw err;
       }
 
+      if (attempt === maxRetries) {
+        throw err;
+      }
 
-      const delay =
-        3000 * Math.pow(2, attempt);
-
-
-      console.warn(
-        `AI rate limited. Retrying in ${delay}ms...`
+      // Groq often provides:
+      // "Please try again in 18.112s"
+      const retryMatch = message.match(
+        /try again in\s+([\d.]+)s/i
       );
 
+      let delay: number;
+
+      if (retryMatch) {
+        const retrySeconds = Number(retryMatch[1]);
+
+        delay =
+          Math.ceil(retrySeconds * 1000) +
+          2000;
+      } else {
+        delay =
+          5000 *
+          Math.pow(2, attempt);
+      }
+
+      console.warn(
+        `Groq rate limit hit. ` +
+        `Waiting ${delay}ms before retry ` +
+        `${attempt + 1}/${maxRetries}...`
+      );
 
       await sleep(delay);
     }
   }
 
-
   throw new Error(
     "AI request failed after retries"
   );
 }
+
+
 
 /**
  * Analyze a batch of emails once (no retry logic).
@@ -182,50 +407,69 @@ async function analyzeEmailBatchOnce(
   
 
   // Redact each email's sender, subject, and body
-  const redactedEmails = emails.map((e) => {
-    const senderRedaction = redact(e.sender, entities);
-    const subjectRedaction = redact(e.subject, entities);
-    const bodyRedaction = redact(e.body, entities);
+ const redactedEmails = emails.map((e) => {
+  const senderRedaction = redact(e.sender, entities);
+  const subjectRedaction = redact(e.subject, entities);
+  const bodyRedaction = redact(
+    truncateEmailBody(e.body),
+    entities
+  );
 
-    return {
-      redactedSender: senderRedaction.redactedText,
-      redactedSubject: subjectRedaction.redactedText,
-      redactedBody: bodyRedaction.redactedText,
-      // Merge all token maps for unredaction
-      tokenMap: new Map([
-        ...senderRedaction.tokenMap,
-        ...subjectRedaction.tokenMap,
-        ...bodyRedaction.tokenMap,
-      ]),
-    };
-  });
+  return {
+    redactedSender: senderRedaction.redactedText,
+    redactedSubject: subjectRedaction.redactedText,
+    redactedBody: bodyRedaction.redactedText,
+
+    tokenMap: new Map([
+      ...senderRedaction.tokenMap,
+      ...subjectRedaction.tokenMap,
+      ...bodyRedaction.tokenMap,
+    ]),
+  };
+});
 
   // Build the prompt with redacted content
   const emailBlocks = redactedEmails
-    .map(
-      (e, i) =>
-        `[${i}]\nFrom: ${e.redactedSender}\nSubject: ${e.redactedSubject}\nBody:\n${e.redactedBody}`
-    )
-    .join("\n\n---\n\n");
+  .map(
+    (e, i) =>
+      `[${i}]
+From: ${e.redactedSender}
+Subject: ${e.redactedSubject}
+Body:
+${e.redactedBody}`
+  )
+  .join("\n\n---\n\n");
 
-  const prompt = `${ANALYSIS_SYSTEM}\n\nEmails:\n\n${emailBlocks}`;
+const prompt = `Emails:\n\n${emailBlocks}`;
+
+const tokenMap = new Map<string, string>();
+
+for (const email of redactedEmails) {
+  for (const [key, value] of email.tokenMap) {
+    tokenMap.set(key, value);
+  }
+}
 
   // Redact the entire prompt (to get the RedactedText branded type)
   const finalRedaction = redact(prompt, entities);
 
   // Call AI with redacted text
-  const aiResponse = await callAIWithRetry(finalRedaction.redactedText, {
+  const aiResponse = await callAIWithRetry(
+  finalRedaction.redactedText,
+  {
     systemPrompt: ANALYSIS_SYSTEM,
-    jsonMode: true,
+    jsonSchema: {
+      name: "email_analysis",
+      strict: true,
+      schema: ANALYSIS_SCHEMA,
+    },
     timeoutMs: 60000,
-  });
+  }
+);
 
   // Unredact the AI response
-  const { originalText: unredactedResponse } = unredact(
-    aiResponse,
-    finalRedaction.tokenMap
-  );
-
+  const { originalText: unredactedResponse } =
+  unredact(aiResponse, tokenMap);
   // Parse JSON response
   const jsonText = unredactedResponse.startsWith("```")
     ? unredactedResponse
@@ -239,12 +483,22 @@ async function analyzeEmailBatchOnce(
 
   const parsed = JSON.parse(jsonText);
 
-  if (!Array.isArray(parsed) || parsed.length !== emails.length) {
-    throw new Error(`Expected ${emails.length} results, got ${parsed.length}`);
+  if (
+    !parsed ||
+    !Array.isArray(parsed.emails) ||
+    parsed.emails.length !== emails.length
+  ) {
+    throw new Error(
+      `Expected ${emails.length} results, got ${
+        Array.isArray(parsed?.emails)
+          ? parsed.emails.length
+          : "invalid response"
+      }`
+    );
   }
 
   // Validate and normalize each result
-  return parsed.map((item: UnknownJSON): AnalyzedEmail => ({
+  return parsed.emails.map((item: UnknownJSON): AnalyzedEmail => ({
     category: ["client", "insurance", "spam"].includes(item.category)
       ? item.category
       : "spam",
@@ -303,15 +557,44 @@ async function analyzeEmailBatch(
   try {
     return await analyzeEmailBatchOnce(emails, entities);
   } catch (err) {
-    if (emails.length === 1) throw err;
+    if (emails.length === 1) {
+      throw err;
+    }
+
+    const message =
+      err instanceof Error
+        ? err.message.toLowerCase()
+        : String(err).toLowerCase();
+
+    // Rate limits should be handled by callAIWithRetry,
+    // not by splitting the batch.
+    if (
+      message.includes("429") ||
+      message.includes("rate limit") ||
+      message.includes("rate_limit_exceeded")
+    ) {
+      throw err;
+    }
+
     const midpoint = Math.ceil(emails.length / 2);
+
     console.warn(
-      `Retrying incomplete AI email batch as smaller groups: ${err instanceof Error ? err.message : String(err)}`
+      `AI batch failed. Retrying as smaller groups: ${
+        err instanceof Error ? err.message : String(err)
+      }`
     );
+
     const halves = await Promise.all([
-      analyzeEmailBatch(emails.slice(0, midpoint), entities),
-      analyzeEmailBatch(emails.slice(midpoint), entities),
+      analyzeEmailBatch(
+        emails.slice(0, midpoint),
+        entities
+      ),
+      analyzeEmailBatch(
+        emails.slice(midpoint),
+        entities
+      ),
     ]);
+
     return halves.flat();
   }
 }
@@ -351,9 +634,7 @@ for (const batch of batches) {
   results.push(result);
 
   // prevent rate limits
-  await new Promise(
-    resolve => setTimeout(resolve, 1500)
-  );
+  await sleep(1000);
 }
 
   // Scan all final values for PII leaks (warn only, don't throw)
@@ -415,7 +696,7 @@ export async function translateEmailContent(
 
   // Redact summary and body
   const summaryRedaction = redact(summary, entities);
-  const bodyRedaction = redact(body, entities);
+  const bodyRedaction = redact(truncateEmailBody(body), entities);
 
   // Merge token maps
   const tokenMap = new Map([
@@ -485,7 +766,7 @@ ${bodyRedaction.redactedText}`;
   return output;
 }
 
-const SCHEDULE_SYSTEM = `You are a scheduling assistant for Dr. Huy's acupuncture clinic. Extract scheduling information from each email.
+const SCHEDULE_SYSTEM = `You are a scheduling assistant for Dr. Song's acupuncture clinic. Extract scheduling information from each email.
 
 All unspecified years are 2026. Convert written-out dates to ISO format:
 "July twentieth" → "2026-07-20", "July twenty-first" → "2026-07-21", "July 22nd" → "2026-07-22", etc.
@@ -518,32 +799,47 @@ export async function analyzeSchedulingEmails(
 
   // Redact each email
   const redactedEmails = emails.map((e) => {
-    const senderRedaction = redact(e.sender, entities);
-    const subjectRedaction = redact(e.subject, entities);
-    const bodyRedaction = redact(e.body, entities);
+  const senderRedaction = redact(e.sender, entities);
+  const subjectRedaction = redact(e.subject, entities);
+  const bodyRedaction = redact(
+    truncateEmailBody(e.body),
+    entities
+  );
 
-    return {
-      id: e.id,
-      redactedSender: senderRedaction.redactedText,
-      redactedSubject: subjectRedaction.redactedText,
-      redactedBody: bodyRedaction.redactedText,
-      tokenMap: new Map([
-        ...senderRedaction.tokenMap,
-        ...subjectRedaction.tokenMap,
-        ...bodyRedaction.tokenMap,
-      ]),
-    };
-  });
+  return {
+    redactedSender: senderRedaction.redactedText,
+    redactedSubject: subjectRedaction.redactedText,
+    redactedBody: bodyRedaction.redactedText,
+
+    tokenMap: new Map([
+      ...senderRedaction.tokenMap,
+      ...subjectRedaction.tokenMap,
+      ...bodyRedaction.tokenMap,
+    ]),
+  };
+});
 
   // Build the prompt with redacted content
   const emailBlocks = redactedEmails
-    .map(
-      (e) =>
-        `[${e.id}]\nFrom: ${e.redactedSender}\nSubject: ${e.redactedSubject}\nBody:\n${e.redactedBody}`
-    )
-    .join("\n\n---\n\n");
+  .map(
+    (e, i) =>
+      `[${i}]
+From: ${e.redactedSender}
+Subject: ${e.redactedSubject}
+Body:
+${e.redactedBody}`
+  )
+  .join("\n\n---\n\n");
 
-  const prompt = `${SCHEDULE_SYSTEM}\n\nEmails:\n\n${emailBlocks}`;
+const prompt = `Emails:\n\n${emailBlocks}`;
+
+const tokenMap = new Map<string, string>();
+
+for (const email of redactedEmails) {
+  for (const [key, value] of email.tokenMap) {
+    tokenMap.set(key, value);
+  }
+}
 
   // Redact the entire prompt
   const finalRedaction = redact(prompt, entities);

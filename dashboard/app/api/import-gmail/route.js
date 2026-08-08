@@ -9,7 +9,7 @@ export async function POST() {
     console.log("Import Gmail route started");
 
     // Fetch the latest Gmail messages
-    const emails = await fetchEmails(12);
+    const emails = await fetchEmails(2);
     console.log("Fetched", emails.length, "emails");
 
     if (!emails.length) {

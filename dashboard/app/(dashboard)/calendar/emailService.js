@@ -4,11 +4,11 @@ import { AnalyzedEmail, analyzeEmails, clearTranslationCache } from "./aiService
 let cache = [];
 let isReady = false;
 
-function getCache() {
+export function getCache() {
   return cache;
 }
 
-function isAnalysisReady() {
+export function isAnalysisReady() {
   return isReady;
 }
 
@@ -97,7 +97,7 @@ function formatDueDate(date, time) {
   if (!date) return null;
 
   // Default task time if AI does not provide one
-  const finalTime = time || "09:00 AM";
+  const finalTime = time || "11:59 PM";
 
   const parsed = new Date(`${date} ${finalTime}`);
 
@@ -129,13 +129,18 @@ export async function createTasksFromAnalysis(emails, analyses) {
 
     const description = [
       analysis.summaryTitle,
-      ...analysis.summaryDetails,
+      ...(
+        Array.isArray(analysis.summaryDetails) ?
+        analysis.summaryDetails : []
+      ),
     ]
       .filter(Boolean)
       .join("\n");
 
 
     for (const action of analysis.recommendedActions) {
+
+      if (!action || !action.trim()) { continue; }
 
       try {
 
@@ -164,9 +169,58 @@ export async function createTasksFromAnalysis(emails, analyses) {
               // 2026-07-27T10:00:00.000Z
               due: dueDate,
 
+              gmailMessageId:
+                email.gmailMessageId ??
+                email.id ??
+                null,
 
-              emailId:
-                email.id ?? null,
+                email: {
+                  gmailMessageId:
+                    email.gmailMessageId ??
+                    email.id,
+
+                  gmailThreadId:
+                    email.gmailThreadId ??
+                    email.threadId ??
+                    null,
+
+                  toInbox: "INFO",
+
+                  fromName:
+                    email.senderName ??
+                    "",
+
+                  fromEmail:
+                    email.senderEmail ??
+                    email.sender ??
+                    "",
+
+                  subject:
+                    email.subject ??
+                    "",
+
+                  body:
+                    email.body ??
+                    "",
+
+                  receivedAt:
+                    email.receivedAt ??
+                    email.date ??
+                    new Date().toISOString(),
+
+                  patientId:
+                    email.patientId ??
+                    null,
+
+                  aiSummary:
+                    analysis.summary ??
+                    analysis.summaryTitle ??
+                    null,
+
+                  aiDraft:
+                    analysis.draftResponse ??
+                    null,
+                },
 
 
               reminders:
@@ -198,13 +252,13 @@ export async function createTasksFromAnalysis(emails, analyses) {
             error
           );
 
-        } else {
-
-          console.log(
-            `Created task: ${action}`
-          );
+          continue;
 
         }
+
+        const createdTask = await res.json();
+
+        console.log( `Created task "${action}" from email ${email.id}`, createdTask.id );
 
 
       } catch(err){
@@ -220,7 +274,7 @@ export async function createTasksFromAnalysis(emails, analyses) {
   }
 }
 
-async function loadAndAnalyzeEmails(forceRefresh = false) {
+export async function loadAndAnalyzeEmails(forceRefresh = false) {
   if (isReady && !forceRefresh) return;
 
   isReady = false;
@@ -259,5 +313,3 @@ catch(err){
   isReady = true;
   console.log(`Analysis complete — ${cache.length} emails processed.`);
 }
-
-module.exports = { loadAndAnalyzeEmails, getCache, isAnalysisReady };
