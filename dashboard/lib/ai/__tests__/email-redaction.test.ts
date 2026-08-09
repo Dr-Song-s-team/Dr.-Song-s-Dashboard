@@ -147,7 +147,7 @@ describe("Email AI Redaction Pipeline", () => {
       expect(results[0].summaryTitle).toBe("Patient inquiry received");
       expect(results[0].category).toBe("client");
       expect(results[0].summaryDetails).toEqual(["Request for appointment"]);
-      expect(results[0].recommendedActions).toBe(["Review and respond"]);
+      expect(results[0].recommendedActions).toEqual(["Review and respond"]);
       expect(results[0].draftResponse).toBe("Thank you for your inquiry");
     });
   });
@@ -178,8 +178,8 @@ describe("Email AI Redaction Pipeline", () => {
   describe("analyzeSchedulingEmails", () => {
     it("should redact before scheduling analysis and scanText after", async () => {
       const mockCallAI = vi.spyOn(aiProvider, "callAI");
-      mockCallAI.mockResolvedValueOnce(JSON.stringify({
-        emails: [{
+      mockCallAI.mockResolvedValueOnce(JSON.stringify(
+         [{
         emailId: "sched-1",
         type: "appointment",
         patientName: "Patient Name",
@@ -189,7 +189,7 @@ describe("Email AI Redaction Pipeline", () => {
         urgency: "medium",
         category: "client",
       }]
-    }));
+    ));
 
       const mockScanText = vi.mocked(redactionModule.scanText);
 
