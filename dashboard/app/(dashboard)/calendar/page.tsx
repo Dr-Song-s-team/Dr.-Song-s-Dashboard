@@ -109,6 +109,49 @@ const handleRefresh = async () => {
   }
 };
 
+async function fetchDbEvents(
+  setDbEvents: React.Dispatch<React.SetStateAction<CalendarEvent[]>>
+) {
+  const res = await fetch("/api/events");
+
+  if (!res.ok) return;
+
+  const data = await res.json();
+
+  const events = data.map((event: ApiEvent): CalendarEvent => {
+    const date = new Date(event.dueDate);
+
+    return {
+      id: event.id,
+      emailId: event.emailId,
+      title: event.title,
+
+      patientName: event.patient
+        ? `${event.patient.firstName} ${event.patient.lastName}`
+        : null,
+
+      date: date.toLocaleDateString("en-CA", {
+        timeZone: "America/Los_Angeles",
+      }),
+
+      time: date.toLocaleTimeString("en-US", {
+        timeZone: "America/Los_Angeles",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }),
+
+      description: event.description,
+      status: event.status,
+      dueDate: event.dueDate,
+      email: event.email,
+      reminders: event.reminders,
+    };
+  });
+
+  setDbEvents(events);
+}
+
 const handleImportGmail = async () => {
   const res = await fetch("/api/import-gmail", {
     method: "POST",
@@ -126,7 +169,7 @@ const handleImportGmail = async () => {
 }
 
   // Reload calendar events
-  await fetchDbEvents();
+  await fetchDbEvents(setDbEvents);
 };
 
 useEffect(() => {
