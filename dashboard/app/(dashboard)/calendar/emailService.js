@@ -1,14 +1,15 @@
 import { loadAllEmails } from "./csvParser";
-import { analyzeEmails, clearTranslationCache } from "./aiService";
+import { AnalyzedEmail, analyzeEmails, clearTranslationCache } from "./aiService";
+import { prisma } from "@/lib/prisma";
 
 let cache = [];
 let isReady = false;
 
-function getCache() {
+export function getCache() {
   return cache;
 }
 
-function isAnalysisReady() {
+export function isAnalysisReady() {
   return isReady;
 }
 
@@ -82,37 +83,305 @@ function ruleBasedFallback(emails) {
       summaryDetails: detailSentences,
       clientTags,
       summary: email.subject,
-      recommendedAction: actionRequired
-        ? 'Review and respond to this email'
-        : null,
+      recommendedActions:
+  actionRequired
+    ? [
+        "Review and respond to this email"
+      ]
+    : null,
       draftResponse,
     };
   });
 }
 
-async function loadAndAnalyzeEmails(forceRefresh = false) {
-  if (isReady && !forceRefresh) return;
+function formatDueDate(date, time) {
+  if (!date) return null;
 
-  isReady = false;
-  if (forceRefresh) clearTranslationCache();
+  // If AI doesn't provide a time, use 11:59 PM
+  const finalTime = time || "11:59 PM";
 
-  const emails = loadAllEmails();
+  const parsed = new Date(`${date} ${finalTime}`);
 
-  let analyses;
-  try {
-    analyses = await analyzeEmails(emails);
-  } catch (err) {
-    console.warn('AI analysis failed, using rule-based fallback:', err.message);
-    analyses = ruleBasedFallback(emails);
+  if (isNaN(parsed.getTime())) {
+    console.warn(
+      "Could not parse due date:",
+      date,
+      finalTime
+    );
+
+    return null;
   }
 
-  cache = emails.map((email, i) => ({
-    ...email,
-    ...analyses[i],
-  }));
-
-  isReady = true;
-  console.log(`Analysis complete — ${cache.length} emails processed.`);
+  return parsed.toISOString();
 }
 
-module.exports = { loadAndAnalyzeEmails, getCache, isAnalysisReady };
+export async function ensureEmailExists(email) {
+  const gmailMessageId = email.id;
+
+  if (!gmailMessageId) {
+    throw new Error(
+      "Cannot import email without Gmail message ID"
+    );
+  }
+
+  const existing = await prisma.email.findUnique({
+    where: {
+      gmailMessageId,
+    },
+  });
+
+  if (existing) {
+    return existing;
+  }
+
+  const sender =
+    email.sender ??
+    email.fromEmail ??
+    "";
+
+  const senderName =
+    email.senderName ??
+    email.fromName ??
+    sender;
+
+  const senderEmail =
+    email.senderEmail ??
+    email.fromEmail ??
+    sender;
+
+  const created = await prisma.email.create({
+    data: {
+      gmailMessageId,
+
+      gmailThreadId:
+        email.threadId ??
+        email.gmailThreadId ??
+        null,
+
+      gmailAccountId:
+        email.gmailAccountId ??
+        null,
+
+      toInbox:
+        email.toInbox ??
+        "INFO",
+
+      fromName: senderName,
+
+      fromEmail: senderEmail,
+
+      subject:
+        email.subject ??
+        "",
+
+      body:
+        email.body ??
+        "",
+
+      receivedAt:
+        email.receivedAt
+          ? new Date(email.receivedAt)
+          : new Date(),
+
+      patientId:
+        email.patientId ??
+        null,
+    },
+  });
+
+  return created;
+}
+
+export async function createTasksFromAnalysis(
+  emails,
+  analyses
+) {
+  console.log(
+    `createTasksFromAnalysis: processing ${analyses.length} analyses`
+  );
+
+  for (let i = 0; i < analyses.length; i++) {
+    const email = emails[i];
+    const analysis = analyses[i];
+
+    if (!email) {
+      console.warn(
+        `No email found for analysis index ${i}`
+      );
+      continue;
+    }
+
+    if (!analysis) {
+      console.warn(
+        `No analysis found for email index ${i}`
+      );
+      continue;
+    }
+
+    try {
+      /*
+       * Get the Prisma Email record.
+       *
+       * email.id = Gmail message ID
+       * prismaEmail.id = Prisma cuid
+       */
+      const prismaEmail =
+        await ensureEmailExists(email);
+
+      console.log(
+        `Prisma email ID: ${prismaEmail.id}`
+      );
+
+      /*
+       * Save the complete AI analysis to the Email record.
+       *
+       * This happens BEFORE checking actionRequired,
+       * so even emails without tasks have their AI
+       * information available on the email details page.
+       */
+      await prisma.email.update({
+        where: {
+          id: prismaEmail.id,
+        },
+        data: {
+          aiSummary:
+            analysis.summaryTitle ||
+            analysis.summary ||
+            null,
+
+          aiDraft:
+            analysis.draftResponse ||
+            null,
+
+          aiAnalysis: {
+            category: analysis.category,
+            urgency: analysis.urgency,
+            actionRequired: analysis.actionRequired,
+            summaryTitle: analysis.summaryTitle,
+            summaryDetails: analysis.summaryDetails ?? [],
+            clientTags: analysis.clientTags ?? [],
+            recommendedActions:
+              analysis.recommendedActions ?? null,
+            dueDate: analysis.dueDate ?? null,
+            dueTime: analysis.dueTime ?? null,
+          },
+        },
+      });
+
+      console.log(
+        `Saved AI analysis -> Email ${prismaEmail.id}`
+      );
+
+      /*
+       * No task required.
+       *
+       * We still saved the AI analysis above.
+       */
+      if (!analysis.actionRequired) {
+        console.log(
+          `Skipping tasks for ${email.id}: no action required`
+        );
+        continue;
+      }
+
+      if (
+        !analysis.recommendedActions ||
+        analysis.recommendedActions.length === 0
+      ) {
+        console.log(
+          `Skipping tasks for ${email.id}: no recommended actions`
+        );
+        continue;
+      }
+
+      /*
+       * Combine AI dueDate + dueTime.
+       */
+      const dueDate = formatDueDate(
+        analysis.dueDate,
+        analysis.dueTime
+      );
+
+      const description = [
+        analysis.summaryTitle,
+        ...(analysis.summaryDetails || []),
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      /*
+       * Create one Task for every recommended action.
+       */
+      for (const action of analysis.recommendedActions) {
+        if (!action || !action.trim()) {
+          continue;
+        }
+
+        const title = action.trim();
+
+        const res = await fetch(
+          "http://localhost:3000/api/events",
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type": "application/json",
+            },
+
+            body: JSON.stringify({
+              title,
+              description,
+              due: dueDate,
+
+              /*
+               * IMPORTANT:
+               * Prisma Email ID, NOT Gmail message ID.
+               */
+              emailId: prismaEmail.id,
+
+              patientId:
+                email.patientId ?? null,
+
+              reminders:
+                dueDate
+                  ? [
+                      {
+                        remindAt:
+                          new Date(
+                            new Date(dueDate).getTime() -
+                              15 * 60 * 1000
+                          ).toISOString(),
+                      },
+                    ]
+                  : [],
+            }),
+          }
+        );
+
+        if (!res.ok) {
+          const error = await res.text();
+
+          console.error(
+            `Failed creating task "${title}":`,
+            error
+          );
+
+          continue;
+        }
+
+        const task = await res.json();
+
+        console.log(
+          `Created task "${title}" ->`,
+          `Task ${task.id}`,
+          `-> Email ${prismaEmail.id}`
+        );
+      }
+    } catch (err) {
+      console.error(
+        `Error processing email ${email.id}:`,
+        err
+      );
+    }
+  }
+}

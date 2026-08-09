@@ -63,6 +63,12 @@ enum TaskStatus {
   ARCHIVED
 }
 
+enum ExtractionStatus {
+  ACCEPTED
+  EDITED
+  REJECTED
+}
+
 // ---------------------------------------------------------------------------
 // Models
 // ---------------------------------------------------------------------------
@@ -107,19 +113,45 @@ model Document {
   patient   Patient? @relation(fields: [patientId], references: [id])
 }
 
+model GmailAccount {
+  id           String   @id @default(cuid())
+  emailAddress String   @unique
+  refreshToken String
+  createdAt    DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  emails Email[]
+}
+
+
 /// A seeded inbox message received at one of the six clinic email addresses.
 model Email {
   id             String              @id @default(cuid())
+
+  // Gmail identifiers
+  gmailMessageId String              @unique
+  gmailThreadId  String?
+
+  // Which Gmail account imported this
+  gmailAccountId String?
+  gmailAccount   GmailAccount? @relation(fields: [gmailAccountId], references: [id])
+
   toInbox        ClinicInbox
   fromName       String
   fromEmail      String
   subject        String
   body           String
+
   status         EmailStatus         @default(UNREAD)
   classification EmailClassification @default(UNKNOWN)
+
   insurerLabel   String?
   aiSummary      String?
   aiDraft        String?
+
+  // Full structured AI analysis
+  aiAnalysis     Json?
+
   receivedAt     DateTime
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
@@ -162,6 +194,16 @@ model Reminder {
   remindAt DateTime
 
   sent Boolean @default(false)
+
+  createdAt DateTime @default(now())
+}
+
+model PushSubscription {
+  id String @id @default(cuid())
+
+  endpoint String @unique
+  p256dh String
+  auth String
 
   createdAt DateTime @default(now())
 }

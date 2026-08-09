@@ -6,6 +6,7 @@ import ScheduleDashboard from "./ScheduleDashboard";
 interface CalendarEvent {
   id: string;
   emailId?: string;
+
   title: string;
   patientName?: string | null;
   date: string;
@@ -13,6 +14,18 @@ interface CalendarEvent {
   description?: string;
   status: "PENDING" | "COMPLETE" | "ARCHIVED";
   dueDate: string;
+
+  email?: {
+    id: string;
+    gmailMessageId: string;
+    gmailThreadId?: string | null;
+    fromName: string;
+    fromEmail: string;
+    subject: string;
+    body: string;
+    receivedAt: string;
+  } | null;
+
   reminders?: {
     id: string;
     remindAt: string;
@@ -26,10 +39,23 @@ interface ApiEvent {
   dueDate: string;
   description?: string;
   status: "PENDING" | "COMPLETE" | "ARCHIVED";
+
   patient?: {
     firstName: string;
     lastName: string;
   };
+
+  email?: {
+    id: string;
+    gmailMessageId: string;
+    gmailThreadId?: string | null;
+    fromName: string;
+    fromEmail: string;
+    subject: string;
+    body: string;
+    receivedAt: string;
+  } | null;
+
   reminders?: {
     id: string;
     remindAt: string;
@@ -41,6 +67,22 @@ export default function CalendarPage() {
 const [scheduleStatus, setScheduleStatus]       = useState('loading');
 const [polling, setPolling]     = useState(true);
 const [dbEvents, setDbEvents] = useState<CalendarEvent[]>([]);
+
+useEffect(() => {
+  if (!("serviceWorker" in navigator)) {
+    console.warn("Service workers are not supported");
+    return;
+  }
+
+  navigator.serviceWorker
+    .register("/sw.js")
+    .then((registration) => {
+      console.log("Service worker registered:", registration);
+    })
+    .catch((error) => {
+      console.error("Service worker registration failed:", error);
+    });
+}, []);
 
 const fetchSchedule = useCallback(async () => {
   try {
@@ -71,19 +113,7 @@ useEffect(() => {
   };
 }, [fetchSchedule, polling]);
 
-const handleRefresh = async () => {
-  setScheduleStatus('analyzing');
-  try {
-    const res = await fetch('http://localhost:3001/api/refresh', { method: 'POST' });
-    console.log(res.status);
-    if (!res.ok) throw new Error(`Refresh failed (${res.status})`);
-    setPolling(true);
-  } catch {
-    setScheduleStatus('error');
-  }
-};
-
-const fetchDbEvents = useCallback(async () => {
+async function fetchDbEvents() {
   const res = await fetch("/api/events");
 
   if (!res.ok) return;
@@ -91,39 +121,83 @@ const fetchDbEvents = useCallback(async () => {
   const data = await res.json();
 
   const events = data.map((event: ApiEvent): CalendarEvent => {
-
     const date = new Date(event.dueDate);
 
     return {
-    id: event.id,
-    emailId: event.emailId,
-    title: event.title,
-    patientName: event.patient ? `${event.patient.firstName} ${event.patient.lastName}` : null,
-    date: date.toLocaleDateString("en-CA", {
-      timeZone: "America/Los_Angeles",
-    }),
-    time: date.toLocaleTimeString("en-US", {
-  timeZone: "America/Los_Angeles",
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: false,}),
-  description: event.description,
-  status: event.status,
-  dueDate: event.dueDate,
-  reminders: event.reminders,
-};
-  })
+      id: event.id,
+      emailId: event.emailId,
+      title: event.title,
+
+      patientName: event.patient
+        ? `${event.patient.firstName} ${event.patient.lastName}`
+        : null,
+
+      date: date.toLocaleDateString("en-CA", {
+        timeZone: "America/Los_Angeles",
+      }),
+
+      time: date.toLocaleTimeString("en-US", {
+        timeZone: "America/Los_Angeles",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }),
+
+      description: event.description,
+      status: event.status,
+      dueDate: event.dueDate,
+      email: event.email,
+      reminders: event.reminders,
+    };
+  });
 
   setDbEvents(events);
+}
 
-}, []);
+// useEffect(() => {
+//   async function loadEvents() {
+//     const res = await fetch("/api/events");
 
-useEffect(() => {
-  async function loadEvents() {
-    await fetchDbEvents();
-  }
-loadEvents();
-}, [fetchDbEvents]);
+//     if (!res.ok) return;
+
+//     const data = await res.json();
+
+//     const events = data.map((event: ApiEvent): CalendarEvent => {
+//       const date = new Date(event.dueDate);
+
+//       return {
+//         id: event.id,
+//         emailId: event.emailId,
+//         title: event.title,
+
+//         patientName: event.patient
+//           ? `${event.patient.firstName} ${event.patient.lastName}`
+//           : null,
+
+//         date: date.toLocaleDateString("en-CA", {
+//           timeZone: "America/Los_Angeles",
+//         }),
+
+//         time: date.toLocaleTimeString("en-US", {
+//           timeZone: "America/Los_Angeles",
+//           hour: "2-digit",
+//           minute: "2-digit",
+//           hour12: false,
+//         }),
+
+//         description: event.description,
+//         status: event.status,
+//         dueDate: event.dueDate,
+//         email: event.email,
+//         reminders: event.reminders,
+//       };
+//     });
+
+//     setDbEvents(events);
+//   }
+
+//   loadEvents();
+// }, []);
 
 const formatEvent = (event: CalendarEvent): CalendarEvent => {
   const date = new Date(event.dueDate);
@@ -189,6 +263,22 @@ const deleteEvent = async (id: string) => {
   );
 };
 
+console.log(
+  "Calendar events:",
+  dbEvents.map((event) => ({
+    id: event.id,
+    title: event.title,
+    dueDate: event.dueDate,
+  }))
+);
+
+const ids = dbEvents.map((event) => event.id);
+
+console.log(
+  "Duplicate IDs:",
+  ids.filter((id, index) => ids.indexOf(id) !== index)
+);
+
     return (
 
         <ScheduleDashboard
@@ -197,7 +287,6 @@ const deleteEvent = async (id: string) => {
           onCreateEvent={createEvent}
           onUpdateEvent={updateEvent}
           onDeleteEvent={deleteEvent}
-          onRefresh={handleRefresh}
           onEventUpdated={setDbEvents}
         />
       );

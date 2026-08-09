@@ -9,6 +9,7 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { EntityData } from "@/lib/redaction";
+import type { Email } from "@/app/(dashboard)/calendar/aiService"
 
 // Mock loadEntities to return fixed test data (never touch DB in unit tests)
 const TEST_ENTITY_DATA: EntityData = {
@@ -46,19 +47,22 @@ describe("Email AI Redaction Pipeline", () => {
   describe("analyzeEmails", () => {
     it("should redact PII before calling AI and not send raw values", async () => {
       const mockCallAI = vi.spyOn(aiProvider, "callAI");
-      mockCallAI.mockResolvedValueOnce(JSON.stringify([{
+      mockCallAI.mockResolvedValueOnce(JSON.stringify({
+        emails: [{
         category: "client",
         urgency: "high",
         actionRequired: true,
         summaryTitle: "Patient {{PATIENT_NAME_1}} appointment request",
         summaryDetails: ["Detail 1"],
         clientTags: ["{{PATIENT_NAME_1}}"],
-        recommendedAction: "Schedule appointment",
+        recommendedActions: ["Schedule appointment"],
         draftResponse: "Hi {{PATIENT_NAME_1}}, we'll get back to you soon.",
-      }]));
+      }]
+    }));
 
       // Email with known identifiers that WILL trigger redaction
-      const emails = [{
+      const emails: Email[] = [{
+        id: "",
         sender: "maria.santos@example-patient.dev",
         subject: "Appointment for Maria Santos",
         body: "Hi, this is Maria Santos calling from 555-0102. My member ID is BCBS-2024-002.",
@@ -82,7 +86,8 @@ describe("Email AI Redaction Pipeline", () => {
 
     it("should call scanText on final unredacted output", async () => {
       const mockCallAI = vi.spyOn(aiProvider, "callAI");
-      mockCallAI.mockResolvedValueOnce(JSON.stringify([{
+      mockCallAI.mockResolvedValueOnce(JSON.stringify({
+        emails: [{
         category: "client",
         urgency: "medium",
         actionRequired: false,
@@ -91,11 +96,12 @@ describe("Email AI Redaction Pipeline", () => {
         clientTags: [],
         recommendedAction: null,
         draftResponse: null,
-      }]));
+      }]}));
 
       const mockScanText = vi.mocked(redactionModule.scanText);
 
-      const emails = [{
+      const emails: Email[] = [{
+        id: "",
         sender: "info@clinic.com",
         subject: "Question",
         body: "What are your hours?",
@@ -115,18 +121,20 @@ describe("Email AI Redaction Pipeline", () => {
       const mockCallAI = vi.spyOn(aiProvider, "callAI");
 
       // AI returns a simple response (not echoing tokens, which is more realistic)
-      mockCallAI.mockResolvedValueOnce(JSON.stringify([{
+      mockCallAI.mockResolvedValueOnce(JSON.stringify({
+        emails: [{
         category: "client",
         urgency: "low",
         actionRequired: false,
         summaryTitle: "Patient inquiry received",
         summaryDetails: ["Request for appointment"],
         clientTags: [],
-        recommendedAction: "Review and respond",
+        recommendedActions: ["Review and respond"],
         draftResponse: "Thank you for your inquiry",
-      }]));
+      }]}));
 
-      const emails = [{
+      const emails: Email[] = [{
+        id: "",
         sender: "maria.santos@example-patient.dev",
         subject: "Test for Maria Santos",
         body: "Test message from Maria Santos",
@@ -139,7 +147,7 @@ describe("Email AI Redaction Pipeline", () => {
       expect(results[0].summaryTitle).toBe("Patient inquiry received");
       expect(results[0].category).toBe("client");
       expect(results[0].summaryDetails).toEqual(["Request for appointment"]);
-      expect(results[0].recommendedAction).toBe("Review and respond");
+      expect(results[0].recommendedActions).toEqual(["Review and respond"]);
       expect(results[0].draftResponse).toBe("Thank you for your inquiry");
     });
   });
@@ -170,7 +178,8 @@ describe("Email AI Redaction Pipeline", () => {
   describe("analyzeSchedulingEmails", () => {
     it("should redact before scheduling analysis and scanText after", async () => {
       const mockCallAI = vi.spyOn(aiProvider, "callAI");
-      mockCallAI.mockResolvedValueOnce(JSON.stringify([{
+      mockCallAI.mockResolvedValueOnce(JSON.stringify(
+         [{
         emailId: "sched-1",
         type: "appointment",
         patientName: "Patient Name",
@@ -179,11 +188,12 @@ describe("Email AI Redaction Pipeline", () => {
         title: "Follow-up appointment",
         urgency: "medium",
         category: "client",
-      }]));
+      }]
+    ));
 
       const mockScanText = vi.mocked(redactionModule.scanText);
 
-      const emails = [{
+      const emails: Email[] = [{
         id: "sched-1",
         sender: "patient@example.com",
         subject: "Appointment",

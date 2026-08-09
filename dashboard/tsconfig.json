@@ -30,5 +30,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
 , "app/(dashboard)/calendar/ScheduleList.tsx"  ],
-  "exclude": ["node_modules", "app/generated"]
+  "exclude": ["node_modules", "app/generated", "prisma/seed.ts"]
 }

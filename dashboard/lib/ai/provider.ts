@@ -29,7 +29,9 @@ import type { RedactedText } from "@/lib/redaction";
  * Default Groq model for LLM calls.
  * Can be overridden via GROQ_MODEL environment variable.
  */
-export const DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile";
+//export const DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile";
+
+export const DEFAULT_GROQ_MODEL = "openai/gpt-oss-20b";
 
 /**
  * Default timeout for API calls in milliseconds (30 seconds).
@@ -56,8 +58,14 @@ export interface CallAIOptions {
   temperature?: number;
   /** Enable JSON mode for structured responses */
   jsonMode?: boolean;
+  jsonSchema?: {
+    name: string;
+    schema: Record<string, unknown>;
+    strict?: boolean;
+  };
   /** Timeout in milliseconds (default: 30000) */
   timeoutMs?: number;
+  maxCompletionTokens?: number;
 }
 
 /**
@@ -108,7 +116,9 @@ export async function callAI(
     systemPrompt,
     temperature = DEFAULT_TEMPERATURE,
     jsonMode = false,
+    jsonSchema,
     timeoutMs = DEFAULT_TIMEOUT_MS,
+    maxCompletionTokens = 1500,
   } = options ?? {};
 
   const model = process.env.GROQ_MODEL ?? DEFAULT_GROQ_MODEL;
@@ -125,17 +135,39 @@ export async function callAI(
     model,
     messages,
     temperature,
+    max_completion_tokens: 1500,
   };
 
-  if (jsonMode) {
-    requestBody.response_format = { type: "json_object" };
-  }
+  if (jsonSchema) {
+  requestBody.response_format = {
+    type: "json_schema",
+    json_schema: {
+      name: jsonSchema.name,
+      strict: jsonSchema.strict ?? true,
+      schema: jsonSchema.schema,
+    },
+  };
+} else if (jsonMode) {
+  requestBody.response_format = {
+    type: "json_object",
+  };
+}
 
   // Create abort controller for timeout
   const abortController = new AbortController();
   const timeoutId = setTimeout(() => abortController.abort(), timeoutMs);
 
   try {
+    const serializedBody = JSON.stringify(requestBody);
+
+    console.log("[Groq] Request size:", {
+      characters: serializedBody.length,
+      kb: Math.round(serializedBody.length / 1024),
+      model,
+      promptCharacters: redactedPrompt.length,
+      systemCharacters: systemPrompt?.length ?? 0,
+    });
+
     const response = await fetch(GROQ_API_ENDPOINT, {
       method: "POST",
       headers: {

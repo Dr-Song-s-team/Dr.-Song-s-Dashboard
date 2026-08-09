@@ -60,23 +60,23 @@ function UsersIcon({ className }: { className?: string }) {
   );
 }
 
-function FormsIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M8 3h6l4 4v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
-      <path d="M14 3v4h4M9 13h6M9 17h4" />
-    </svg>
-  );
-}
+// function FormsIcon({ className }: { className?: string }) {
+//   return (
+//     <svg
+//       className={className}
+//       viewBox="0 0 24 24"
+//       fill="none"
+//       stroke="currentColor"
+//       strokeWidth="1.75"
+//       strokeLinecap="round"
+//       strokeLinejoin="round"
+//       aria-hidden="true"
+//     >
+//       <path d="M8 3h6l4 4v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
+//       <path d="M14 3v4h4M9 13h6M9 17h4" />
+//     </svg>
+//   );
+// }
 
 function InsuranceIcon({ className }: { className?: string }) {
   return (
@@ -117,14 +117,20 @@ const navLinks = [
     href: "/insurance",
     icon: <InsuranceIcon className="size-5" />,
   },
-  {
-    label: "Forms/Reports",
-    href: "/forms",
-    icon: <FormsIcon className="size-5" />,
-  },
+  // {
+  //   label: "Forms/Reports",
+  //   href: "/forms",
+  //   icon: <FormsIcon className="size-5" />,
+  // },
 ];
 
-export default function Sidebar({ title = "Dashboard" }: { title?: string }) {
+interface SidebarProps {
+  title?: string;
+  onRefresh?: () => Promise<void>;
+  isRefreshing?: boolean;
+}
+
+export default function Sidebar({ title = "Dashboard", onRefresh, isRefreshing = false, }: SidebarProps) {
   const [isOpen, setIsOpen] = useState(true);
   const pathname = usePathname();
 
@@ -214,6 +220,23 @@ export default function Sidebar({ title = "Dashboard" }: { title?: string }) {
           );
         })}
       </nav>
+
+      {isOpen && (
+  <button
+    type="button"
+    onClick={onRefresh}
+    disabled={!onRefresh || isRefreshing}
+    className="mx-3 mb-3 flex items-center justify-center gap-2 rounded-2xl border border-white/15 bg-[#143e54]/35 px-4 py-3 text-sm font-medium transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+  >
+    <span className="text-lg">
+      {isRefreshing ? "⟳" : "↻"}
+    </span>
+
+    <span>
+      {isRefreshing ? "Refreshing..." : "Refresh Gmail"}
+    </span>
+  </button>
+)}
 
       {isOpen && (
         <div className="m-3 rounded-2xl border border-white/15 bg-[#143e54]/35 p-4">

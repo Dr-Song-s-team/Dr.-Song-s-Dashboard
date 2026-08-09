@@ -23,7 +23,7 @@ function toMinutes(amount, unit) {
   }
 }
 
-export default function ScheduleDashboard({ events, status, onCreateEvent, onUpdateEvent, onDeleteEvent, onRefresh, onEventUpdated }) {
+export default function ScheduleDashboard({ events, status, onCreateEvent, onUpdateEvent, onDeleteEvent, onEventUpdated }) {
   
   const m = new Date().getMonth();
   const y = new Date().getFullYear();
@@ -81,7 +81,6 @@ const weekDays = [...Array(7)].map((_, i) => {
   }
 
 function getTaskStatus(task) {
-  console.log("Checking status:", task)
 
   if (task.status === "ARCHIVED") {
         return "ARCHIVED";
@@ -246,6 +245,41 @@ function updateReminder(index, field, value) {
   );
 }
 
+async function enableNotifications() {
+
+  const permission =
+    await Notification.requestPermission();
+
+  if(permission !== "granted")
+    return;
+
+
+  const registration =
+    await navigator.serviceWorker.register(
+      "/sw.js"
+    );
+
+
+  const subscription =
+    await registration.pushManager.subscribe({
+      userVisibleOnly:true,
+
+      applicationServerKey:
+        process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+    });
+
+
+  await fetch("/api/push/subscribe", {
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json"
+    },
+    body:
+      JSON.stringify(subscription)
+  });
+
+}
+
   //console.log(events)
 
   // Count urgent items
@@ -254,6 +288,9 @@ function updateReminder(index, field, value) {
   //const apptCount     = events.filter(e => e.type === 'appointment' || e.type === 'reschedule').length;
 
   const selectedEvent = selected ? events.find(e => e.id === selected) : null;
+
+//    console.log("EVENTS:", events);
+//  console.log("SELECTED EVENT:", selectedEvent);
 
   return (
     <div className="sched-root">
@@ -350,9 +387,17 @@ function updateReminder(index, field, value) {
           {/* <StatBubble value={deadlineCount} label="Deadlines" color="ins" />
           <StatBubble value={apptCount}     label="Appointments" color="appt" /> */}
         </div>
-        <button onClick={onRefresh}
+        <button
+  onClick={() => {
+    window.location.href = "/api/connect-gmail";
+  }}
+  className="cursor-pointer"
+>
+  Connect Gmail
+</button>
+        <button onClick={enableNotifications}
         className="cursor-pointer">
-  Refresh
+Enable Notifications
 </button>
         <button
         onClick={() => setShowCreateModal(true)}
@@ -470,8 +515,6 @@ function updateReminder(index, field, value) {
       {weekDays.map(date => {
 
         const dateString = date.toISOString().split("T")[0];
-
-        console.log(dateString)
 
         const holidayName = holidayMap[dateString];
         const dayEvents = byDate[dateString] || [];
@@ -1079,19 +1122,34 @@ const [editing, setEditing] = useState(false);
           <span className="detail-field">Patient / Entity</span>
           {event.patientName}
         </p>
-        {event.subject && (
+       {event.emailId && (
           <div className="event-detail-section">
-            <span className="detail-field">Email Subject</span>
-            <p className="event-detail-subject">{event.subject}</p>
-          </div>
-        )}
-        {event.body && (
-          <div className="event-detail-section event-detail-body-wrap">
-            <span className="detail-field">Email Body</span>
-            <div className="event-detail-body">
-              {event.body.split('\n').map((line, i) =>
-                line.trim() === '' ? <br key={i} /> : <p key={i}>{line}</p>
-              )}
+            <span className="detail-field">Source Email</span>
+
+            <div className="source-email">
+              <p className="event-detail-subject">
+                {event.email?.subject}
+              </p>
+
+              <p className="source-email-sender">
+                From: {event.email?.fromName} ({event.email?.fromEmail})
+              </p>
+
+              <p className="source-email-date">
+                {new Date(event.email?.receivedAt).toLocaleString()}
+              </p>
+
+              <details className="source-email-details">
+                <summary>View Email</summary>
+
+                <div className="event-detail-body">
+                  {event.email?.body.split("\n").map((line, i) =>
+                    line.trim() === ""
+                      ? <br key={i} />
+                      : <p key={i}>{line}</p>
+                  )}
+                </div>
+              </details>
             </div>
           </div>
         )}
