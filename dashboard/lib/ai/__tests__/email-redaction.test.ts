@@ -53,7 +53,7 @@ describe("Email AI Redaction Pipeline", () => {
         summaryTitle: "Patient {{PATIENT_NAME_1}} appointment request",
         summaryDetails: ["Detail 1"],
         clientTags: ["{{PATIENT_NAME_1}}"],
-        recommendedAction: "Schedule appointment",
+        recommendedActions: ["Schedule appointment"],
         draftResponse: "Hi {{PATIENT_NAME_1}}, we'll get back to you soon.",
       }]));
 
@@ -122,7 +122,7 @@ describe("Email AI Redaction Pipeline", () => {
         summaryTitle: "Patient inquiry received",
         summaryDetails: ["Request for appointment"],
         clientTags: [],
-        recommendedAction: "Review and respond",
+        recommendedActions: ["Review and respond"],
         draftResponse: "Thank you for your inquiry",
       }]));
 
@@ -139,7 +139,7 @@ describe("Email AI Redaction Pipeline", () => {
       expect(results[0].summaryTitle).toBe("Patient inquiry received");
       expect(results[0].category).toBe("client");
       expect(results[0].summaryDetails).toEqual(["Request for appointment"]);
-      expect(results[0].recommendedAction).toBe("Review and respond");
+      expect(results[0].recommendedActions).toBe(["Review and respond"]);
       expect(results[0].draftResponse).toBe("Thank you for your inquiry");
     });
   });
