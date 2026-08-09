@@ -68,6 +68,22 @@ const [scheduleStatus, setScheduleStatus]       = useState('loading');
 const [polling, setPolling]     = useState(true);
 const [dbEvents, setDbEvents] = useState<CalendarEvent[]>([]);
 
+useEffect(() => {
+  if (!("serviceWorker" in navigator)) {
+    console.warn("Service workers are not supported");
+    return;
+  }
+
+  navigator.serviceWorker
+    .register("/sw.js")
+    .then((registration) => {
+      console.log("Service worker registered:", registration);
+    })
+    .catch((error) => {
+      console.error("Service worker registration failed:", error);
+    });
+}, []);
+
 const fetchSchedule = useCallback(async () => {
   try {
     const res = await fetch('http://localhost:3001/api/schedule');
@@ -280,6 +296,22 @@ const deleteEvent = async (id: string) => {
       events.filter(e => e.id !== id)
   );
 };
+
+console.log(
+  "Calendar events:",
+  dbEvents.map((event) => ({
+    id: event.id,
+    title: event.title,
+    dueDate: event.dueDate,
+  }))
+);
+
+const ids = dbEvents.map((event) => event.id);
+
+console.log(
+  "Duplicate IDs:",
+  ids.filter((id, index) => ids.indexOf(id) !== index)
+);
 
     return (
 
