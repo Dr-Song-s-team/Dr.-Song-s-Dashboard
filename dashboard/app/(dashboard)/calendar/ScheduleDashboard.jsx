@@ -23,7 +23,7 @@ function toMinutes(amount, unit) {
   }
 }
 
-export default function ScheduleDashboard({ events, status, onCreateEvent, onUpdateEvent, onDeleteEvent, onRefresh, onEventUpdated }) {
+export default function ScheduleDashboard({ events, status, onCreateEvent, onUpdateEvent, onDeleteEvent, onEventUpdated }) {
   
   const m = new Date().getMonth();
   const y = new Date().getFullYear();
@@ -398,10 +398,6 @@ async function enableNotifications() {
         <button onClick={enableNotifications}
         className="cursor-pointer">
 Enable Notifications
-</button>
-        <button onClick={onRefresh}
-        className="cursor-pointer">
-  Refresh
 </button>
         <button
         onClick={() => setShowCreateModal(true)}

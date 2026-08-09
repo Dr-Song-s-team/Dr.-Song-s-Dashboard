@@ -16,6 +16,9 @@ CREATE TYPE "EmailClassification" AS ENUM ('AUTHORIZATION', 'CLAIM', 'REFERRAL',
 -- CreateEnum
 CREATE TYPE "TaskStatus" AS ENUM ('PENDING', 'COMPLETE', 'ARCHIVED');
 
+-- CreateEnum
+CREATE TYPE "ExtractionStatus" AS ENUM ('ACCEPTED', 'EDITED', 'REJECTED');
+
 -- CreateTable
 CREATE TABLE "Patient" (
     "id" TEXT NOT NULL,
@@ -55,8 +58,22 @@ CREATE TABLE "Document" (
 );
 
 -- CreateTable
+CREATE TABLE "GmailAccount" (
+    "id" TEXT NOT NULL,
+    "emailAddress" TEXT NOT NULL,
+    "refreshToken" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "GmailAccount_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Email" (
     "id" TEXT NOT NULL,
+    "gmailMessageId" TEXT NOT NULL,
+    "gmailThreadId" TEXT,
+    "gmailAccountId" TEXT,
     "toInbox" "ClinicInbox" NOT NULL,
     "fromName" TEXT NOT NULL,
     "fromEmail" TEXT NOT NULL,
@@ -64,8 +81,10 @@ CREATE TABLE "Email" (
     "body" TEXT NOT NULL,
     "status" "EmailStatus" NOT NULL DEFAULT 'UNREAD',
     "classification" "EmailClassification" NOT NULL DEFAULT 'UNKNOWN',
+    "insurerLabel" TEXT,
     "aiSummary" TEXT,
     "aiDraft" TEXT,
+    "aiAnalysis" JSONB,
     "receivedAt" TIMESTAMP(3) NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -100,11 +119,43 @@ CREATE TABLE "Reminder" (
     CONSTRAINT "Reminder_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "PushSubscription" (
+    "id" TEXT NOT NULL,
+    "endpoint" TEXT NOT NULL,
+    "p256dh" TEXT NOT NULL,
+    "auth" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "PushSubscription_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Patient_email_key" ON "Patient"("email");
 
+-- CreateIndex
+CREATE UNIQUE INDEX "GmailAccount_emailAddress_key" ON "GmailAccount"("emailAddress");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Email_gmailMessageId_key" ON "Email"("gmailMessageId");
+
+-- CreateIndex
+CREATE INDEX "Email_receivedAt_idx" ON "Email"("receivedAt");
+
+-- CreateIndex
+CREATE INDEX "Email_status_idx" ON "Email"("status");
+
+-- CreateIndex
+CREATE INDEX "Email_insurerLabel_idx" ON "Email"("insurerLabel");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PushSubscription_endpoint_key" ON "PushSubscription"("endpoint");
+
 -- AddForeignKey
 ALTER TABLE "Document" ADD CONSTRAINT "Document_patientId_fkey" FOREIGN KEY ("patientId") REFERENCES "Patient"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Email" ADD CONSTRAINT "Email_gmailAccountId_fkey" FOREIGN KEY ("gmailAccountId") REFERENCES "GmailAccount"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Email" ADD CONSTRAINT "Email_patientId_fkey" FOREIGN KEY ("patientId") REFERENCES "Patient"("id") ON DELETE SET NULL ON UPDATE CASCADE;

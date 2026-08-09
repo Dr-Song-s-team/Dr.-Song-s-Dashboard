@@ -113,21 +113,7 @@ useEffect(() => {
   };
 }, [fetchSchedule, polling]);
 
-const handleRefresh = async () => {
-  setScheduleStatus('analyzing');
-  try {
-    const res = await fetch('http://localhost:3001/api/refresh', { method: 'POST' });
-    console.log(res.status);
-    if (!res.ok) throw new Error(`Refresh failed (${res.status})`);
-    setPolling(true);
-  } catch {
-    setScheduleStatus('error');
-  }
-};
-
-async function fetchDbEvents(
-  setDbEvents: React.Dispatch<React.SetStateAction<CalendarEvent[]>>
-) {
+async function fetchDbEvents() {
   const res = await fetch("/api/events");
 
   if (!res.ok) return;
@@ -168,70 +154,50 @@ async function fetchDbEvents(
   setDbEvents(events);
 }
 
-const handleImportGmail = async () => {
-  const res = await fetch("/api/import-gmail", {
-    method: "POST",
-  });
+// useEffect(() => {
+//   async function loadEvents() {
+//     const res = await fetch("/api/events");
 
-  if (!res.ok) {
-  const error = await res.json().catch(() => null);
+//     if (!res.ok) return;
 
-  console.error(
-    "Failed to import Gmail:",
-    error
-  );
+//     const data = await res.json();
 
-  return;
-}
+//     const events = data.map((event: ApiEvent): CalendarEvent => {
+//       const date = new Date(event.dueDate);
 
-  // Reload calendar events
-  await fetchDbEvents(setDbEvents);
-};
+//       return {
+//         id: event.id,
+//         emailId: event.emailId,
+//         title: event.title,
 
-useEffect(() => {
-  async function loadEvents() {
-    const res = await fetch("/api/events");
+//         patientName: event.patient
+//           ? `${event.patient.firstName} ${event.patient.lastName}`
+//           : null,
 
-    if (!res.ok) return;
+//         date: date.toLocaleDateString("en-CA", {
+//           timeZone: "America/Los_Angeles",
+//         }),
 
-    const data = await res.json();
+//         time: date.toLocaleTimeString("en-US", {
+//           timeZone: "America/Los_Angeles",
+//           hour: "2-digit",
+//           minute: "2-digit",
+//           hour12: false,
+//         }),
 
-    const events = data.map((event: ApiEvent): CalendarEvent => {
-      const date = new Date(event.dueDate);
+//         description: event.description,
+//         status: event.status,
+//         dueDate: event.dueDate,
+//         email: event.email,
+//         reminders: event.reminders,
+//       };
+//     });
 
-      return {
-        id: event.id,
-        emailId: event.emailId,
-        title: event.title,
+//     setDbEvents(events);
+//   }
 
-        patientName: event.patient
-          ? `${event.patient.firstName} ${event.patient.lastName}`
-          : null,
-
-        date: date.toLocaleDateString("en-CA", {
-          timeZone: "America/Los_Angeles",
-        }),
-
-        time: date.toLocaleTimeString("en-US", {
-          timeZone: "America/Los_Angeles",
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: false,
-        }),
-
-        description: event.description,
-        status: event.status,
-        dueDate: event.dueDate,
-        email: event.email,
-        reminders: event.reminders,
-      };
-    });
-
-    setDbEvents(events);
-  }
-
-  loadEvents();
-}, []);
+//   loadEvents();
+// }, []);
 
 const formatEvent = (event: CalendarEvent): CalendarEvent => {
   const date = new Date(event.dueDate);
@@ -321,7 +287,6 @@ console.log(
           onCreateEvent={createEvent}
           onUpdateEvent={updateEvent}
           onDeleteEvent={deleteEvent}
-          onRefresh={handleImportGmail}
           onEventUpdated={setDbEvents}
         />
       );

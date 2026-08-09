@@ -1,3 +1,6 @@
+"use client";
+
+import { useCallback, useState } from "react";
 import Sidebar from "@/components/Sidebar";
 
 export default function DashboardLayout({
@@ -5,14 +8,45 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const [isImporting, setIsImporting] = useState(false);
+
+  const handleImportGmail = useCallback(async () => {
+    if (isImporting) return;
+
+    setIsImporting(true);
+
+    try {
+      const res = await fetch("/api/import-gmail", {
+        method: "POST",
+        cache: "no-store",
+      });
+
+      if (!res.ok) {
+        const error = await res.json().catch(() => null);
+
+        console.error("Failed to import Gmail:", error);
+        return;
+      }
+
+      console.log("Gmail import successful");
+    } catch (error) {
+      console.error("Gmail import failed:", error);
+    } finally {
+      setIsImporting(false);
+    }
+  }, [isImporting]);
+
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#f5f0e8] font-sans text-[#513a2e]">
-      <div className="pointer-events-none absolute -right-24 -top-24 size-80 rounded-full bg-[#b8d4df]/45 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-28 left-1/3 size-96 rounded-full bg-[#cbb199]/25 blur-3xl" />
-      <div className="relative flex min-h-screen w-full gap-5 p-4 sm:gap-8 sm:p-6">
-        <Sidebar title="Dr. Song" />
-        <div className="flex min-w-0 flex-1 flex-col">{children}</div>
-      </div>
+    <div className="flex min-h-screen gap-4 p-4">
+      <Sidebar
+        title="Dashboard"
+        onRefresh={handleImportGmail}
+        isRefreshing={isImporting}
+      />
+
+      <main className="min-w-0 flex-1">
+        {children}
+      </main>
     </div>
   );
 }
