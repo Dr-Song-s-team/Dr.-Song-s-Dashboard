@@ -9,6 +9,7 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { EntityData } from "@/lib/redaction";
+import type { Email } from "@/app/(dashboard)/calendar/aiService"
 
 // Mock loadEntities to return fixed test data (never touch DB in unit tests)
 const TEST_ENTITY_DATA: EntityData = {
@@ -58,7 +59,8 @@ describe("Email AI Redaction Pipeline", () => {
       }]));
 
       // Email with known identifiers that WILL trigger redaction
-      const emails = [{
+      const emails: Email[] = [{
+        id: "",
         sender: "maria.santos@example-patient.dev",
         subject: "Appointment for Maria Santos",
         body: "Hi, this is Maria Santos calling from 555-0102. My member ID is BCBS-2024-002.",
@@ -95,7 +97,8 @@ describe("Email AI Redaction Pipeline", () => {
 
       const mockScanText = vi.mocked(redactionModule.scanText);
 
-      const emails = [{
+      const emails: Email[] = [{
+        id: "",
         sender: "info@clinic.com",
         subject: "Question",
         body: "What are your hours?",
@@ -126,7 +129,8 @@ describe("Email AI Redaction Pipeline", () => {
         draftResponse: "Thank you for your inquiry",
       }]));
 
-      const emails = [{
+      const emails: Email[] = [{
+        id: "",
         sender: "maria.santos@example-patient.dev",
         subject: "Test for Maria Santos",
         body: "Test message from Maria Santos",
@@ -183,7 +187,7 @@ describe("Email AI Redaction Pipeline", () => {
 
       const mockScanText = vi.mocked(redactionModule.scanText);
 
-      const emails = [{
+      const emails: Email[] = [{
         id: "sched-1",
         sender: "patient@example.com",
         subject: "Appointment",

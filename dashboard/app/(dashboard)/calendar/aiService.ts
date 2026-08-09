@@ -273,7 +273,7 @@ const ANALYSIS_SCHEMA = {
   required: ["emails"],
 };
 
-interface Email {
+export interface Email {
   id: string;
   sender: string;
   subject: string;
