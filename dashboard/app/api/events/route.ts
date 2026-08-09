@@ -1,6 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+type CreateTaskBody = {
+  title: string;
+  description?: string | null;
+  due?: string | null;
+  emailId?: string | null;
+  patientId?: string | null;
+  reminders?: {
+    remindAt: string;
+  }[];
+};
+
 export async function GET() {
   try {
     const tasks = await prisma.task.findMany({
@@ -42,7 +53,7 @@ export async function GET() {
 
         patientId: task.patientId,
         patientName: task.patient
-          ? task.patient.name
+          ? `${task.patient.firstName} ${task.patient.lastName}`
           : null,
 
         // Source email
@@ -77,7 +88,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
+    const body: CreateTaskBody = await req.json();
 
     const existing = await prisma.task.findFirst({
       where: {
@@ -88,7 +99,7 @@ export async function POST(req: Request) {
         reminders: true,
         patient: true,
         email: true,
-      }
+      },
     });
 
     if (existing) {
@@ -129,7 +140,10 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         error: "Failed to create task",
-        details: error instanceof Error ? error.message : String(error),
+        details:
+          error instanceof Error
+            ? error.message
+            : String(error),
       },
       { status: 500 }
     );

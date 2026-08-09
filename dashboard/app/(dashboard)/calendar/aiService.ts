@@ -6,7 +6,7 @@
  * are preserved for backward compatibility with existing calendar UI code.
  */
 
-import { callAI } from "@/lib/ai/provider";
+import { callAI, CallAIOptions } from "@/lib/ai/provider";
 import { loadEntities, redact, unredact, scanText } from "@/lib/redaction";
 import type { EntityData, RedactedText } from "@/lib/redaction";
 
@@ -327,11 +327,7 @@ function sleep(ms: number): Promise<void> {
 
 async function callAIWithRetry(
   prompt: RedactedText,
-  options: {
-    systemPrompt?: string;
-    jsonMode?: boolean;
-    timeoutMs?: number;
-  },
+  options: CallAIOptions,
   maxRetries = 3
 ): Promise<string> {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
