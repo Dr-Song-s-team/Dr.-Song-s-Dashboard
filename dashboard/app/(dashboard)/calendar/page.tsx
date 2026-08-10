@@ -69,6 +69,8 @@ interface ApiEvent {
 export default function CalendarPage() {
 
 const [dbEvents, setDbEvents] = useState<CalendarEvent[]>([]);
+const [isSyncing, setIsSyncing] = useState(false);
+const [syncResult, setSyncResult] = useState<string | null>(null);
 
 useEffect(() => {
   if (!("serviceWorker" in navigator)) {
@@ -218,6 +220,41 @@ const deleteEvent = async (id: string) => {
   );
 };
 
+const handleSyncFromEmails = async () => {
+  setIsSyncing(true);
+  setSyncResult(null);
+
+  try {
+    const res = await fetch("/api/events/sync-from-emails", {
+      method: "POST",
+    });
+
+    if (!res.ok) {
+      throw new Error("Sync failed");
+    }
+
+    const result = await res.json();
+
+    // Refresh calendar
+    const events = await getDbEvents();
+    setDbEvents(events);
+
+    // Show result
+    setSyncResult(
+      `Sync complete: ${result.created} tasks created, ${result.skipped} duplicates skipped`
+    );
+
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => setSyncResult(null), 5000);
+  } catch (error) {
+    console.error("Sync error:", error);
+    setSyncResult("Sync failed. Please try again.");
+    setTimeout(() => setSyncResult(null), 5000);
+  } finally {
+    setIsSyncing(false);
+  }
+};
+
 console.log(
   "Calendar events:",
   dbEvents.map((event) => ({
@@ -235,14 +272,39 @@ console.log(
 );
 
     return (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={handleSyncFromEmails}
+                disabled={isSyncing}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              >
+                {isSyncing ? "Syncing..." : "Sync Tasks from Emails"}
+              </button>
 
-        <ScheduleDashboard
-          events={dbEvents}
-          status='done'
-          onCreateEvent={createEvent}
-          onUpdateEvent={updateEvent}
-          onDeleteEvent={deleteEvent}
-          onEventUpdated={setDbEvents}
-        />
+              {syncResult && (
+                <div
+                  className={`px-4 py-2 rounded-md text-sm ${
+                    syncResult.includes("failed")
+                      ? "bg-red-100 text-red-800"
+                      : "bg-green-100 text-green-800"
+                  }`}
+                >
+                  {syncResult}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <ScheduleDashboard
+            events={dbEvents}
+            status='done'
+            onCreateEvent={createEvent}
+            onUpdateEvent={updateEvent}
+            onDeleteEvent={deleteEvent}
+            onEventUpdated={setDbEvents}
+          />
+        </div>
       );
 }

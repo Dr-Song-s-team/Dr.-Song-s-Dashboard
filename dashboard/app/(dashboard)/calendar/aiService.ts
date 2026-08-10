@@ -299,7 +299,7 @@ interface AnalyzedEmail {
   draftResponse: string | null;
 }
 
-interface SchedulingEmail {
+export interface SchedulingEmail {
   id: string;
   sender: string;
   subject: string;
