@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import { createPatient, type ActionState } from "../actions";
+import type { PatientFields } from "@/lib/validatePatient";
 
 const US_STATES = [
   "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA",
@@ -38,7 +39,6 @@ function Input({
   name,
   type = "text",
   required,
-  defaultValue,
   hasError,
   ...rest
 }: React.InputHTMLAttributes<HTMLInputElement> & { hasError?: boolean }) {
@@ -48,7 +48,6 @@ function Input({
       name={name}
       type={type}
       required={required}
-      defaultValue={defaultValue}
       className={`w-full rounded-xl border px-3.5 py-2.5 text-sm text-[#513a2e] placeholder-[#9b8070] outline-none transition focus:ring-2 focus:ring-[#9b6a4b]/40 ${
         hasError
           ? "border-rose-400 bg-rose-50/50 focus:border-rose-400"
@@ -56,6 +55,43 @@ function Input({
       }`}
       {...rest}
     />
+  );
+}
+
+function StatusAlert({
+  tone,
+  title,
+  message,
+}: {
+  tone: "success" | "error";
+  title: string;
+  message: string;
+}) {
+  const isError = tone === "error";
+
+  return (
+    <div
+      role={isError ? "alert" : "status"}
+      aria-live={isError ? "assertive" : "polite"}
+      className={`flex gap-3 rounded-xl border-2 px-5 py-4 shadow-sm ${
+        isError
+          ? "border-rose-500 bg-rose-100 text-rose-950"
+          : "border-emerald-500 bg-emerald-100 text-emerald-950"
+      }`}
+    >
+      <span
+        aria-hidden="true"
+        className={`flex size-6 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
+          isError ? "bg-rose-600 text-white" : "bg-emerald-600 text-white"
+        }`}
+      >
+        {isError ? "!" : "✓"}
+      </span>
+      <div>
+        <p className="font-semibold">{title}</p>
+        <p className="mt-0.5 text-sm">{message}</p>
+      </div>
+    </div>
   );
 }
 
@@ -99,21 +135,90 @@ function SubmitButton() {
 }
 
 const initialState: ActionState = {};
+const emptyFields: Required<PatientFields> = {
+  firstName: "",
+  lastName: "",
+  dob: "",
+  phone: "",
+  email: "",
+  address: "",
+  city: "",
+  state: "",
+  zip: "",
+  insurer: "",
+  memberId: "",
+  authLimit: "",
+  statusNotes: "",
+};
 
 export default function IntakeForm() {
   const [state, formAction] = useActionState(createPatient, initialState);
+  const [fields, setFields] = useState(emptyFields);
+  const [isAutofilling, setIsAutofilling] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [autofillError, setAutofillError] = useState<string | null>(null);
+  const [autofillSuccess, setAutofillSuccess] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFieldChange = (
+    event: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
+  ) => {
+    const key = event.currentTarget.name as keyof PatientFields;
+    setFields((current) => ({ ...current, [key]: event.currentTarget.value }));
+  };
+
+  const uploadIntake = async (file: File) => {
+    setAutofillSuccess(false);
+    setAutofillError(null);
+
+    if (file.type && file.type !== "application/pdf") {
+      setAutofillError("Only PDF intake files can be uploaded.");
+      return;
+    }
+
+    setIsAutofilling(true);
+    try {
+      const formData = new FormData();
+      formData.set("file", file);
+      const response = await fetch("/api/intake/autofill", {
+        method: "POST",
+        body: formData,
+      });
+      const data = (await response.json()) as {
+        error?: string;
+        fields?: Partial<Record<keyof PatientFields, string>>;
+      };
+
+      if (!response.ok || !data.fields) {
+        throw new Error(data.error || "Autofill failed. Please try another intake PDF.");
+      }
+
+      setFields((current) => ({ ...current, ...data.fields }));
+      setAutofillSuccess(true);
+    } catch (error) {
+      setAutofillError(
+        error instanceof Error ? error.message : "Autofill failed. Please try another intake PDF.",
+      );
+    } finally {
+      setIsAutofilling(false);
+    }
+  };
+
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0];
+    if (file) void uploadIntake(file);
+    event.currentTarget.value = "";
+  };
+
+  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDragging(false);
+    const file = event.dataTransfer.files[0];
+    if (file) void uploadIntake(file);
+  };
 
   return (
     <form action={formAction} noValidate className="space-y-8">
-      {state.message && (
-        <div
-          className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
-          role="alert"
-        >
-          {state.message}
-        </div>
-      )}
-
       {/* Identity */}
       <section>
         <h3 className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-[#9b6a4b]">
@@ -128,6 +233,8 @@ export default function IntakeForm() {
               required
               autoComplete="given-name"
               placeholder="Alex"
+              value={fields.firstName}
+              onChange={handleFieldChange}
               hasError={!!state.errors?.firstName}
             />
             <FieldError messages={state.errors?.firstName} />
@@ -140,6 +247,8 @@ export default function IntakeForm() {
               required
               autoComplete="family-name"
               placeholder="Thompson"
+              value={fields.lastName}
+              onChange={handleFieldChange}
               hasError={!!state.errors?.lastName}
             />
             <FieldError messages={state.errors?.lastName} />
@@ -151,6 +260,8 @@ export default function IntakeForm() {
               name="dob"
               type="date"
               required
+              value={fields.dob}
+              onChange={handleFieldChange}
               hasError={!!state.errors?.dob}
             />
             <FieldError messages={state.errors?.dob} />
@@ -164,6 +275,8 @@ export default function IntakeForm() {
               required
               autoComplete="tel"
               placeholder="555-0101"
+              value={fields.phone}
+              onChange={handleFieldChange}
               hasError={!!state.errors?.phone}
             />
             <FieldError messages={state.errors?.phone} />
@@ -177,6 +290,8 @@ export default function IntakeForm() {
               required
               autoComplete="email"
               placeholder="patient@example.com"
+              value={fields.email}
+              onChange={handleFieldChange}
               hasError={!!state.errors?.email}
             />
             <FieldError messages={state.errors?.email} />
@@ -198,6 +313,8 @@ export default function IntakeForm() {
               required
               autoComplete="street-address"
               placeholder="100 Maple St"
+              value={fields.address}
+              onChange={handleFieldChange}
               hasError={!!state.errors?.address}
             />
             <FieldError messages={state.errors?.address} />
@@ -210,6 +327,8 @@ export default function IntakeForm() {
               required
               autoComplete="address-level2"
               placeholder="Anytown"
+              value={fields.city}
+              onChange={handleFieldChange}
               hasError={!!state.errors?.city}
             />
             <FieldError messages={state.errors?.city} />
@@ -221,7 +340,8 @@ export default function IntakeForm() {
                 id="state"
                 name="state"
                 required
-                defaultValue=""
+                value={fields.state}
+                onChange={handleFieldChange}
                 className={`w-full rounded-xl border px-3.5 py-2.5 text-sm text-[#513a2e] outline-none transition focus:ring-2 focus:ring-[#9b6a4b]/40 ${
                   state.errors?.state
                     ? "border-rose-400 bg-rose-50/50 focus:border-rose-400"
@@ -247,6 +367,8 @@ export default function IntakeForm() {
                 required
                 autoComplete="postal-code"
                 placeholder="90001"
+                value={fields.zip}
+                onChange={handleFieldChange}
                 hasError={!!state.errors?.zip}
               />
               <FieldError messages={state.errors?.zip} />
@@ -268,6 +390,8 @@ export default function IntakeForm() {
               name="insurer"
               required
               placeholder="Anthem"
+              value={fields.insurer}
+              onChange={handleFieldChange}
               hasError={!!state.errors?.insurer}
             />
             <FieldError messages={state.errors?.insurer} />
@@ -279,6 +403,8 @@ export default function IntakeForm() {
               name="memberId"
               required
               placeholder="ANT-2024-001"
+              value={fields.memberId}
+              onChange={handleFieldChange}
               hasError={!!state.errors?.memberId}
             />
             <FieldError messages={state.errors?.memberId} />
@@ -292,6 +418,8 @@ export default function IntakeForm() {
               required
               min={0}
               placeholder="24"
+              value={fields.authLimit}
+              onChange={handleFieldChange}
               hasError={!!state.errors?.authLimit}
             />
             <FieldError messages={state.errors?.authLimit} />
@@ -311,12 +439,87 @@ export default function IntakeForm() {
             name="statusNotes"
             rows={3}
             placeholder="Active; next auth renewal due…"
+            value={fields.statusNotes}
+            onChange={handleFieldChange}
             className="w-full rounded-xl border border-[#d8c9ba] bg-white/70 px-3.5 py-2.5 text-sm text-[#513a2e] placeholder-[#9b8070] outline-none transition focus:border-[#9b6a4b] focus:ring-2 focus:ring-[#9b6a4b]/40"
           />
         </div>
       </section>
 
-      <div className="flex items-center justify-end gap-3 border-t border-[#e8d9cc] pt-6">
+      <section className="border-t border-[#e8d9cc] pt-6">
+        <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-[#9b6a4b]">
+          Upload Intake
+        </h3>
+        <p className="mt-1 text-sm text-[#765d4e]">
+          Drag a completed intake PDF here or choose one from your computer to fill this form.
+        </p>
+        <div className="mt-4 space-y-3">
+          {autofillError && (
+            <StatusAlert
+              tone="error"
+              title="Autofill failed"
+              message={autofillError}
+            />
+          )}
+          {autofillSuccess && (
+            <StatusAlert
+              tone="success"
+              title="Intake autofilled"
+              message="All required patient fields were filled. Review the information before saving."
+            />
+          )}
+        </div>
+        <div
+          className={`mt-4 flex flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-8 text-center transition ${
+            isDragging
+              ? "border-[#9b6a4b] bg-[#f0e6d8]"
+              : "border-[#d8c9ba] bg-white/50"
+          }`}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setIsDragging(true);
+          }}
+          onDragLeave={() => setIsDragging(false)}
+          onDrop={handleDrop}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,application/pdf"
+            className="sr-only"
+            onChange={handleFileChange}
+          />
+          <p className="text-sm font-medium text-[#513a2e]">
+            {isAutofilling ? "Reading intake PDF…" : "Drop a PDF here"}
+          </p>
+          <button
+            type="button"
+            disabled={isAutofilling}
+            onClick={() => fileInputRef.current?.click()}
+            className="mt-3 rounded-xl border border-[#9b6a4b] px-5 py-2.5 text-sm font-medium text-[#7a5138] transition hover:bg-[#f0e6d8] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isAutofilling ? "Autofilling…" : "Choose Intake PDF"}
+          </button>
+          <p className="mt-3 text-xs text-[#9b8070]">PDF only, up to 10 MB</p>
+        </div>
+      </section>
+
+      <div className="space-y-4 border-t border-[#e8d9cc] pt-6">
+        {state.message && (
+          <StatusAlert
+            tone="error"
+            title="Patient could not be saved"
+            message={state.message}
+          />
+        )}
+        {state.errors && Object.keys(state.errors).length > 0 && (
+          <StatusAlert
+            tone="error"
+            title="Patient could not be saved"
+            message="Review and correct the highlighted fields before saving again."
+          />
+        )}
+        <div className="flex items-center justify-end gap-3">
         <Link
           href="/info"
           className="rounded-xl border border-[#d8c9ba] px-5 py-2.5 text-sm font-medium text-[#513a2e] transition hover:bg-[#f0e6d8]"
@@ -324,6 +527,7 @@ export default function IntakeForm() {
           Cancel
         </Link>
         <SubmitButton />
+        </div>
       </div>
     </form>
   );
