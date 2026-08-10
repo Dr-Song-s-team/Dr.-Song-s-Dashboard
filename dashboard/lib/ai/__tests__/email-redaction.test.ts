@@ -141,6 +141,54 @@ describe("Email AI Redaction Pipeline", () => {
       expect(results[0].summaryTitle).toBe("Coverage verification needed");
     });
 
+    it("should retry split batches sequentially after a non-rate-limit failure", async () => {
+      const mockCallAI = vi.spyOn(aiProvider, "callAI");
+      let resolveFirstHalf: (response: string) => void;
+      const firstHalfResponse = new Promise<string>((resolve) => {
+        resolveFirstHalf = resolve;
+      });
+      const analysisResponse = JSON.stringify([
+        {
+          category: "client",
+          urgency: "medium",
+          actionRequired: true,
+          summaryTitle: "Patient appointment request needs follow-up",
+          summaryDetails: ["Patient requested an appointment."],
+          clientTags: [],
+          recommendedActions: ["Schedule patient appointment"],
+          draftResponse: "Thank you for your appointment request.",
+        },
+      ]);
+
+      mockCallAI
+        .mockRejectedValueOnce(new Error("Groq API request failed: 400 Bad Request"))
+        .mockImplementationOnce(() => firstHalfResponse)
+        .mockResolvedValueOnce(analysisResponse);
+
+      const analysis = analyzeEmails([
+        {
+          id: "first",
+          sender: "first@example.com",
+          subject: "Appointment request",
+          body: "I'd like to book an appointment.",
+        },
+        {
+          id: "second",
+          sender: "second@example.com",
+          subject: "Follow-up request",
+          body: "Please schedule my follow-up.",
+        },
+      ]);
+
+      await vi.waitFor(() => expect(mockCallAI).toHaveBeenCalledTimes(2));
+      expect(mockCallAI).toHaveBeenCalledTimes(2);
+
+      resolveFirstHalf!(analysisResponse);
+
+      await expect(analysis).resolves.toHaveLength(2);
+      expect(mockCallAI).toHaveBeenCalledTimes(3);
+    });
+
     it("should call scanText on final unredacted output", async () => {
       const mockCallAI = vi.spyOn(aiProvider, "callAI");
       mockCallAI.mockResolvedValueOnce(JSON.stringify({

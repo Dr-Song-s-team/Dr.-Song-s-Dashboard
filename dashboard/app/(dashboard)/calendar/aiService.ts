@@ -90,9 +90,27 @@ function truncateEmailBody(body: string): string {
 const ANALYSIS_SYSTEM = `
 You analyze emails for Dr. Song's acupuncture clinic.
 
-Return EXACTLY ONE JSON ARRAY.
+Return EXACTLY ONE JSON OBJECT in this shape:
 
-For each input email, return EXACTLY ONE object with these fields:
+{
+  "emails": [
+    {
+      "category": "client" | "insurance" | "spam",
+      "urgency": "high" | "medium" | "low",
+      "actionRequired": true | false,
+      "summaryTitle": "string",
+      "summaryDetails": ["string"],
+      "clientTags": ["string"],
+      "recommendedActions": ["string"] | null,
+      "dueDate": "YYYY-MM-DD" | null,
+      "dueTime": "HH:MM AM/PM" | null,
+      "draftResponse": "string" | null
+    }
+  ]
+}
+
+The "emails" array must contain EXACTLY ONE object for each input email, with
+these fields:
 
 {
   "category": "client" | "insurance" | "spam",
@@ -118,7 +136,7 @@ IMPORTANT JSON RULES:
 - Never include trailing commas.
 - Use true and false for booleans.
 - Use null for missing values.
-- The number of output objects MUST equal the number of input emails.
+- The "emails" array length MUST equal the number of input emails.
 - Preserve the input order.
 
 FIELD RULES:
@@ -188,7 +206,7 @@ draftResponse:
 - Return null for spam or emails that do not require a response
 
 Remember:
-OUTPUT ONLY VALID JSON.
+OUTPUT ONLY THE VALID JSON OBJECT.
 `
 
 
@@ -494,18 +512,16 @@ async function analyzeEmailBatch(
       }`
     );
 
-    const halves = await Promise.all([
-      analyzeEmailBatch(
-        emails.slice(0, midpoint),
-        entities
-      ),
-      analyzeEmailBatch(
-        emails.slice(midpoint),
-        entities
-      ),
-    ]);
+    const firstHalf = await analyzeEmailBatch(
+      emails.slice(0, midpoint),
+      entities
+    );
+    const secondHalf = await analyzeEmailBatch(
+      emails.slice(midpoint),
+      entities
+    );
 
-    return halves.flat();
+    return [...firstHalf, ...secondHalf];
   }
 }
 
