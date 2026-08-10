@@ -1,6 +1,7 @@
 import { loadAllEmails } from "./csvParser";
 import { AnalyzedEmail, analyzeEmails, clearTranslationCache } from "./aiService";
 import { prisma } from "@/lib/prisma";
+import { createGoogleCalendarEvent } from "@/lib/googleCalendar"; 
 
 let cache = [];
 let isReady = false;
@@ -233,16 +234,13 @@ export async function createTasksFromAnalysis(
       );
 
       /*
-       * Save the complete AI analysis to the Email record.
-       *
-       * This happens BEFORE checking actionRequired,
-       * so even emails without tasks have their AI
-       * information available on the email details page.
+       * Save complete AI analysis.
        */
       await prisma.email.update({
         where: {
           id: prismaEmail.id,
         },
+
         data: {
           aiSummary:
             analysis.summaryTitle ||
@@ -258,12 +256,16 @@ export async function createTasksFromAnalysis(
             urgency: analysis.urgency,
             actionRequired: analysis.actionRequired,
             summaryTitle: analysis.summaryTitle,
-            summaryDetails: analysis.summaryDetails ?? [],
-            clientTags: analysis.clientTags ?? [],
+            summaryDetails:
+              analysis.summaryDetails ?? [],
+            clientTags:
+              analysis.clientTags ?? [],
             recommendedActions:
               analysis.recommendedActions ?? null,
-            dueDate: analysis.dueDate ?? null,
-            dueTime: analysis.dueTime ?? null,
+            dueDate:
+              analysis.dueDate ?? null,
+            dueTime:
+              analysis.dueTime ?? null,
           },
         },
       });
@@ -274,8 +276,6 @@ export async function createTasksFromAnalysis(
 
       /*
        * No task required.
-       *
-       * We still saved the AI analysis above.
        */
       if (!analysis.actionRequired) {
         console.log(
@@ -297,10 +297,14 @@ export async function createTasksFromAnalysis(
       /*
        * Combine AI dueDate + dueTime.
        */
-      const dueDate = formatDueDate(
+      const dueDateString = formatDueDate(
         analysis.dueDate,
         analysis.dueTime
       );
+
+      const dueDate = dueDateString
+        ? new Date(dueDateString)
+        : null;
 
       const description = [
         analysis.summaryTitle,
@@ -319,63 +323,98 @@ export async function createTasksFromAnalysis(
 
         const title = action.trim();
 
-        const res = await fetch(
-          "http://localhost:3000/api/events",
-          {
-            method: "POST",
+        /*
+         * Create the local reminder.
+         */
+        const reminders = dueDate
+          ? [
+              {
+                remindAt: new Date(
+                  dueDate.getTime() -
+                    15 * 60 * 1000
+                ),
+              },
+            ]
+          : [];
 
-            headers: {
-              "Content-Type": "application/json",
+        /*
+         * Create Prisma Task.
+         */
+        const task = await prisma.task.create({
+          data: {
+            title,
+
+            description,
+
+            dueDate,
+
+            emailId: prismaEmail.id,
+
+            patientId:
+              email.patientId ?? null,
+
+            reminders: {
+              create: reminders,
             },
+          },
 
-            body: JSON.stringify({
-              title,
-              description,
-              due: dueDate,
-
-              /*
-               * IMPORTANT:
-               * Prisma Email ID, NOT Gmail message ID.
-               */
-              emailId: prismaEmail.id,
-
-              patientId:
-                email.patientId ?? null,
-
-              reminders:
-                dueDate
-                  ? [
-                      {
-                        remindAt:
-                          new Date(
-                            new Date(dueDate).getTime() -
-                              15 * 60 * 1000
-                          ).toISOString(),
-                      },
-                    ]
-                  : [],
-            }),
-          }
-        );
-
-        if (!res.ok) {
-          const error = await res.text();
-
-          console.error(
-            `Failed creating task "${title}":`,
-            error
-          );
-
-          continue;
-        }
-
-        const task = await res.json();
+          include: {
+            reminders: true,
+          },
+        });
 
         console.log(
           `Created task "${title}" ->`,
           `Task ${task.id}`,
           `-> Email ${prismaEmail.id}`
         );
+
+        /*
+         * Create corresponding Google Calendar event.
+         */
+        if (dueDate) {
+          try {
+            const googleEvent =
+              await createGoogleCalendarEvent({
+                title,
+                description,
+                dueDate,
+
+                reminders:
+                  task.reminders,
+              });
+
+            /*
+             * Save Google Calendar event ID.
+             */
+            if (googleEvent.id) {
+              await prisma.task.update({
+                where: {
+                  id: task.id,
+                },
+
+                data: {
+                  googleEventId:
+                    googleEvent.id,
+                },
+              });
+
+              console.log(
+                `Created Google Calendar event "${title}" ->`,
+                googleEvent.id
+              );
+            }
+          } catch (calendarError) {
+            /*
+             * Calendar failure should NOT destroy
+             * the locally-created task.
+             */
+            console.error(
+              `Failed creating Google Calendar event for "${title}":`,
+              calendarError
+            );
+          }
+        }
       }
     } catch (err) {
       console.error(

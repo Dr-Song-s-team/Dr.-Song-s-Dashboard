@@ -15,6 +15,8 @@ interface CalendarEvent {
   status: "PENDING" | "COMPLETE" | "ARCHIVED";
   dueDate: string;
 
+  googleEventId?: string | null;
+
   email?: {
     id: string;
     gmailMessageId: string;
@@ -27,7 +29,7 @@ interface CalendarEvent {
   } | null;
 
   reminders?: {
-    id: string;
+    id: number;
     remindAt: string;
   }[];
 }
@@ -39,6 +41,8 @@ interface ApiEvent {
   dueDate: string;
   description?: string;
   status: "PENDING" | "COMPLETE" | "ARCHIVED";
+
+  googleEventId?: string | null;
 
   patient?: {
     firstName: string;
@@ -57,15 +61,13 @@ interface ApiEvent {
   } | null;
 
   reminders?: {
-    id: string;
+    id: number;
     remindAt: string;
   }[];
 }
 
 export default function CalendarPage() {
 
-const [scheduleStatus, setScheduleStatus]       = useState('loading');
-const [polling, setPolling]     = useState(true);
 const [dbEvents, setDbEvents] = useState<CalendarEvent[]>([]);
 
 useEffect(() => {
@@ -84,120 +86,73 @@ useEffect(() => {
     });
 }, []);
 
-const fetchSchedule = useCallback(async () => {
-  try {
-    const res = await fetch('http://localhost:3001/api/schedule');
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || `Server error ${res.status}`);
-    if (data.status === 'analyzing') { setScheduleStatus('analyzing'); return false; }
-    setScheduleStatus('ready');
-    return true;
-  } catch {
-    setScheduleStatus('error');
-    return true;
+const getDbEvents = useCallback(async (): Promise<CalendarEvent[]> => {
+  const res = await fetch("/api/events");
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch calendar events");
   }
+
+  const data: ApiEvent[] = await res.json();
+
+  return data
+    .filter((event) => event.dueDate)
+    .map((event): CalendarEvent => {
+      const date = new Date(event.dueDate);
+
+      return {
+        id: event.id,
+        emailId: event.emailId,
+        title: event.title,
+
+        patientName: event.patient
+          ? `${event.patient.firstName} ${event.patient.lastName}`
+          : null,
+
+        date: date.toLocaleDateString("en-CA", {
+          timeZone: "America/Los_Angeles",
+        }),
+
+        time: date.toLocaleTimeString("en-US", {
+          timeZone: "America/Los_Angeles",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        }),
+
+        description: event.description,
+        status: event.status,
+        dueDate: event.dueDate,
+        googleEventId: event.googleEventId,
+        email: event.email,
+        reminders: event.reminders,
+      };
+    });
 }, []);
 
 useEffect(() => {
-  if (!polling) return undefined;
   let cancelled = false;
-  const poll = async () => {
-    const schedDone = await fetchSchedule();
-    if (!cancelled && schedDone) setPolling(false);
+
+  const loadEvents = async () => {
+    try {
+      const events = await getDbEvents();
+
+      if (!cancelled) {
+        setDbEvents(events);
+      }
+    } catch (error) {
+      if (!cancelled) {
+        console.error("Failed to fetch calendar events:", error);
+      }
+    }
   };
-  poll();
-  const interval = setInterval(poll, 2500);
+
+  void loadEvents();
+
   return () => {
     cancelled = true;
-    clearInterval(interval);
   };
-}, [fetchSchedule, polling]);
-
-async function fetchDbEvents() {
-  const res = await fetch("/api/events");
-
-  if (!res.ok) return;
-
-  const data = await res.json();
-
-  const events = data.map((event: ApiEvent): CalendarEvent => {
-    const date = new Date(event.dueDate);
-
-    return {
-      id: event.id,
-      emailId: event.emailId,
-      title: event.title,
-
-      patientName: event.patient
-        ? `${event.patient.firstName} ${event.patient.lastName}`
-        : null,
-
-      date: date.toLocaleDateString("en-CA", {
-        timeZone: "America/Los_Angeles",
-      }),
-
-      time: date.toLocaleTimeString("en-US", {
-        timeZone: "America/Los_Angeles",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      }),
-
-      description: event.description,
-      status: event.status,
-      dueDate: event.dueDate,
-      email: event.email,
-      reminders: event.reminders,
-    };
-  });
-
-  setDbEvents(events);
-}
-
-// useEffect(() => {
-//   async function loadEvents() {
-//     const res = await fetch("/api/events");
-
-//     if (!res.ok) return;
-
-//     const data = await res.json();
-
-//     const events = data.map((event: ApiEvent): CalendarEvent => {
-//       const date = new Date(event.dueDate);
-
-//       return {
-//         id: event.id,
-//         emailId: event.emailId,
-//         title: event.title,
-
-//         patientName: event.patient
-//           ? `${event.patient.firstName} ${event.patient.lastName}`
-//           : null,
-
-//         date: date.toLocaleDateString("en-CA", {
-//           timeZone: "America/Los_Angeles",
-//         }),
-
-//         time: date.toLocaleTimeString("en-US", {
-//           timeZone: "America/Los_Angeles",
-//           hour: "2-digit",
-//           minute: "2-digit",
-//           hour12: false,
-//         }),
-
-//         description: event.description,
-//         status: event.status,
-//         dueDate: event.dueDate,
-//         email: event.email,
-//         reminders: event.reminders,
-//       };
-//     });
-
-//     setDbEvents(events);
-//   }
-
-//   loadEvents();
-// }, []);
+}, [getDbEvents]);
 
 const formatEvent = (event: CalendarEvent): CalendarEvent => {
   const date = new Date(event.dueDate);
@@ -283,7 +238,7 @@ console.log(
 
         <ScheduleDashboard
           events={dbEvents}
-          status = {scheduleStatus}
+          status='done'
           onCreateEvent={createEvent}
           onUpdateEvent={updateEvent}
           onDeleteEvent={deleteEvent}
