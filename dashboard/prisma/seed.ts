@@ -307,6 +307,7 @@ async function main(prisma: PrismaClient) {
       status: "PENDING_REVIEW",
       fixturePath: `${fixtureBase}/sample-cms-1500.pdf`,
       patientId: james.id,
+      notes: `Services rendered June 15-30, 2024. Diagnosis: M54.5 (low back pain), M99.03 (lumbar subluxation). CPT codes: 98940 (spinal manipulation), 97110 (therapeutic exercises). 6 visits @ $145/visit = $870 total charges. Provider: Dr. Song, DC, License ACU-CA-123456, NPI NPI1234567890, Song Chiropractic Clinic.`,
     },
     {
       title: "ASH Medical Necessity Review — Lisa Park",
@@ -322,6 +323,7 @@ async function main(prisma: PrismaClient) {
       status: "DRAFT",
       fixturePath: `${fixtureBase}/sample-pi-report.pdf`,
       patientId: david.id,
+      notes: `Motor vehicle accident May 15, 2024 - rear-end collision, patient stationary at stoplight when struck from behind. Chief complaint: severe neck pain, headaches, restricted range of motion. Exam findings: cervical muscle spasm C3-C7, limited ROM in all planes, tenderness on palpation bilateral trapezius. Diagnosis: ICD-10 S13.4 (cervical sprain/whiplash), M54.2 (cervicalgia). Treatment plan: chiropractic spinal adjustments plus soft tissue therapy, frequency 3x/week for 6 weeks then 2x/week for 6 weeks, estimated duration 8-12 weeks total. Prognosis: good with conservative care, expected full recovery. Functional limitations: difficulty turning head while driving, prolonged sitting aggravates symptoms, cannot lift over 10 lbs. Provider: Dr. Song, DC, License ACU-CA-123456, Song Chiropractic Clinic.`,
     },
   ] as const;
 
@@ -420,6 +422,56 @@ async function main(prisma: PrismaClient) {
         receivedAt: h(8),
         patientId: lisa.id,
       },
+      // Enriched emails for PI Report (David Rivera)
+      {
+        toInbox: "INFO",
+        fromName: "Attorney Sarah Chen",
+        fromEmail: "schen@injury-law-dummy.example",
+        subject: "PI Report Request — David Rivera / MVA May 15, 2024",
+        body: "Dear Dr. Song, I am representing Mr. David Rivera (DOB 9/12/1953, Cigna member CIG-2024-005) in a personal injury case. He was involved in a motor vehicle accident on May 15, 2024 (rear-end collision). Please prepare a comprehensive PI report documenting his injuries, treatment, prognosis, and functional limitations. The report should include: date and type of accident, chief complaint, examination findings, diagnosis codes, treatment plan with frequency and duration, prognosis, and current functional limitations. Claim reference: MVA-2024-0515-DR. Please submit to this email when complete. Thank you.",
+        status: "NEEDS_ACTION",
+        classification: "GENERAL",
+        insurerLabel: "Cigna",
+        receivedAt: h(9),
+        patientId: david.id,
+      },
+      {
+        toInbox: "CLAIMS",
+        fromName: "Cigna Claims Department",
+        fromEmail: "claims@cigna-dummy.example",
+        subject: "Accident Claim Verification — David Rivera / MVA-2024-0515",
+        body: "Claim opened for David Rivera (CIG-2024-005) for motor vehicle accident on 5/15/2024. Accident type: rear-end collision. Patient reports neck pain and headaches. Authorization approved for initial evaluation and treatment. Provider: please document all findings, diagnosis codes (ICD-10), and treatment plan. Estimated treatment duration needed for claim review. Reference claim MVA-2024-0515-DR for all submissions.",
+        status: "READ",
+        classification: "CLAIM",
+        insurerLabel: "Cigna",
+        receivedAt: h(10),
+        patientId: david.id,
+      },
+      // Enriched emails for CMS-1500 (James Mitchell)
+      {
+        toInbox: "REFERRALS",
+        fromName: "Dr. Robert Kim",
+        fromEmail: "r.kim@primary-care-dummy.example",
+        subject: "Referral — James Mitchell / Low Back Pain",
+        body: "Referring patient James Mitchell (DOB 11/8/1965, Aetna AET-2024-003) for chiropractic evaluation and treatment. Chief complaint: low back pain, onset 3 weeks ago after lifting heavy object. Patient reports pain radiating to right leg, difficulty with prolonged sitting and standing. Requesting evaluation and treatment as indicated. Diagnosis: low back pain, possible lumbar subluxation. Please provide treatment plan and updates. Thank you, Dr. Kim.",
+        status: "READ",
+        classification: "REFERRAL",
+        insurerLabel: "Aetna",
+        receivedAt: h(11),
+        patientId: james.id,
+      },
+      {
+        toInbox: "AUTHORIZATIONS",
+        fromName: "Aetna Provider Services",
+        fromEmail: "provider@aetna-dummy.example",
+        subject: "Coverage Verification — James Mitchell / AET-2024-003",
+        body: "Member James Mitchell (AET-2024-003) has active chiropractic benefits. Coverage: up to 30 visits per year, current year usage: 3 visits. Authorization not required for evaluation and treatment. Please use diagnosis codes M54.5 (low back pain) and/or M99.03 (lumbar subluxation) on claims. CPT codes: 98940 (spinal manipulation), 97110 (therapeutic exercises) are covered. Submit CMS-1500 claims electronically. Contact provider line with questions.",
+        status: "READ",
+        classification: "AUTHORIZATION",
+        insurerLabel: "Aetna",
+        receivedAt: h(12),
+        patientId: james.id,
+      },
     ],
   });
 
@@ -443,7 +495,7 @@ async function main(prisma: PrismaClient) {
     }),
   });
 
-  console.log(`  ✓ ${mockEmails.length + 6} emails seeded from clinic fixtures`);
+  console.log(`  ✓ ${mockEmails.length + 10} emails seeded from clinic fixtures`);
 
   // ------------------------------------------------------------------
   // Tasks
