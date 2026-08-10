@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { translateEmailContent } from "@/app/(dashboard)/calendar/aiService";
 
 export async function POST(
-  _request: Request,
+  request: Request,
   {
     params,
   }: {
@@ -12,6 +12,10 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
+
+    // Get targetLang from request body (defaults to "ko" for backward compatibility)
+    const body = await request.json().catch(() => ({}));
+    const targetLang = (body.targetLang as "en" | "es" | "ko") || "ko";
 
     const email = await prisma.email.findUnique({
       where: {
@@ -36,7 +40,8 @@ export async function POST(
     const translated = await translateEmailContent(
       email.id,
       email.aiSummary ?? "",
-      email.body
+      email.body,
+      targetLang
     );
 
     return NextResponse.json({
