@@ -192,87 +192,6 @@ OUTPUT ONLY VALID JSON.
 `
 
 
-const ANALYSIS_SCHEMA = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    emails: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          category: {
-            type: "string",
-            enum: ["client", "insurance", "spam"],
-          },
-
-          urgency: {
-            type: "string",
-            enum: ["high", "medium", "low"],
-          },
-
-          actionRequired: {
-            type: "boolean",
-          },
-
-          summaryTitle: {
-            type: "string",
-          },
-
-          summaryDetails: {
-            type: "array",
-            items: {
-              type: "string",
-            },
-          },
-
-          clientTags: {
-            type: "array",
-            items: {
-              type: "string",
-            },
-          },
-
-          recommendedActions: {
-            type: ["array", "null"],
-            items: {
-              type: "string",
-            },
-          },
-
-          dueDate: {
-            type: ["string", "null"],
-          },
-
-          dueTime: {
-            type: ["string", "null"],
-          },
-
-          draftResponse: {
-            type: ["string", "null"],
-          },
-        },
-
-        required: [
-          "category",
-          "urgency",
-          "actionRequired",
-          "summaryTitle",
-          "summaryDetails",
-          "clientTags",
-          "recommendedActions",
-          "dueDate",
-          "dueTime",
-          "draftResponse",
-        ],
-      },
-    },
-  },
-
-  required: ["emails"],
-};
-
 export interface Email {
   id: string;
   sender: string;
@@ -448,16 +367,12 @@ for (const email of redactedEmails) {
   // Redact the entire prompt (to get the RedactedText branded type)
   const finalRedaction = redact(prompt, entities);
 
-  // Call AI with redacted text
+  // Call AI with redacted text — jsonMode for reliable Groq output
   const aiResponse = await callAIWithRetry(
   finalRedaction.redactedText,
   {
     systemPrompt: ANALYSIS_SYSTEM,
-    jsonSchema: {
-      name: "email_analysis",
-      strict: true,
-      schema: ANALYSIS_SCHEMA,
-    },
+    jsonMode: true,
     timeoutMs: 60000,
   }
 );
@@ -473,27 +388,25 @@ for (const email of redactedEmails) {
         .trim()
     : unredactedResponse;
 
-  console.log("RAW AI RESPONSE:");
-  console.log(jsonText);
-
   const parsed = JSON.parse(jsonText);
 
-  if (
-    !parsed ||
-    !Array.isArray(parsed.emails) ||
-    parsed.emails.length !== emails.length
-  ) {
+  // Accept both { emails: [...] } (preferred) and bare [...] (legacy fallback)
+  const emailResults: UnknownJSON[] = Array.isArray(parsed)
+    ? parsed
+    : Array.isArray(parsed?.emails)
+    ? parsed.emails
+    : null;
+
+  if (!emailResults || emailResults.length !== emails.length) {
     throw new Error(
       `Expected ${emails.length} results, got ${
-        Array.isArray(parsed?.emails)
-          ? parsed.emails.length
-          : "invalid response"
+        emailResults ? emailResults.length : "invalid response"
       }`
     );
   }
 
   // Validate and normalize each result
-  return parsed.emails.map((item: UnknownJSON): AnalyzedEmail => ({
+  return emailResults.map((item: UnknownJSON): AnalyzedEmail => ({
     category: ["client", "insurance", "spam"].includes(item.category)
       ? item.category
       : "spam",

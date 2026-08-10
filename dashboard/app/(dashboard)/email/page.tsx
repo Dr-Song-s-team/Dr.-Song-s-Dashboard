@@ -2,6 +2,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import type { Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import AnalyzeSampleInboxButton from "@/components/email/AnalyzeSampleInboxButton";
 
 export const metadata = { title: "Inbox — Dr. Song" };
 
@@ -233,6 +234,7 @@ export default async function EmailInboxPage({
           <p className="rounded-full bg-[#8d6248]/10 px-3 py-1.5 text-sm font-medium text-[#7a5138]">
             {emails.length} {emails.length === 1 ? "message" : "messages"}
           </p>
+          <AnalyzeSampleInboxButton />
         </div>
       </header>
 

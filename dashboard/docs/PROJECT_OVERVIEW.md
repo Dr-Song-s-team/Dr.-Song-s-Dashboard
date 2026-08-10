@@ -269,7 +269,22 @@ For a focused code tour, read these in order:
 8. `lib/ai/provider.ts` — the external AI boundary.
 9. `app/(dashboard)/calendar/page.tsx` — current integration debt and task API usage.
 
-## 13. Practical next milestones
+## 13. Sample inbox AI analysis
+
+Staff can trigger batch AI analysis of the seeded sample inbox by clicking **Analyze inbox** on `/email`. The button calls `POST /api/email/analyze-sample`, which:
+
+1. Queries only synthetic (seeded) emails — those with `gmailMessageId IS NULL` and no existing `aiAnalysis`.
+2. Maps rows to `analyzeEmails()` using the existing Groq + PII-redaction pipeline (batch size 3, 1 s pause between batches).
+3. Persists `aiSummary`, `aiDraft`, and the full `aiAnalysis` JSON to each `Email` row by Prisma ID.
+4. Returns counts `{ analyzed, skipped, failed }` and surfaces failures in the UI.
+
+The action is idempotent — re-running skips already-analyzed emails unless `force: true` is passed in the request body. It requires `GROQ_API_KEY` in `.env.local` and has no dependency on Gmail OAuth, `import-gmail`, or calendar task creation.
+
+Implementation notes: `docs/SAMPLE_INBOX_AI_ANALYSIS_HANDOFF.md` contains the full feature specification. The email analysis Groq call was updated to use `jsonMode: true` (previously strict `json_schema`), which also benefits the existing Gmail import path.
+
+---
+
+## 14. Practical next milestones
 
 To move from prototype toward a coherent operational product, prioritize:
 

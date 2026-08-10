@@ -84,6 +84,63 @@ describe("Email AI Redaction Pipeline", () => {
       expect(redactedPrompt).toMatch(/\{\{(EMAIL|PATIENT_NAME|PHONE|MEMBER_ID)_\d+\}\}/);
     });
 
+    it("should request JSON mode (not strict json_schema)", async () => {
+      const mockCallAI = vi.spyOn(aiProvider, "callAI");
+      mockCallAI.mockResolvedValueOnce(JSON.stringify({
+        emails: [{
+          category: "client",
+          urgency: "low",
+          actionRequired: false,
+          summaryTitle: "General inquiry",
+          summaryDetails: [],
+          clientTags: [],
+          recommendedActions: null,
+          draftResponse: null,
+        }],
+      }));
+
+      const emails: Email[] = [{
+        id: "",
+        sender: "info@clinic.com",
+        subject: "Question",
+        body: "What are your hours?",
+      }];
+
+      await analyzeEmails(emails);
+
+      expect(mockCallAI).toHaveBeenCalledTimes(1);
+      const [, options] = mockCallAI.mock.calls[0];
+      expect(options?.jsonMode).toBe(true);
+      expect(options).not.toHaveProperty("jsonSchema");
+    });
+
+    it("should accept a bare array response (legacy format)", async () => {
+      const mockCallAI = vi.spyOn(aiProvider, "callAI");
+      // Bare array instead of { emails: [...] }
+      mockCallAI.mockResolvedValueOnce(JSON.stringify([{
+        category: "insurance",
+        urgency: "medium",
+        actionRequired: true,
+        summaryTitle: "Coverage verification needed",
+        summaryDetails: ["Insurer requested additional docs"],
+        clientTags: [],
+        recommendedActions: ["Upload documentation"],
+        draftResponse: null,
+      }]));
+
+      const emails: Email[] = [{
+        id: "bare-array-test",
+        sender: "billing@clinic.com",
+        subject: "Coverage check",
+        body: "Please verify insurance.",
+      }];
+
+      const results = await analyzeEmails(emails);
+      expect(results).toHaveLength(1);
+      expect(results[0].category).toBe("insurance");
+      expect(results[0].summaryTitle).toBe("Coverage verification needed");
+    });
+
     it("should call scanText on final unredacted output", async () => {
       const mockCallAI = vi.spyOn(aiProvider, "callAI");
       mockCallAI.mockResolvedValueOnce(JSON.stringify({
