@@ -19,7 +19,7 @@ interface CalendarEvent {
 
   email?: {
     id: string;
-    gmailMessageId: string;
+    gmailMessageId: string | null;
     gmailThreadId?: string | null;
     fromName: string;
     fromEmail: string;
@@ -51,7 +51,7 @@ interface ApiEvent {
 
   email?: {
     id: string;
-    gmailMessageId: string;
+    gmailMessageId: string | null;
     gmailThreadId?: string | null;
     fromName: string;
     fromEmail: string;
