@@ -84,7 +84,7 @@ export type TaskUpdateInput = {
  */
 export type TaskWithRelations = Task & {
   patient: Patient | null;
-  email: (Email & { gmailMessageId: string; gmailThreadId: string | null }) | null;
+  email: (Email & { gmailMessageId: string | null; gmailThreadId: string | null }) | null;
   reminders: Reminder[];
 };
 

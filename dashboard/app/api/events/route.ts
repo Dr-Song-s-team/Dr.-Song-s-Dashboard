@@ -67,8 +67,8 @@ export async function GET() {
         email: task.email
           ? {
               id: task.email.id,
-              gmailMessageId: task.email.gmailMessageId,
-              gmailThreadId: task.email.gmailThreadId,
+              gmailMessageId: task.email.gmailMessageId ?? null,
+              gmailThreadId: task.email.gmailThreadId ?? null,
               fromName: task.email.fromName,
               fromEmail: task.email.fromEmail,
               subject: task.email.subject,

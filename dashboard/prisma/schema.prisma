@@ -129,7 +129,7 @@ model Email {
   id             String              @id @default(cuid())
 
   // Gmail identifiers
-  gmailMessageId String              @unique
+  gmailMessageId String?             @unique
   gmailThreadId  String?
 
   // Which Gmail account imported this
