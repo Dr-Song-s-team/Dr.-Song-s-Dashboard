@@ -1,0 +1,25 @@
+---
+description: Handoff context for New Patient intake PDF upload autofill — read before implementing
+globs: app/(dashboard)/info/**/*,app/api/intake/**/*,lib/intake/**/*,lib/validatePatient.ts,public/fixtures/documents/**
+alwaysApply: false
+---
+
+# Intake PDF Autofill — Build Context
+
+Before implementing or modifying patient intake PDF autofill, read the full handoff:
+
+**`docs/INTAKE_PDF_AUTOFILL_HANDOFF.md`**
+
+## Summary
+
+- UI: `/info/new` — add **Upload Intake** at the **bottom** of `IntakeForm.tsx` (drag-and-drop + file picker).
+- API: new `POST /api/intake/autofill` (do not reuse `/api/insurance/autofill`).
+- Pipeline: extract PDF text → redact → Groq JSON → unredact → `scanText` → `PatientFields`.
+- Success: autofill all intake fields; failure must show a clear autofill-failed alert.
+- Fixtures `sample-intake-1-*.pdf` are **blank templates** — blank upload must fail visibly. Add a synthetic filled PDF for happy-path testing.
+
+## Key files
+
+- Form: `app/(dashboard)/info/new/IntakeForm.tsx`
+- Save path: `app/(dashboard)/info/actions.ts` + `lib/validatePatient.ts`
+- Pattern to mirror (UX + AI privacy): `app/api/insurance/autofill/route.ts`, `InsuranceForm.tsx`
