@@ -18,6 +18,7 @@ import { prisma } from "@/lib/prisma";
 import { FORM_TEMPLATES } from "@/lib/insurance/templates";
 import { loadEntities, redact, unredact, scanText } from "@/lib/redaction";
 import { callAI } from "@/lib/ai/provider";
+import { sanitizeAutofillValue } from "@/lib/insurance/sanitizeAutofillValue";
 
 export async function POST(request: NextRequest) {
   try {
@@ -131,11 +132,12 @@ Examples:
 NEVER leave a field null just because it contains a placeholder token. Copy the placeholder exactly.
 
 RULES FOR MISSING DATA:
-1. Only use null for fields where there is NO evidence in the context (not even in documents/emails)
-2. NEVER invent diagnosis codes, CPT codes, or clinical information not present in context
-3. For date fields, use YYYY-MM-DD format (or the placeholder token if date is redacted)
-4. For diagnosis/CPT codes, only use codes explicitly mentioned in documents or emails
-5. For clinical narratives, only summarize information explicitly present in context
+1. If you cannot determine a field value from the context, simply OMIT that field from your JSON response
+2. NEVER use placeholder values like "null", "N/A", "unknown", "none", or "undefined" as field values
+3. NEVER invent diagnosis codes, CPT codes, or clinical information not present in context
+4. For date fields, use YYYY-MM-DD format (or the placeholder token if date is redacted)
+5. For diagnosis/CPT codes, only use codes explicitly mentioned in documents or emails
+6. For clinical narratives, only summarize information explicitly present in context
 
 Form type: ${template.title}
 
@@ -179,12 +181,16 @@ Fill the form fields based on the above patient context. Return valid JSON only.
       );
     }
 
-    // Unredact each field value
+    // Unredact and sanitize each field value
     const unredactedFields: Record<string, string> = {};
     for (const [key, value] of Object.entries(parsedFields)) {
       if (value !== null && value !== undefined && value !== "") {
         const { originalText } = unredact(String(value), tokenMap);
-        unredactedFields[key] = originalText;
+        // Sanitize to remove "null", "N/A", "unknown" placeholder strings
+        const sanitized = sanitizeAutofillValue(originalText);
+        if (sanitized !== null) {
+          unredactedFields[key] = sanitized;
+        }
       }
     }
 
