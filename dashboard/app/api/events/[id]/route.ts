@@ -151,7 +151,7 @@ export async function DELETE(
           calendarId: "primary",
           eventId: task.googleEventId,
         });
-      } catch (calendarError: any) {
+      } catch (calendarError) {
         /*
          * If Google says the event doesn't exist anymore,
          * that's okay.
