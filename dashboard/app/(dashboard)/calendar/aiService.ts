@@ -669,29 +669,38 @@ const translationCache = new Map<
 >();
 
 /**
- * Translate email content to Korean.
+ * Translate email content to target language.
  *
  * Uses XML delimiters to avoid JSON parse failures. Results are cached
- * by emailId.
+ * by emailId + language.
  *
  * @param emailId - Unique identifier for caching
  * @param summary - English summary text to translate
  * @param body - English body text to translate
+ * @param targetLang - Target language ("en" | "es" | "ko")
  * @returns Promise resolving to translated summary and body
  */
 export async function translateEmailContent(
   emailId: string,
   summary: string,
-  body: string
+  body: string,
+  targetLang: "en" | "es" | "ko"
 ): Promise<{ summary: string; body: string }> {
-  // Return cached translation if available
-  if (translationCache.has(emailId)) {
-    return translationCache.get(emailId)!;
+  // Early return for English - no translation needed
+  if (targetLang === "en") {
+    return { summary, body };
   }
 
+  // Cache key includes language to avoid collisions
+  const cacheKey = `${emailId}:${targetLang}`;
+  if (translationCache.has(cacheKey)) {
+    return translationCache.get(cacheKey)!;
+  }
+
+  // Load entities for redaction
   const entities = await loadEntities();
 
-  // Redact summary and body separately
+  // Redact summary and body
   const summaryRedaction = redact(summary, entities);
   const bodyRedaction = redact(
     truncateEmailBody(body),
@@ -704,82 +713,44 @@ export async function translateEmailContent(
     ...bodyRedaction.tokenMap,
   ]);
 
-  const prompt = `
-Translate the following email content into natural, professional Korean.
+  // Language-specific prompt
+  const languageMap = {
+    ko: "natural, professional Korean",
+    es: "natural, professional Spanish (Español)",
+  };
+  const targetLanguage = languageMap[targetLang];
 
-You MUST return the result using EXACTLY this format:
+  const prompt = `Translate the following two text sections into ${targetLanguage}.
+
+Place each translation inside the corresponding XML tags exactly as shown.
+Do not add any text outside the XML tags.
 
 <summary_translation>
-KOREAN SUMMARY HERE
+[Translation of the SUMMARY below]
 </summary_translation>
-
 <body_translation>
-KOREAN BODY HERE
+[Translation of the BODY below]
 </body_translation>
-
-Do not use Markdown.
-Do not use code fences.
-Do not add explanations.
-Do not add any text before or after the two XML sections.
-Preserve the meaning of the original text.
-Keep names, dates, times, email addresses, and other redacted placeholders unchanged.
 
 SUMMARY:
 ${summaryRedaction.redactedText}
 
 BODY:
-${bodyRedaction.redactedText}
-`.trim();
+${bodyRedaction.redactedText}`;
 
-  // Redact the complete prompt
+  // Redact the entire prompt
   const finalRedaction = redact(prompt, entities);
 
-  const TRANSLATION_SYSTEM = `
-You are a professional Korean translator for a medical clinic.
+  // Call AI with redacted text
+  const aiResponse = await callAI(finalRedaction.redactedText, {
+    timeoutMs: 60000,
+  });
 
-Translate the provided English email content into natural, professional Korean.
-
-Your response MUST contain exactly these two XML sections:
-
-<summary_translation>
-Korean translation of the summary
-</summary_translation>
-
-<body_translation>
-Korean translation of the body
-</body_translation>
-
-STRICT RULES:
-- Output only the two XML sections.
-- Do not use Markdown.
-- Do not use code fences.
-- Do not add explanations.
-- Do not add text before or after the XML sections.
-- Keep redaction placeholders exactly unchanged.
-- Preserve names, dates, times, email addresses, and other placeholders.
-`.trim();
-
-  const aiResponse = await callAIWithRetry(
-    finalRedaction.redactedText,
-    {
-      systemPrompt: TRANSLATION_SYSTEM,
-      timeoutMs: 60000,
-    }
-  );
-
-  console.log("[translateEmailContent] Raw AI response:");
-  console.log(aiResponse);
-
-  // IMPORTANT:
-  // Use the token map from the final redaction because that is the
-  // redaction operation actually applied to the complete prompt.
+  // Unredact the AI response
   const { originalText: unredactedResponse } = unredact(
     aiResponse,
     finalRedaction.tokenMap
   );
-
-  console.log("[translateEmailContent] Unredacted response:");
-  console.log(unredactedResponse);
 
   // Remove accidental Markdown code fences if the model still adds them.
   const cleanedResponse = unredactedResponse
@@ -787,7 +758,7 @@ STRICT RULES:
     .replace(/\s*```$/i, "")
     .trim();
 
-  // More tolerant XML matching.
+  // Parse XML response
   const summaryMatch = cleanedResponse.match(
     /<summary_translation>\s*([\s\S]*?)\s*<\/summary_translation>/i
   );
@@ -800,12 +771,10 @@ STRICT RULES:
     console.error(
       "[translateEmailContent] Translation parse failed."
     );
-
     console.error(
       "[translateEmailContent] Cleaned response:",
-      cleanedResponse
+      cleanedResponse.slice(0, 300)
     );
-
     throw new Error(
       "Unexpected translation response format from AI model."
     );
@@ -816,7 +785,7 @@ STRICT RULES:
     body: bodyMatch[1].trim(),
   };
 
-  // Scan translated content for PII leaks.
+  // Scan final translations for PII leaks (warn only, don't throw)
   try {
     scanText(output.summary, {
       throwOnHighSeverityMiss: false,
@@ -832,7 +801,7 @@ STRICT RULES:
     );
   }
 
-  translationCache.set(emailId, output);
+  translationCache.set(cacheKey, output);
 
   return output;
 }
