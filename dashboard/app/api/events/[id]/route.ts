@@ -156,7 +156,7 @@ export async function DELETE(
          * If Google says the event doesn't exist anymore,
          * that's okay.
          */
-        if (calendarError?.code !== 404) {
+        if (typeof calendarError === "object" && calendarError !== null && "code" in calendarError && calendarError?.code !== 404) {
           console.error(
             "Google Calendar deletion failed:",
             calendarError
