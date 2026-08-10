@@ -8,16 +8,12 @@ export async function GET() {
     process.env.GMAIL_REDIRECT_URI
   );
 
-  console.log(
-  "Redirect URI:",
-  process.env.GMAIL_REDIRECT_URI
-);
-
   const url = oauth2Client.generateAuthUrl({
     access_type: "offline",
     prompt: "consent",
     scope: [
       "https://www.googleapis.com/auth/gmail.readonly",
+      "https://www.googleapis.com/auth/calendar.events",
     ],
   });
 

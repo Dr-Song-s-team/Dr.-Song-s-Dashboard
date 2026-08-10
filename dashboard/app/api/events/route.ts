@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import {
+  getGoogleCalendar,
+  buildGoogleReminders,
+} from "@/lib/googleCalendar";
 
 type CreateTaskBody = {
   title: string;
@@ -35,6 +39,8 @@ export async function GET() {
         description: task.description,
 
         dueDate: task.dueDate,
+
+        googleEventId: task.googleEventId,
 
         // Fields your calendar currently expects
         date: due
@@ -106,17 +112,16 @@ export async function POST(req: Request) {
       return NextResponse.json(existing);
     }
 
+    const dueDate = body.due
+      ? new Date(body.due)
+      : null;
+
     const event = await prisma.task.create({
       data: {
         title: body.title,
         description: body.description ?? null,
-
-        dueDate: body.due
-          ? new Date(body.due)
-          : null,
-
+        dueDate,
         emailId: body.emailId ?? null,
-
         patientId: body.patientId ?? null,
 
         reminders: {
@@ -133,7 +138,72 @@ export async function POST(req: Request) {
       },
     });
 
-    return NextResponse.json(event);
+    /*
+     * Create Google Calendar event
+     */
+    if (dueDate) {
+      try {
+        const calendar = await getGoogleCalendar();
+
+        const googleEvent = await calendar.events.insert({
+          calendarId: "primary",
+
+          requestBody: {
+            summary: event.title,
+            description: event.description ?? undefined,
+
+            start: {
+              dateTime: dueDate.toISOString(),
+              timeZone: "America/Los_Angeles",
+            },
+
+            end: {
+              dateTime: new Date(
+                dueDate.getTime() + 30 * 60 * 1000
+              ).toISOString(),
+              timeZone: "America/Los_Angeles",
+            },
+
+            reminders: buildGoogleReminders(
+              event.reminders,
+              dueDate
+            ),
+          },
+        });
+
+        if (googleEvent.data.id) {
+          await prisma.task.update({
+            where: {
+              id: event.id,
+            },
+            data: {
+              googleEventId: googleEvent.data.id,
+            },
+          });
+        }
+      } catch (calendarError) {
+        console.error(
+          "Google Calendar creation failed:",
+          calendarError
+        );
+
+        // The Task still exists locally.
+        // Calendar sync can be retried later.
+      }
+    }
+
+    const finalEvent = await prisma.task.findUnique({
+      where: {
+        id: event.id,
+      },
+      include: {
+        reminders: true,
+        patient: true,
+        email: true,
+      },
+    });
+
+    return NextResponse.json(finalEvent);
   } catch (error) {
     console.error("Failed to create task:", error);
 

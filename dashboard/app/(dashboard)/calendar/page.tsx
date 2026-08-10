@@ -15,6 +15,8 @@ interface CalendarEvent {
   status: "PENDING" | "COMPLETE" | "ARCHIVED";
   dueDate: string;
 
+  googleEventId?: string | null;
+
   email?: {
     id: string;
     gmailMessageId: string;
@@ -27,7 +29,7 @@ interface CalendarEvent {
   } | null;
 
   reminders?: {
-    id: string;
+    id: number;
     remindAt: string;
   }[];
 }
@@ -39,6 +41,8 @@ interface ApiEvent {
   dueDate: string;
   description?: string;
   status: "PENDING" | "COMPLETE" | "ARCHIVED";
+
+  googleEventId?: string | null;
 
   patient?: {
     firstName: string;
@@ -57,14 +61,14 @@ interface ApiEvent {
   } | null;
 
   reminders?: {
-    id: string;
+    id: number;
     remindAt: string;
   }[];
 }
 
 export default function CalendarPage() {
 
-const [scheduleStatus, setScheduleStatus]       = useState('loading');
+const [scheduleStatus, setScheduleStatus]       = useState('done');
 const [polling, setPolling]     = useState(true);
 const [dbEvents, setDbEvents] = useState<CalendarEvent[]>([]);
 
@@ -98,61 +102,60 @@ const fetchSchedule = useCallback(async () => {
   }
 }, []);
 
+const fetchDbEvents = useCallback(async () => {
+  try {
+    const res = await fetch("/api/events");
+
+    if (!res.ok) {
+      console.error("Failed to fetch calendar events");
+      return;
+    }
+
+    const data: ApiEvent[] = await res.json();
+
+    const events = data
+      .filter((event) => event.dueDate)
+      .map((event): CalendarEvent => {
+        const date = new Date(event.dueDate);
+
+        return {
+          id: event.id,
+          emailId: event.emailId,
+          title: event.title,
+
+          patientName: event.patient
+            ? `${event.patient.firstName} ${event.patient.lastName}`
+            : null,
+
+          date: date.toLocaleDateString("en-CA", {
+            timeZone: "America/Los_Angeles",
+          }),
+
+          time: date.toLocaleTimeString("en-US", {
+            timeZone: "America/Los_Angeles",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+          }),
+
+          description: event.description,
+          status: event.status,
+          dueDate: event.dueDate,
+          googleEventId: event.googleEventId,
+          email: event.email,
+          reminders: event.reminders,
+        };
+      });
+
+    setDbEvents(events);
+  } catch (error) {
+    console.error("Failed to fetch calendar events:", error);
+  }
+}, []);
+
 useEffect(() => {
-  if (!polling) return undefined;
-  let cancelled = false;
-  const poll = async () => {
-    const schedDone = await fetchSchedule();
-    if (!cancelled && schedDone) setPolling(false);
-  };
-  poll();
-  const interval = setInterval(poll, 2500);
-  return () => {
-    cancelled = true;
-    clearInterval(interval);
-  };
-}, [fetchSchedule, polling]);
-
-async function fetchDbEvents() {
-  const res = await fetch("/api/events");
-
-  if (!res.ok) return;
-
-  const data = await res.json();
-
-  const events = data.map((event: ApiEvent): CalendarEvent => {
-    const date = new Date(event.dueDate);
-
-    return {
-      id: event.id,
-      emailId: event.emailId,
-      title: event.title,
-
-      patientName: event.patient
-        ? `${event.patient.firstName} ${event.patient.lastName}`
-        : null,
-
-      date: date.toLocaleDateString("en-CA", {
-        timeZone: "America/Los_Angeles",
-      }),
-
-      time: date.toLocaleTimeString("en-US", {
-        timeZone: "America/Los_Angeles",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      }),
-
-      description: event.description,
-      status: event.status,
-      dueDate: event.dueDate,
-      email: event.email,
-      reminders: event.reminders,
-    };
-  });
-
-  setDbEvents(events);
-}
+  fetchDbEvents();
+}, [fetchDbEvents]);
 
 // useEffect(() => {
 //   async function loadEvents() {
