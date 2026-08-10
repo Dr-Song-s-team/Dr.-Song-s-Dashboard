@@ -141,7 +141,7 @@ export async function DELETE(
     }
 
     /*
-     * Delete Google Calendar event first
+     * Attempt to delete Google Calendar event (non-blocking)
      */
     if (task.googleEventId) {
       try {
@@ -153,23 +153,13 @@ export async function DELETE(
         });
       } catch (calendarError) {
         /*
-         * If Google says the event doesn't exist anymore,
-         * that's okay.
+         * Log error but continue to local deletion.
+         * Google Calendar failures must not block task deletion.
          */
-        if (typeof calendarError === "object" && calendarError !== null && "code" in calendarError && calendarError?.code !== 404) {
-          console.error(
-            "Google Calendar deletion failed:",
-            calendarError
-          );
-
-          return NextResponse.json(
-            {
-              error:
-                "Failed to delete Google Calendar event",
-            },
-            { status: 500 }
-          );
-        }
+        console.error(
+          "Google Calendar deletion failed (non-blocking):",
+          calendarError
+        );
       }
     }
 

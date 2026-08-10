@@ -68,8 +68,6 @@ interface ApiEvent {
 
 export default function CalendarPage() {
 
-const [scheduleStatus, setScheduleStatus]       = useState('done');
-const [polling, setPolling]     = useState(true);
 const [dbEvents, setDbEvents] = useState<CalendarEvent[]>([]);
 
 useEffect(() => {
@@ -87,20 +85,6 @@ useEffect(() => {
       console.error("Service worker registration failed:", error);
     });
 }, []);
-
-// const fetchSchedule = useCallback(async () => {
-//   try {
-//     const res = await fetch('http://localhost:3001/api/schedule');
-//     const data = await res.json();
-//     if (!res.ok) throw new Error(data.error || `Server error ${res.status}`);
-//     if (data.status === 'analyzing') { setScheduleStatus('analyzing'); return false; }
-//     setScheduleStatus('ready');
-//     return true;
-//   } catch {
-//     setScheduleStatus('error');
-//     return true;
-//   }
-// }, []);
 
 const getDbEvents = useCallback(async (): Promise<CalendarEvent[]> => {
   const res = await fetch("/api/events");
@@ -254,7 +238,7 @@ console.log(
 
         <ScheduleDashboard
           events={dbEvents}
-          status = {scheduleStatus}
+          status='done'
           onCreateEvent={createEvent}
           onUpdateEvent={updateEvent}
           onDeleteEvent={deleteEvent}
