@@ -156,9 +156,10 @@ actionRequired:
 - false if no action is needed
 
 summaryTitle:
-- 8-14 words
-- Plain language
-- Describe the main point of the email
+- Write exactly two complete, plain-language sentences (20-35 words total).
+- Give a detailed but scannable account of the email's main request or outcome.
+- Include the relevant sender or patient, dates or times, deadlines, requested documents or actions, and consequences when those facts are present.
+- Do not invent facts or repeat the same information in both sentences.
 
 summaryDetails:
 - 3-6 concise strings
@@ -504,13 +505,25 @@ async function analyzeEmailBatch(
       throw err;
     }
 
-    const midpoint = Math.ceil(emails.length / 2);
+    // Handle 413 Payload Too Large by splitting the batch
+    const is413 =
+      message.includes("413") ||
+      message.includes("payload too large") ||
+      message.includes("request entity too large");
 
-    console.warn(
-      `AI batch failed. Retrying as smaller groups: ${
-        err instanceof Error ? err.message : String(err)
-      }`
-    );
+    if (is413) {
+      console.warn(
+        `413 Payload Too Large. Splitting batch of ${emails.length} emails in half.`
+      );
+    } else {
+      console.warn(
+        `AI batch failed. Retrying as smaller groups: ${
+          err instanceof Error ? err.message : String(err)
+        }`
+      );
+    }
+
+    const midpoint = Math.ceil(emails.length / 2);
 
     const firstHalf = await analyzeEmailBatch(
       emails.slice(0, midpoint),
@@ -753,62 +766,56 @@ For each email return an object with:
 Return ONLY a valid JSON array, no markdown, no explanation.`;
 
 /**
- * Analyze emails for scheduling information.
- *
- * Extracts appointment/deadline data with PII redaction.
- *
- * @param emails - Array of emails with id, sender, subject, body
- * @returns Promise resolving to array of scheduling results
+ * Analyze a batch of scheduling emails once (no retry logic).
+ * @internal
  */
-export async function analyzeSchedulingEmails(
-  emails: SchedulingEmail[]
+async function analyzeSchedulingEmailBatchOnce(
+  emails: SchedulingEmail[],
+  entities: EntityData
 ): Promise<SchedulingResult[]> {
-  // Load entities for redaction
-  const entities = await loadEntities();
-
   // Redact each email
   const redactedEmails = emails.map((e) => {
-  const senderRedaction = redact(e.sender, entities);
-  const subjectRedaction = redact(e.subject, entities);
-  const bodyRedaction = redact(
-    truncateEmailBody(e.body),
-    entities
-  );
+    const senderRedaction = redact(e.sender, entities);
+    const subjectRedaction = redact(e.subject, entities);
+    const bodyRedaction = redact(
+      truncateEmailBody(e.body),
+      entities
+    );
 
-  return {
-    redactedSender: senderRedaction.redactedText,
-    redactedSubject: subjectRedaction.redactedText,
-    redactedBody: bodyRedaction.redactedText,
+    return {
+      redactedSender: senderRedaction.redactedText,
+      redactedSubject: subjectRedaction.redactedText,
+      redactedBody: bodyRedaction.redactedText,
 
-    tokenMap: new Map([
-      ...senderRedaction.tokenMap,
-      ...subjectRedaction.tokenMap,
-      ...bodyRedaction.tokenMap,
-    ]),
-  };
-});
+      tokenMap: new Map([
+        ...senderRedaction.tokenMap,
+        ...subjectRedaction.tokenMap,
+        ...bodyRedaction.tokenMap,
+      ]),
+    };
+  });
 
   // Build the prompt with redacted content
   const emailBlocks = redactedEmails
-  .map(
-    (e, i) =>
-      `[${i}]
+    .map(
+      (e, i) =>
+        `[${i}]
 From: ${e.redactedSender}
 Subject: ${e.redactedSubject}
 Body:
 ${e.redactedBody}`
-  )
-  .join("\n\n---\n\n");
+    )
+    .join("\n\n---\n\n");
 
-const prompt = `Emails:\n\n${emailBlocks}`;
+  const prompt = `Emails:\n\n${emailBlocks}`;
 
-const tokenMap = new Map<string, string>();
+  const tokenMap = new Map<string, string>();
 
-for (const email of redactedEmails) {
-  for (const [key, value] of email.tokenMap) {
-    tokenMap.set(key, value);
+  for (const email of redactedEmails) {
+    for (const [key, value] of email.tokenMap) {
+      tokenMap.set(key, value);
+    }
   }
-}
 
   // Redact the entire prompt
   const finalRedaction = redact(prompt, entities);
@@ -836,35 +843,35 @@ for (const email of redactedEmails) {
 
   let parsed;
 
-try {
-  parsed = JSON.parse(jsonText);
-} catch (err) {
-  console.error("Failed to parse AI response:", jsonText);
-  throw new Error("AI returned invalid JSON");
-}
+  try {
+    parsed = JSON.parse(jsonText);
+  } catch (err) {
+    console.error("Failed to parse AI response:", jsonText);
+    throw new Error("AI returned invalid JSON");
+  }
 
-// Groq sometimes returns one object instead of an array
-if (!Array.isArray(parsed)) {
-  parsed = [parsed];
-}
+  // Groq sometimes returns one object instead of an array
+  if (!Array.isArray(parsed)) {
+    parsed = [parsed];
+  }
 
-if (parsed.length !== emails.length) {
-  console.error(
-    "AI result count mismatch:",
-    {
-      expected: emails.length,
-      received: parsed.length,
-      response: parsed,
-    }
-  );
+  if (parsed.length !== emails.length) {
+    console.error(
+      "AI result count mismatch:",
+      {
+        expected: emails.length,
+        received: parsed.length,
+        response: parsed,
+      }
+    );
 
-  throw new Error(
-    `Expected ${emails.length} results, got ${parsed.length}`
-  );
-}
+    throw new Error(
+      `Expected ${emails.length} results, got ${parsed.length}`
+    );
+  }
 
   // Validate and normalize results
-  const results = parsed.map((item: UnknownJSON): SchedulingResult => ({
+  return parsed.map((item: UnknownJSON): SchedulingResult => ({
     id: String(item.emailId || ""),
     type: [
       "appointment",
@@ -885,9 +892,105 @@ if (parsed.length !== emails.length) {
       : "medium",
     category: item.category === "insurance" ? "insurance" : "client",
   }));
+}
+
+/**
+ * Analyze a batch of scheduling emails with retry logic (splits batch on failure).
+ * @internal
+ */
+async function analyzeSchedulingEmailBatch(
+  emails: SchedulingEmail[],
+  entities: EntityData
+): Promise<SchedulingResult[]> {
+  try {
+    return await analyzeSchedulingEmailBatchOnce(emails, entities);
+  } catch (err) {
+    if (emails.length === 1) {
+      throw err;
+    }
+
+    const message =
+      err instanceof Error
+        ? err.message.toLowerCase()
+        : String(err).toLowerCase();
+
+    // Rate limits should be handled by callAIWithRetry,
+    // not by splitting the batch.
+    if (
+      message.includes("429") ||
+      message.includes("rate limit") ||
+      message.includes("rate_limit_exceeded")
+    ) {
+      throw err;
+    }
+
+    // Handle 413 Payload Too Large by splitting the batch
+    const is413 =
+      message.includes("413") ||
+      message.includes("payload too large") ||
+      message.includes("request entity too large");
+
+    if (is413) {
+      console.warn(
+        `413 Payload Too Large. Splitting batch of ${emails.length} emails in half.`
+      );
+    } else {
+      console.warn(
+        `AI batch failed. Retrying as smaller groups: ${
+          err instanceof Error ? err.message : String(err)
+        }`
+      );
+    }
+
+    const midpoint = Math.ceil(emails.length / 2);
+
+    const firstHalf = await analyzeSchedulingEmailBatch(
+      emails.slice(0, midpoint),
+      entities
+    );
+    const secondHalf = await analyzeSchedulingEmailBatch(
+      emails.slice(midpoint),
+      entities
+    );
+
+    return [...firstHalf, ...secondHalf];
+  }
+}
+
+/**
+ * Analyze emails for scheduling information.
+ *
+ * Extracts appointment/deadline data with PII redaction.
+ * Processes emails in batches to avoid payload size limits.
+ *
+ * @param emails - Array of emails with id, sender, subject, body
+ * @returns Promise resolving to array of scheduling results
+ */
+export async function analyzeSchedulingEmails(
+  emails: SchedulingEmail[]
+): Promise<SchedulingResult[]> {
+  // Load entities once for all batches
+  const entities = await loadEntities();
+
+  // Split into batches
+  const batches: SchedulingEmail[][] = [];
+  for (let index = 0; index < emails.length; index += EMAIL_BATCH_SIZE) {
+    batches.push(emails.slice(index, index + EMAIL_BATCH_SIZE));
+  }
+
+  // Process all batches
+  const results = [];
+
+  for (const batch of batches) {
+    const result = await analyzeSchedulingEmailBatch(batch, entities);
+    results.push(result);
+
+    // Prevent rate limits
+    await sleep(1000);
+  }
 
   // Scan all final values for PII leaks (warn only, don't throw)
-  for (const result of results) {
+  for (const result of results.flat()) {
     try {
       scanText(result.patientName, { throwOnHighSeverityMiss: false });
       scanText(result.title, { throwOnHighSeverityMiss: false });
@@ -898,7 +1001,7 @@ if (parsed.length !== emails.length) {
     }
   }
 
-  return results;
+  return results.flat();
 }
 
 /**

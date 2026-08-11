@@ -21,6 +21,31 @@ jobs:
       - name: Install Vercel CLI
         run: npm i -g vercel
 
+      - name: Verify required secrets
+        run: |
+          if [ -z "${{ secrets.DATABASE_URL }}" ]; then
+            echo "Error: DATABASE_URL secret is not set"
+            echo "Please add DATABASE_URL to your GitHub repository secrets"
+            exit 1
+          fi
+          if [ -z "${{ secrets.DIRECT_URL }}" ]; then
+            echo "Error: DIRECT_URL secret is not set"
+            echo "Please add DIRECT_URL to your GitHub repository secrets"
+            exit 1
+          fi
+          echo "All required secrets are present"
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: dashboard
+
+      - name: Run database migrations
+        run: npx prisma migrate deploy
+        working-directory: dashboard
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+
       - name: Pull Vercel environment
         run: vercel pull --yes --environment=production --cwd dashboard --token=${{ secrets.VERCEL_TOKEN }}
         env:

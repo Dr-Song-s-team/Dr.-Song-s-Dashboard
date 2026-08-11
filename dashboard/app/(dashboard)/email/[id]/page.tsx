@@ -91,12 +91,21 @@ export default async function InboxMessagePage({
 
   return (
     <div className="mx-auto max-w-5xl space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center gap-4">
         <Link
           href="/email"
           className="text-sm font-medium text-[#765d4e] hover:text-[#7a5138] hover:underline"
         >
           ← Back to inbox
+        </Link>
+
+        <span className="text-[#d8c9ba]" aria-hidden="true">·</span>
+
+        <Link
+          href={`/email/${id}/metrics`}
+          className="text-sm font-medium text-[#286985] hover:text-[#1d526a] hover:underline"
+        >
+          Rate AI quality
         </Link>
       </div>
 
@@ -145,21 +154,33 @@ export default async function InboxMessagePage({
           </dd>
         </dl>
 
+        {summaryTitle ? (
+          <div className="mt-6">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-[#765d4e]">
+              Summary
+            </h2>
+
+            <div className="mt-2 rounded-xl border border-[#d8c9ba] bg-white/70 p-4">
+              <p className="text-sm leading-7 text-[#513a2e]">
+                {summaryTitle} <AiDraftLabel />
+              </p>
+            </div>
+          </div>
+        ) : null}
+
         <div className="mt-6">
-  <div className="flex items-center justify-between gap-3">
-    <h2 className="text-sm font-semibold uppercase tracking-wide text-[#765d4e]">
-      Original message
-    </h2>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-[#765d4e]">
+              Original message
+            </h2>
 
-    <TranslateEmailButton
-      emailId={email.id}
-    />
-  </div>
+            <TranslateEmailButton emailId={email.id} />
+          </div>
 
-  <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-[#513a2e]">
-    {email.body}
-  </p>
-</div>
+          <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-[#513a2e]">
+            {email.body}
+          </p>
+        </div>
       </article>
 
       {/* AI ANALYSIS */}
@@ -177,21 +198,6 @@ export default async function InboxMessagePage({
 
           <AiDraftLabel />
         </div>
-
-        {summaryTitle ? (
-          <div className="mt-6">
-            <h3 className="text-sm font-semibold text-[#765d4e]">
-              Summary
-            </h3>
-
-            <div className="mt-2 rounded-xl border border-[#d8c9ba] bg-white/70 p-4">
-              <p className="text-base font-medium leading-7 text-[#513a2e]">
-                {summaryTitle}{" "}
-                <AiDraftLabel />
-              </p>
-            </div>
-          </div>
-        ) : null}
 
         {summaryDetails.length > 0 ? (
           <div className="mt-6">

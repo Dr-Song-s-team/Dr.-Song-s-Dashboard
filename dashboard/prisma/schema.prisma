@@ -160,7 +160,8 @@ model Email {
   patientId String?
   patient   Patient? @relation(fields: [patientId], references: [id])
 
-  tasks Task[]
+  tasks   Task[]
+  metrics EmailMetric[]
 
   @@index([receivedAt])
   @@index([status])
@@ -213,4 +214,34 @@ model PushSubscription {
   auth String
 
   createdAt DateTime @default(now())
+}
+
+/// Tracks a single batch run of the AI email analyzer.
+/// Used to compute average analysis time and overall success/error rate.
+model AnalysisBatch {
+  id              String    @id @default(cuid())
+  startedAt       DateTime
+  completedAt     DateTime?
+  durationMs      Int?
+  emailsAttempted Int
+  emailsSucceeded Int       @default(0)
+  emailsFailed    Int       @default(0)
+  success         Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+
+  @@index([createdAt])
+}
+
+/// Staff rating for AI-generated content on a single email.
+/// analysisUsefulness and koreanTranslationAccuracy are each constrained to 1–5
+/// via a CHECK constraint in the database migration.
+model EmailMetric {
+  id                        String   @id @default(cuid())
+  emailId                   String
+  email                     Email    @relation(fields: [emailId], references: [id], onDelete: Cascade)
+  analysisUsefulness        Int
+  koreanTranslationAccuracy Int
+  createdAt                 DateTime @default(now())
+
+  @@index([emailId])
 }
