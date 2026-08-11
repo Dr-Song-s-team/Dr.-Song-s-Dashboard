@@ -91,12 +91,21 @@ export default async function InboxMessagePage({
 
   return (
     <div className="mx-auto max-w-5xl space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center gap-4">
         <Link
           href="/email"
           className="text-sm font-medium text-[#765d4e] hover:text-[#7a5138] hover:underline"
         >
           ← Back to inbox
+        </Link>
+
+        <span className="text-[#d8c9ba]" aria-hidden="true">·</span>
+
+        <Link
+          href={`/email/${id}/metrics`}
+          className="text-sm font-medium text-[#286985] hover:text-[#1d526a] hover:underline"
+        >
+          Rate AI quality
         </Link>
       </div>
 

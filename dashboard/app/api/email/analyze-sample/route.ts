@@ -162,6 +162,20 @@ export async function POST(request: Request): Promise<NextResponse> {
     });
   }
 
+  // Record batch start for timing and error-rate metrics.
+  const batchStartedAt = new Date();
+  let batchId: string | null = null;
+  try {
+    const batch = await prisma.analysisBatch.create({
+      data: { startedAt: batchStartedAt, emailsAttempted: totalCandidates },
+    });
+    batchId = batch.id;
+  } catch (err) {
+    console.error("[sample-inbox] Failed to create analysis batch record.", {
+      error: err instanceof Error ? err.name : "UnknownError",
+    });
+  }
+
   // Map Prisma rows to the shape analyzeEmails expects.
   const emailInputs = candidates.map((row) => ({
     id: row.id,
@@ -178,6 +192,21 @@ export async function POST(request: Request): Promise<NextResponse> {
     console.error("[sample-inbox] AI analysis failed.", {
       error: err instanceof Error ? err.name : "UnknownError",
     });
+
+    // Record the failed batch.
+    if (batchId) {
+      const completedAt = new Date();
+      await prisma.analysisBatch.update({
+        where: { id: batchId },
+        data: {
+          completedAt,
+          durationMs: completedAt.getTime() - batchStartedAt.getTime(),
+          emailsFailed: totalCandidates,
+          success: false,
+        },
+      }).catch(() => {});
+    }
+
     return NextResponse.json(
       {
         success: false,
@@ -235,6 +264,26 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   const success = failed === 0;
+
+  // Finalize the batch timing record.
+  if (batchId) {
+    const completedAt = new Date();
+    await prisma.analysisBatch.update({
+      where: { id: batchId },
+      data: {
+        completedAt,
+        durationMs: completedAt.getTime() - batchStartedAt.getTime(),
+        emailsSucceeded: analyzed,
+        emailsFailed: failed,
+        success,
+      },
+    }).catch((err) => {
+      console.error("[sample-inbox] Failed to finalize batch record.", {
+        error: err instanceof Error ? err.name : "UnknownError",
+      });
+    });
+  }
+
   let remaining = 0;
 
   try {
