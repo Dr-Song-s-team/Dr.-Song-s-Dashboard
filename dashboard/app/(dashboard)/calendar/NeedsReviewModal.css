@@ -1,3 +1,41 @@
+.edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.edit-field label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  text-align: left;
+}
+
+.edit-field input,
+.edit-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1.5;
+  background: #fff;
+}
+
+.edit-field input:focus,
+.edit-field textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+.edit-field textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
 .needs-review-overlay {
   position: fixed;
   inset: 0;
