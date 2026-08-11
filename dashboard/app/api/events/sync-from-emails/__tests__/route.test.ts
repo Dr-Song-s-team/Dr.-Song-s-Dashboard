@@ -102,6 +102,7 @@ describe("POST /api/events/sync-from-emails", () => {
       googleEventId: null,
       createdAt: new Date(),
       updatedAt: new Date(),
+      extractionStatus: "PENDING_REVIEW",
     });
 
     const response = await POST();
@@ -303,6 +304,7 @@ describe("POST /api/events/sync-from-emails", () => {
       googleEventId: null,
       createdAt: new Date(),
       updatedAt: new Date(),
+      extractionStatus: "PENDING_REVIEW"
     });
 
     const response = await POST();
@@ -479,6 +481,7 @@ describe("POST /api/events/sync-from-emails", () => {
       googleEventId: null,
       createdAt: new Date(),
       updatedAt: new Date(),
+      extractionStatus: "PENDING_REVIEW"
     });
 
     const response = await POST();
@@ -543,6 +546,7 @@ describe("POST /api/events/sync-from-emails", () => {
       googleEventId: null,
       createdAt: new Date(),
       updatedAt: new Date(),
+      extractionStatus: "PENDING_REVIEW",
     });
 
     const response = await POST();
