@@ -103,7 +103,12 @@ describe("POST /api/events/sync-from-emails", () => {
 
     vi.mocked(prisma.email.findMany).mockResolvedValue(mockEmails);
     vi.mocked(prisma.email.count).mockResolvedValue(1);
-    vi.mocked(loadEntities).mockResolvedValue({ patients: [], providers: [], locations: [] });
+    vi.mocked(loadEntities).mockResolvedValue({
+      patientFirstNames: [],
+      patientLastNames: [],
+      patientFullNames: [],
+      memberIds: [],
+    });
     vi.mocked(analyzeSchedulingEmailBatch).mockResolvedValue(mockResults);
     vi.mocked(prisma.task.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.patient.findFirst).mockResolvedValue(null);
@@ -193,7 +198,12 @@ describe("POST /api/events/sync-from-emails", () => {
     };
 
     vi.mocked(prisma.email.findMany).mockResolvedValue(mockEmails);
-    vi.mocked(loadEntities).mockResolvedValue({ patients: [], providers: [], locations: [] });
+    vi.mocked(loadEntities).mockResolvedValue({
+      patientFirstNames: [],
+      patientLastNames: [],
+      patientFullNames: [],
+      memberIds: [],
+    });
     vi.mocked(analyzeSchedulingEmailBatch).mockResolvedValue(mockResults);
     vi.mocked(prisma.task.findFirst).mockResolvedValue(existingTask);
 
@@ -310,7 +320,12 @@ describe("POST /api/events/sync-from-emails", () => {
     ];
 
     vi.mocked(prisma.email.findMany).mockResolvedValue(mockEmails);
-    vi.mocked(loadEntities).mockResolvedValue({ patients: [], providers: [], locations: [] });
+    vi.mocked(loadEntities).mockResolvedValue({
+      patientFirstNames: [],
+      patientLastNames: [],
+      patientFullNames: [],
+      memberIds: [],
+    });
     vi.mocked(analyzeSchedulingEmailBatch).mockResolvedValue(mockResults);
     vi.mocked(prisma.task.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.patient.findFirst).mockResolvedValue(null);
@@ -378,7 +393,12 @@ describe("POST /api/events/sync-from-emails", () => {
     ];
 
     vi.mocked(prisma.email.findMany).mockResolvedValue(mockEmails);
-    vi.mocked(loadEntities).mockResolvedValue({ patients: [], providers: [], locations: [] });
+    vi.mocked(loadEntities).mockResolvedValue({
+      patientFirstNames: [],
+      patientLastNames: [],
+      patientFullNames: [],
+      memberIds: [],
+    });
     vi.mocked(analyzeSchedulingEmailBatch).mockResolvedValue(mockResults);
 
     const response = await POST();
@@ -419,7 +439,12 @@ describe("POST /api/events/sync-from-emails", () => {
     ];
 
     vi.mocked(prisma.email.findMany).mockResolvedValue(mockEmails);
-    vi.mocked(loadEntities).mockResolvedValue({ patients: [], providers: [], locations: [] });
+    vi.mocked(loadEntities).mockResolvedValue({
+      patientFirstNames: [],
+      patientLastNames: [],
+      patientFullNames: [],
+      memberIds: [],
+    });
     vi.mocked(analyzeSchedulingEmailBatch).mockRejectedValue(new Error("AI service failed"));
 
     const response = await POST();
@@ -469,7 +494,12 @@ describe("POST /api/events/sync-from-emails", () => {
     ];
 
     vi.mocked(prisma.email.findMany).mockResolvedValue(mockEmails);
-    vi.mocked(loadEntities).mockResolvedValue({ patients: [], providers: [], locations: [] });
+    vi.mocked(loadEntities).mockResolvedValue({
+      patientFirstNames: [],
+      patientLastNames: [],
+      patientFullNames: [],
+      memberIds: [],
+    });
     vi.mocked(analyzeSchedulingEmailBatch).mockRejectedValue(
       new Error("429 rate limit exceeded")
     );
@@ -543,7 +573,12 @@ describe("POST /api/events/sync-from-emails", () => {
     }));
 
     vi.mocked(prisma.email.findMany).mockResolvedValue(mockEmails);
-    vi.mocked(loadEntities).mockResolvedValue({ patients: [], providers: [], locations: [] });
+    vi.mocked(loadEntities).mockResolvedValue({
+      patientFirstNames: [],
+      patientLastNames: [],
+      patientFullNames: [],
+      memberIds: [],
+    });
 
     // First batch: 429 error
     vi.mocked(analyzeSchedulingEmailBatch).mockRejectedValueOnce(
@@ -634,7 +669,12 @@ describe("POST /api/events/sync-from-emails", () => {
 
     vi.mocked(prisma.email.findMany).mockResolvedValue(mockEmails);
     vi.mocked(prisma.email.count).mockResolvedValue(15); // 15 total syncable
-    vi.mocked(loadEntities).mockResolvedValue({ patients: [], providers: [], locations: [] });
+    vi.mocked(loadEntities).mockResolvedValue({
+      patientFirstNames: [],
+      patientLastNames: [],
+      patientFullNames: [],
+      memberIds: [],
+    });
     // Mock returns only results matching the batch
     vi.mocked(analyzeSchedulingEmailBatch).mockImplementation(async (batch) => {
       return mockResults.filter((result) => batch.some((email) => email.id === result.id));
@@ -702,7 +742,12 @@ describe("POST /api/events/sync-from-emails", () => {
     ];
 
     vi.mocked(prisma.email.findMany).mockResolvedValue(mockEmails);
-    vi.mocked(loadEntities).mockResolvedValue({ patients: [], providers: [], locations: [] });
+    vi.mocked(loadEntities).mockResolvedValue({
+      patientFirstNames: [],
+      patientLastNames: [],
+      patientFullNames: [],
+      memberIds: [],
+    });
     // analyzeSchedulingEmailBatch handles 413 splitting internally, always returns results
     vi.mocked(analyzeSchedulingEmailBatch).mockResolvedValue(mockResults);
     vi.mocked(prisma.task.findFirst).mockResolvedValue(null);
@@ -770,7 +815,12 @@ describe("POST /api/events/sync-from-emails", () => {
     ];
 
     vi.mocked(prisma.email.findMany).mockResolvedValue(mockEmails);
-    vi.mocked(loadEntities).mockResolvedValue({ patients: [], providers: [], locations: [] });
+    vi.mocked(loadEntities).mockResolvedValue({
+      patientFirstNames: [],
+      patientLastNames: [],
+      patientFullNames: [],
+      memberIds: [],
+    });
     vi.mocked(analyzeSchedulingEmailBatch).mockResolvedValue(mockResults);
     vi.mocked(prisma.task.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.patient.findFirst).mockResolvedValue(null);
