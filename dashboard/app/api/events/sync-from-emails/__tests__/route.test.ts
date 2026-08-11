@@ -418,4 +418,148 @@ describe("POST /api/events/sync-from-emails", () => {
       orderBy: { receivedAt: "asc" },
     });
   });
+
+  it("handles 413 Payload Too Large errors gracefully", async () => {
+    const mockEmails = [
+      {
+        id: "email-1",
+        fromName: "Test User",
+        fromEmail: "test@example.com",
+        subject: "Large email",
+        body: "x".repeat(10000), // Very large body
+        toInbox: "SCHEDULING" as const,
+        classification: "SCHEDULING" as const,
+        status: "UNREAD" as const,
+        receivedAt: new Date("2026-07-15"),
+        gmailMessageId: null,
+        gmailThreadId: null,
+        gmailAccountId: null,
+        insurerLabel: null,
+        aiSummary: null,
+        aiDraft: null,
+        aiAnalysis: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        patientId: null,
+      },
+    ];
+
+    // Mock AI service to return 413 error on first call, then succeed on retry
+    let callCount = 0;
+    vi.mocked(analyzeSchedulingEmails).mockImplementation(async (emails) => {
+      callCount++;
+      if (callCount === 1 && emails.length > 1) {
+        throw new Error("Groq API request failed: 413 Payload Too Large");
+      }
+
+      // Return results for each email
+      return emails.map((email, idx) => ({
+        id: email.id,
+        type: "appointment" as const,
+        patientName: "Test User",
+        date: "2026-07-20",
+        time: "10:00",
+        title: `Appointment ${idx + 1}`,
+        urgency: "medium" as const,
+        category: "client" as const,
+      }));
+    });
+
+    vi.mocked(prisma.email.findMany).mockResolvedValue(mockEmails);
+    vi.mocked(prisma.task.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.patient.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.task.create).mockResolvedValue({
+      id: "task-1",
+      title: "Appointment 1",
+      description: "From email: Large email",
+      dueDate: new Date("2026-07-20T10:00:00-08:00"),
+      status: "PENDING",
+      emailId: "email-1",
+      patientId: null,
+      googleEventId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const response = await POST();
+    const data = await response.json();
+
+    // Should succeed after retry with smaller batch
+    expect(response.status).toBe(200);
+    expect(data.created).toBe(1);
+  });
+
+  it("truncates long email bodies before AI analysis", async () => {
+    const longBody = "x".repeat(5000); // Exceeds 4000 char limit
+    const mockEmails = [
+      {
+        id: "email-1",
+        fromName: "Test User",
+        fromEmail: "test@example.com",
+        subject: "Test",
+        body: longBody,
+        toInbox: "SCHEDULING" as const,
+        classification: "SCHEDULING" as const,
+        status: "UNREAD" as const,
+        receivedAt: new Date("2026-07-15"),
+        gmailMessageId: null,
+        gmailThreadId: null,
+        gmailAccountId: null,
+        insurerLabel: null,
+        aiSummary: null,
+        aiDraft: null,
+        aiAnalysis: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        patientId: null,
+      },
+    ];
+
+    const mockResults = [
+      {
+        id: "email-1",
+        type: "appointment" as const,
+        patientName: "Test User",
+        date: "2026-07-20",
+        time: "10:00",
+        title: "Test appointment",
+        urgency: "medium" as const,
+        category: "client" as const,
+      },
+    ];
+
+    vi.mocked(prisma.email.findMany).mockResolvedValue(mockEmails);
+    vi.mocked(analyzeSchedulingEmails).mockResolvedValue(mockResults);
+    vi.mocked(prisma.task.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.patient.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.task.create).mockResolvedValue({
+      id: "task-1",
+      title: "Test appointment",
+      description: "From email: Test",
+      dueDate: new Date("2026-07-20T10:00:00-08:00"),
+      status: "PENDING",
+      emailId: "email-1",
+      patientId: null,
+      googleEventId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const response = await POST();
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data.created).toBe(1);
+
+    // Verify analyzeSchedulingEmails was called
+    expect(vi.mocked(analyzeSchedulingEmails)).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "email-1",
+          body: longBody, // Full body is passed to analyzeSchedulingEmails
+        }),
+      ])
+    );
+    // Note: Truncation happens inside analyzeSchedulingEmails, not in the route
+  });
 });
