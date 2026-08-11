@@ -8,6 +8,9 @@
 
 import { callAI, CallAIOptions } from "@/lib/ai/provider";
 import { loadEntities, redact, unredact, scanText } from "@/lib/redaction";
+
+// Re-export loadEntities for use in sync route
+export { loadEntities };
 import type { EntityData, RedactedText } from "@/lib/redaction";
 
 const EMAIL_BATCH_SIZE = 3;
@@ -242,6 +245,7 @@ export interface SchedulingEmail {
   sender: string;
   subject: string;
   body: string;
+  fromName?: string;
 }
 
 interface SchedulingResult {
@@ -898,7 +902,7 @@ ${e.redactedBody}`
  * Analyze a batch of scheduling emails with retry logic (splits batch on failure).
  * @internal
  */
-async function analyzeSchedulingEmailBatch(
+export async function analyzeSchedulingEmailBatch(
   emails: SchedulingEmail[],
   entities: EntityData
 ): Promise<SchedulingResult[]> {
@@ -1002,6 +1006,125 @@ export async function analyzeSchedulingEmails(
   }
 
   return results.flat();
+}
+
+/**
+ * Parse a simple date from text (subject/body).
+ * Returns null if no clear date pattern is found.
+ */
+function parseSimpleDate(text: string): Date | null {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+
+  // Normalize text
+  const normalized = text.toLowerCase();
+
+  // Pattern 1: Absolute dates like "7/20/24", "07-20-2024", "7/20"
+  const absoluteDateMatch = normalized.match(/(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?/);
+  if (absoluteDateMatch) {
+    const month = parseInt(absoluteDateMatch[1], 10);
+    const day = parseInt(absoluteDateMatch[2], 10);
+    const year = absoluteDateMatch[3]
+      ? parseInt(absoluteDateMatch[3], 10) < 100
+        ? 2000 + parseInt(absoluteDateMatch[3], 10)
+        : parseInt(absoluteDateMatch[3], 10)
+      : currentYear;
+
+    // Basic validation
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      return new Date(year, month - 1, day);
+    }
+  }
+
+  // Pattern 2: Month names like "July 20", "December 5"
+  const monthNames = [
+    "january",
+    "february",
+    "march",
+    "april",
+    "may",
+    "june",
+    "july",
+    "august",
+    "september",
+    "october",
+    "november",
+    "december",
+  ];
+
+  for (let i = 0; i < monthNames.length; i++) {
+    const regex = new RegExp(`${monthNames[i]}\\s+(\\d{1,2})`, "i");
+    const match = normalized.match(regex);
+    if (match) {
+      const day = parseInt(match[1], 10);
+      if (day >= 1 && day <= 31) {
+        return new Date(currentYear, i, day);
+      }
+    }
+  }
+
+  // Pattern 3: Relative dates like "tomorrow", "next week"
+  if (normalized.includes("tomorrow")) {
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow;
+  }
+
+  if (normalized.includes("next week")) {
+    const nextWeek = new Date(now);
+    nextWeek.setDate(nextWeek.getDate() + 7);
+    return nextWeek;
+  }
+
+  // Pattern 4: Day names like "Thursday", "next Tuesday"
+  const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+  for (let i = 0; i < dayNames.length; i++) {
+    if (normalized.includes(dayNames[i])) {
+      // Find next occurrence of that day
+      const target = new Date(now);
+      const currentDay = target.getDay();
+      let daysToAdd = i - currentDay;
+      if (daysToAdd <= 0) daysToAdd += 7;
+      target.setDate(target.getDate() + daysToAdd);
+      return target;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Extract tasks deterministically from scheduling emails without AI.
+ * Used as fallback when AI rate limits are hit.
+ */
+export function extractTasksDeterministically(emails: SchedulingEmail[]): SchedulingResult[] {
+  return emails.map((email) => {
+    // Clean up subject: remove "Re:", "Fwd:", etc.
+    const title = email.subject.replace(/^(Re|Fwd|Fw):\s*/gi, "").trim();
+
+    // Try to parse a date from subject + body
+    const parsedDate = parseSimpleDate(email.subject + " " + email.body);
+
+    // Convert to YYYY-MM-DD format for date field
+    let dateStr: string | null = null;
+    if (parsedDate) {
+      const year = parsedDate.getFullYear();
+      const month = String(parsedDate.getMonth() + 1).padStart(2, "0");
+      const day = String(parsedDate.getDate()).padStart(2, "0");
+      dateStr = `${year}-${month}-${day}`;
+    }
+
+    return {
+      id: email.id,
+      type: "appointment" as const,
+      title,
+      date: dateStr,
+      time: null, // No time extraction for now
+      patientName: email.fromName || "Unknown",
+      urgency: "medium" as const,
+      category: "client" as const,
+    };
+  });
 }
 
 /**
