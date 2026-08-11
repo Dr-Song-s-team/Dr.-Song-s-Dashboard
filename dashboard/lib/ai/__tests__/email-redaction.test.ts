@@ -84,6 +84,111 @@ describe("Email AI Redaction Pipeline", () => {
       expect(redactedPrompt).toMatch(/\{\{(EMAIL|PATIENT_NAME|PHONE|MEMBER_ID)_\d+\}\}/);
     });
 
+    it("should request JSON mode (not strict json_schema)", async () => {
+      const mockCallAI = vi.spyOn(aiProvider, "callAI");
+      mockCallAI.mockResolvedValueOnce(JSON.stringify({
+        emails: [{
+          category: "client",
+          urgency: "low",
+          actionRequired: false,
+          summaryTitle: "General inquiry",
+          summaryDetails: [],
+          clientTags: [],
+          recommendedActions: null,
+          draftResponse: null,
+        }],
+      }));
+
+      const emails: Email[] = [{
+        id: "",
+        sender: "info@clinic.com",
+        subject: "Question",
+        body: "What are your hours?",
+      }];
+
+      await analyzeEmails(emails);
+
+      expect(mockCallAI).toHaveBeenCalledTimes(1);
+      const [, options] = mockCallAI.mock.calls[0];
+      expect(options?.jsonMode).toBe(true);
+      expect(options).not.toHaveProperty("jsonSchema");
+    });
+
+    it("should accept a bare array response (legacy format)", async () => {
+      const mockCallAI = vi.spyOn(aiProvider, "callAI");
+      // Bare array instead of { emails: [...] }
+      mockCallAI.mockResolvedValueOnce(JSON.stringify([{
+        category: "insurance",
+        urgency: "medium",
+        actionRequired: true,
+        summaryTitle: "Coverage verification needed",
+        summaryDetails: ["Insurer requested additional docs"],
+        clientTags: [],
+        recommendedActions: ["Upload documentation"],
+        draftResponse: null,
+      }]));
+
+      const emails: Email[] = [{
+        id: "bare-array-test",
+        sender: "billing@clinic.com",
+        subject: "Coverage check",
+        body: "Please verify insurance.",
+      }];
+
+      const results = await analyzeEmails(emails);
+      expect(results).toHaveLength(1);
+      expect(results[0].category).toBe("insurance");
+      expect(results[0].summaryTitle).toBe("Coverage verification needed");
+    });
+
+    it("should retry split batches sequentially after a non-rate-limit failure", async () => {
+      const mockCallAI = vi.spyOn(aiProvider, "callAI");
+      let resolveFirstHalf: (response: string) => void;
+      const firstHalfResponse = new Promise<string>((resolve) => {
+        resolveFirstHalf = resolve;
+      });
+      const analysisResponse = JSON.stringify([
+        {
+          category: "client",
+          urgency: "medium",
+          actionRequired: true,
+          summaryTitle: "Patient appointment request needs follow-up",
+          summaryDetails: ["Patient requested an appointment."],
+          clientTags: [],
+          recommendedActions: ["Schedule patient appointment"],
+          draftResponse: "Thank you for your appointment request.",
+        },
+      ]);
+
+      mockCallAI
+        .mockRejectedValueOnce(new Error("Groq API request failed: 400 Bad Request"))
+        .mockImplementationOnce(() => firstHalfResponse)
+        .mockResolvedValueOnce(analysisResponse);
+
+      const analysis = analyzeEmails([
+        {
+          id: "first",
+          sender: "first@example.com",
+          subject: "Appointment request",
+          body: "I'd like to book an appointment.",
+        },
+        {
+          id: "second",
+          sender: "second@example.com",
+          subject: "Follow-up request",
+          body: "Please schedule my follow-up.",
+        },
+      ]);
+
+      await vi.waitFor(() => expect(mockCallAI).toHaveBeenCalledTimes(2));
+      expect(mockCallAI).toHaveBeenCalledTimes(2);
+
+      resolveFirstHalf!(analysisResponse);
+
+      await expect(analysis).resolves.toHaveLength(2);
+      expect(mockCallAI).toHaveBeenCalledTimes(3);
+    });
+
     it("should call scanText on final unredacted output", async () => {
       const mockCallAI = vi.spyOn(aiProvider, "callAI");
       mockCallAI.mockResolvedValueOnce(JSON.stringify({

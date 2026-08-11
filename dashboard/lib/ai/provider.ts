@@ -82,6 +82,41 @@ export class AIProviderError extends Error {
   }
 }
 
+function getSafeGroqErrorDetails(errorBody: string): Record<string, string> {
+  const fallback = {
+    message: "Provider returned an unstructured error response.",
+  };
+
+  try {
+    const parsed: unknown = JSON.parse(errorBody);
+    const providerError =
+      parsed &&
+      typeof parsed === "object" &&
+      "error" in parsed &&
+      parsed.error &&
+      typeof parsed.error === "object"
+        ? parsed.error
+        : parsed;
+
+    if (!providerError || typeof providerError !== "object") {
+      return fallback;
+    }
+
+    const providerRecord = providerError as Record<string, unknown>;
+    const details: Record<string, string> = {};
+    for (const key of ["message", "code", "type"]) {
+      const value = providerRecord[key];
+      if (typeof value === "string" || typeof value === "number") {
+        details[key] = String(value).slice(0, 500);
+      }
+    }
+
+    return Object.keys(details).length > 0 ? details : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 /**
  * Calls the Groq AI API with redacted text.
  *
@@ -183,6 +218,11 @@ export async function callAI(
     // Handle non-OK responses
     if (!response.ok) {
       const errorBody = await response.text();
+      console.error("[Groq] Request rejected:", {
+        status: response.status,
+        statusText: response.statusText,
+        ...getSafeGroqErrorDetails(errorBody),
+      });
       throw new AIProviderError(
         `Groq API request failed: ${response.status} ${response.statusText}`,
         response.status,
