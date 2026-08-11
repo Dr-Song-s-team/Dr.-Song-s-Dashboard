@@ -35,6 +35,8 @@ type InboxEmail = {
 
 type InboxEmailListProps = {
   emails: InboxEmail[];
+  /** When set, the empty-state message references this folder label. */
+  folderLabel?: string;
 };
 
 function formatDate(date: Date) {
@@ -52,7 +54,7 @@ function preview(body: string) {
   return normalized.length > 170 ? `${normalized.slice(0, 167)}…` : normalized;
 }
 
-export default function InboxEmailList({ emails }: InboxEmailListProps) {
+export default function InboxEmailList({ emails, folderLabel }: InboxEmailListProps) {
   const [selectedEmailIds, setSelectedEmailIds] = useState<string[]>([]);
   const [selectionMode, setSelectionMode] = useState(false);
 
@@ -98,7 +100,9 @@ export default function InboxEmailList({ emails }: InboxEmailListProps) {
             No messages match these filters
           </h3>
           <p className="mt-2 text-sm text-[#765d4e]">
-            Adjust or clear a filter to view the seeded clinic inbox.
+            {folderLabel
+              ? `No ${folderLabel.toLowerCase()} messages match your current filters. Try adjusting or clearing a filter.`
+              : "Adjust or clear a filter to view the seeded clinic inbox."}
           </p>
         </div>
       ) : (
