@@ -121,6 +121,7 @@ describe("POST /api/events/sync-from-emails", () => {
         emailId: "email-1",
         patientId: null,
         status: "PENDING",
+        extractionStatus: "PENDING_REVIEW",
       },
     });
   });
