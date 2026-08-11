@@ -3,6 +3,53 @@ import './ScheduleDashboard.css';
 import Holidays from "date-holidays";
 import ScheduleList from "./ScheduleList"
 import TaskStatusIcon from "./TaskStatusIcon"
+import NeedsReviewModal, {
+  RecommendedAction,
+} from "./NeedsReviewModal";
+
+/**
+ * @typedef {Object} RecommendedAction
+ * @property {string} id
+ * @property {string|null} emailId
+ * @property {string} title
+ * @property {string} summary
+ * @property {string|null} dueDate
+ * @property {string[]} recommendedActions
+ * @property {string|null} [patientName]
+ * @property {{
+ *   id: string,
+ *   gmailMessageId: string|null,
+ *   gmailThreadId: string|null,
+ *   fromName: string,
+ *   fromEmail: string,
+ *   subject: string,
+ *   body: string,
+ *   receivedAt: string
+ * }|null} [email]
+ */
+
+/**
+ * @typedef {Object} ScheduleDashboardProps
+ * @property {Array} events
+ * @property {string} status
+ * @property {(event: Object) => Promise<void>} onCreateEvent
+ * @property {(id: string, updates: Object) => Promise<void>} onUpdateEvent
+ * @property {(id: string) => Promise<void>} onDeleteEvent
+ * @property {(updater: Function) => void} onEventUpdated
+ * @property {RecommendedAction[]} recommendedActions
+ * @property {(action: RecommendedAction) => Promise<void>} onAcceptRecommendedAction
+ * @property {(action: RecommendedAction) => Promise<void>} onRejectRecommendedAction
+ * @property {(action: RecommendedAction) => void} onViewSourceEmail
+ */
+
+/**
+ * @property {(action: RecommendedAction, updates: {
+ *   title: string,
+ *   summary: string,
+ *   dueDate: string|null,
+ *   patientName: string|null
+ * }) => Promise} onEditRecommendedAction
+ */
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
@@ -23,7 +70,13 @@ function toMinutes(amount, unit) {
   }
 }
 
-export default function ScheduleDashboard({ events, status, onCreateEvent, onUpdateEvent, onDeleteEvent, onEventUpdated }) {
+export default function ScheduleDashboard({ events, status, onCreateEvent, onUpdateEvent, onDeleteEvent, onEventUpdated,
+  recommendedActions,
+  onAcceptRecommendedAction,
+  onRejectRecommendedAction,
+  onEditRecommendedAction,
+  onViewSourceEmail,
+ }) {
   
   const m = new Date().getMonth();
   const y = new Date().getFullYear();
@@ -50,6 +103,7 @@ export default function ScheduleDashboard({ events, status, onCreateEvent, onUpd
   const [selectedDate, setSelectedDate] = useState(null);
   const [viewMode, setViewMode] = useState("month");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [showNeedsReview, setShowNeedsReview] = useState(false);
 
 function getStartOfWeek(date) {
   const d = new Date(date);
@@ -381,6 +435,7 @@ async function enableNotifications() {
   </button>
 </div>
           <p className="sched-subtitle">Extracted from {events.length} scheduling emails</p>
+          
         </div>
         <div className="sched-stats">
           {/* <StatBubble value={urgentCount}   label="Urgent" color="high" /> */}
@@ -405,18 +460,19 @@ Enable Notifications
 >
   + New Event
 </button>
+<button
+  onClick={() => setShowNeedsReview(true)}
+  className="needs-review-button cursor-pointer"
+>
+  Needs Review
 
-        {/* <div className="sched-cat-filter">
-          {['all', 'client', 'insurance'].map(c => (
-            <button
-              key={c}
-              className={`scat-btn ${categoryFilter === c ? 'scat-btn--active' : ''}`}
-              onClick={() => setCategoryFilter(c)}
-            >
-              {c === 'all' ? 'All' : c === 'client' ? 'Patients' : 'Insurance'}
-            </button>
-          ))}
-        </div> */}
+  {recommendedActions.length > 0 && (
+    <span className="needs-review-badge">
+      {recommendedActions.length}
+    </span>
+  )}
+</button>
+
       </div>
 
       <div className="sched-body">
@@ -842,6 +898,17 @@ setShowReminders(false);
   getTaskStatus={getTaskStatus}
   />
 )}
+
+<NeedsReviewModal
+  isOpen={showNeedsReview}
+  actions={recommendedActions}
+  onClose={() => setShowNeedsReview(false)}
+  onAccept={onAcceptRecommendedAction}
+  onReject={onRejectRecommendedAction}
+  onEdit={onEditRecommendedAction}
+  onViewEmail={onViewSourceEmail}
+/>
+
     </div>
   );
 }

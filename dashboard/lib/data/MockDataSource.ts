@@ -214,6 +214,11 @@ export class MockDataSource implements ClinicDataSource {
 
   async listTasks(): Promise<TaskWithRelations[]> {
     return (await prisma.task.findMany({
+      where: {
+        extractionStatus: {
+          in: ["ACCEPTED", "EDITED"],
+        },
+      },
       include: {
         patient: true,
         email: true,

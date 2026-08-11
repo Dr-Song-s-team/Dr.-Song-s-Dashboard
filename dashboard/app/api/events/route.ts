@@ -19,6 +19,11 @@ type CreateTaskBody = {
 export async function GET() {
   try {
     const tasks = await prisma.task.findMany({
+      where: {
+        extractionStatus: {
+          in: ["ACCEPTED", "EDITED"],
+        },
+      },
       include: {
         patient: true,
         email: true,
