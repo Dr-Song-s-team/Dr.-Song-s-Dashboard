@@ -8,6 +8,9 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.DIRECT_URL }}
 
     steps:
       - name: Checkout code
@@ -42,9 +45,6 @@ jobs:
       - name: Run database migrations
         run: npx prisma migrate deploy
         working-directory: dashboard
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
 
       - name: Pull Vercel environment
         run: vercel pull --yes --environment=production --cwd dashboard --token=${{ secrets.VERCEL_TOKEN }}
