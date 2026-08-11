@@ -156,9 +156,10 @@ actionRequired:
 - false if no action is needed
 
 summaryTitle:
-- 8-14 words
-- Plain language
-- Describe the main point of the email
+- Write exactly two complete, plain-language sentences (20-35 words total).
+- Give a detailed but scannable account of the email's main request or outcome.
+- Include the relevant sender or patient, dates or times, deadlines, requested documents or actions, and consequences when those facts are present.
+- Do not invent facts or repeat the same information in both sentences.
 
 summaryDetails:
 - 3-6 concise strings
