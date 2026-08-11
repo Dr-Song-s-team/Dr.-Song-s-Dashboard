@@ -475,6 +475,106 @@ async function main(prisma: PrismaClient) {
     ],
   });
 
+  // ------------------------------------------------------------------
+  // Demo SCHEDULING emails for calendar sync testing
+  // These are intentionally left WITHOUT tasks so the sync endpoint
+  // has emails to process in a fresh demo. Re-running the seed resets.
+  // ------------------------------------------------------------------
+  await prisma.email.createMany({
+    data: [
+      {
+        toInbox: "SCHEDULING",
+        fromName: "Robert Chen",
+        fromEmail: "robert.chen@patient-example.dev",
+        subject: "Need to reschedule Thursday appointment",
+        body: "Hi, I need to move my appointment scheduled for this Thursday at 2pm. I have a work conflict. Can we do Friday morning instead? I'm flexible between 9am-11am. Thanks!",
+        status: "NEEDS_ACTION",
+        classification: "SCHEDULING",
+        receivedAt: h(13),
+        patientId: alex.id,
+      },
+      {
+        toInbox: "SCHEDULING",
+        fromName: "Sarah Martinez",
+        fromEmail: "s.martinez@patient-example.dev",
+        subject: "Appointment availability next week?",
+        body: "Hello, I'm a current patient and would like to book my next session. Do you have any openings next Tuesday or Wednesday afternoon? Preferably after 3pm. Please let me know what times work. Thank you.",
+        status: "NEEDS_ACTION",
+        classification: "SCHEDULING",
+        receivedAt: h(14),
+        patientId: maria.id,
+      },
+      {
+        toInbox: "SCHEDULING",
+        fromName: "Michael Thompson",
+        fromEmail: "mthompson@patient-example.dev",
+        subject: "Confirm appointment for July 8th",
+        body: "Just wanted to confirm my appointment for Monday July 8th at 10:30am. Is this still on your calendar? I'll plan to arrive 10 minutes early for paperwork. See you then.",
+        status: "NEEDS_ACTION",
+        classification: "SCHEDULING",
+        receivedAt: h(15),
+        patientId: james.id,
+      },
+      {
+        toInbox: "SCHEDULING",
+        fromName: "Jennifer Lee",
+        fromEmail: "jlee.patient@example.com",
+        subject: "Cancel and rebook appointment",
+        body: "I need to cancel my Friday appointment due to a family emergency. Can we reschedule for sometime next week? I'm available Monday, Wednesday or Thursday mornings. Sorry for the short notice.",
+        status: "NEEDS_ACTION",
+        classification: "SCHEDULING",
+        receivedAt: h(16),
+        patientId: lisa.id,
+      },
+      {
+        toInbox: "SCHEDULING",
+        fromName: "Kevin Wu",
+        fromEmail: "kwu@patient-example.dev",
+        subject: "Follow-up appointment booking",
+        body: "Dr. Song asked me to schedule a follow-up in 2 weeks. I'd like to book something around the same time as my last visit - Tuesday afternoon around 2-3pm if possible. Let me know what's available. Thanks!",
+        status: "NEEDS_ACTION",
+        classification: "SCHEDULING",
+        receivedAt: h(17),
+        patientId: david.id,
+      },
+      {
+        toInbox: "SCHEDULING",
+        fromName: "Amanda Garcia",
+        fromEmail: "agarcia.patient@example.com",
+        subject: "Running 15 minutes late for today's appointment",
+        body: "Hi, I'm stuck in traffic and will be about 15 minutes late for my 2pm appointment today. So sorry! Should I still come or do we need to reschedule? Please let me know ASAP. Thanks for understanding.",
+        status: "NEEDS_ACTION",
+        classification: "SCHEDULING",
+        receivedAt: h(18),
+        // No patientId - orphaned email for demo variety
+      },
+      {
+        toInbox: "SCHEDULING",
+        fromName: "Daniel Park",
+        fromEmail: "dpark@patient-example.dev",
+        subject: "New patient - requesting initial consultation",
+        body: "Hello, I was referred by Dr. Kim and would like to schedule an initial consultation for lower back pain. I'm available most weekday afternoons. What's your next available new patient slot? I have Blue Cross insurance. Thank you.",
+        status: "NEEDS_ACTION",
+        classification: "SCHEDULING",
+        receivedAt: h(19),
+        // No patientId - new patient inquiry
+      },
+      {
+        toInbox: "SCHEDULING",
+        fromName: "Emily Rodriguez",
+        fromEmail: "e.rodriguez@patient-example.dev",
+        subject: "Requesting earlier appointment time",
+        body: "I have an appointment next Thursday at 4pm but was hoping to come in earlier that day if possible. Do you have any cancellations or openings between 10am-1pm? I'm flexible on the exact time. Let me know, thanks!",
+        status: "NEEDS_ACTION",
+        classification: "SCHEDULING",
+        receivedAt: h(20),
+        // No patientId - orphaned for demo variety
+      },
+    ],
+  });
+
+  console.log("  ✓ Demo SCHEDULING emails seeded for sync testing");
+
   const mockEmails = loadMockEmails();
   const mockEmailStart = new Date("2024-07-10T08:00:00Z");
 
@@ -495,7 +595,7 @@ async function main(prisma: PrismaClient) {
     }),
   });
 
-  console.log(`  ✓ ${mockEmails.length + 10} emails seeded from clinic fixtures`);
+  console.log(`  ✓ ${mockEmails.length + 18} emails seeded from clinic fixtures`);
 
   // ------------------------------------------------------------------
   // Tasks
