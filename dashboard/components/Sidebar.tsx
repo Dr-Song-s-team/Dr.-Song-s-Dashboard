@@ -96,6 +96,23 @@ function InsuranceIcon({ className }: { className?: string }) {
   );
 }
 
+function MetricsIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 12h4l3-9 4 18 3-9h4" />
+    </svg>
+  );
+}
+
 const navLinks = [
   {
     label: "Email",
@@ -116,6 +133,11 @@ const navLinks = [
     label: "Insurance",
     href: "/insurance",
     icon: <InsuranceIcon className="size-5" />,
+  },
+  {
+    label: "Metrics",
+    href: "/metrics",
+    icon: <MetricsIcon className="size-5" />,
   },
   // {
   //   label: "Forms/Reports",
