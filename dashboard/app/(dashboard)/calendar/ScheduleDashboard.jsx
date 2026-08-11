@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import './ScheduleDashboard.css';
 import Holidays from "date-holidays";
 import ScheduleList from "./ScheduleList"
@@ -832,25 +832,6 @@ Enable Notifications
     dueDateTime.getTime() - toMinutes(r.amount, r.unit) * 60 * 1000
   ).toISOString(),
 }));
-
-//             const googleReminders = reminders.map(r => ({
-//   method: "popup",
-//   minutes: toMinutes(r.amount, r.unit),
-// }));
-
-  //           await fetch("api/calendar", {
-  //             method: "POST",
-  //             headers: {
-  //               "Content-Type": "application/json",
-  //             },
-  //             body: JSON.stringify({
-  //   title: newEvent.title,
-  //   description: newEvent.description,
-  //   dueDate: newEvent.date,
-  //   dueTime: newEvent.time,
-  //   reminders: reminderData,
-  // }),
-  //           });
 
             await onCreateEvent({
               title: newEvent.title,

@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import {
+  getGoogleCalendar,
+  buildGoogleReminders,
+} from "@/lib/googleCalendar";
 
 export async function PUT(
   request: NextRequest,
@@ -68,15 +72,17 @@ export async function PUT(
     }
 
     // Find the existing task
-    const existingTask = await prisma.task.findUnique({
-      where: {
-        id,
-      },
-      include: {
-        patient: true,
-        email: true,
-      },
-    });
+    const existingTask =
+      await prisma.task.findUnique({
+        where: {
+          id,
+        },
+        include: {
+          patient: true,
+          email: true,
+          reminders: true,
+        },
+      });
 
     if (!existingTask) {
       return NextResponse.json(
@@ -84,6 +90,20 @@ export async function PUT(
           error: "Task not found",
         },
         { status: 404 }
+      );
+    }
+
+    // Only tasks awaiting review can be edited
+    if (
+      existingTask.extractionStatus !==
+      "PENDING_REVIEW"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Task is no longer awaiting review",
+        },
+        { status: 400 }
       );
     }
 
@@ -124,32 +144,130 @@ export async function PUT(
       patientId = null;
     }
 
-    const updatedTask = await prisma.task.update({
-      where: {
-        id,
-      },
-      data: {
-        title: title.trim(),
-        description: summary?.trim() || null,
-        dueDate: dueDate
-          ? new Date(dueDate)
-          : null,
-        patientId,
+    const parsedDueDate = dueDate
+      ? new Date(dueDate)
+      : null;
 
-        // THIS is what marks it as manually edited
-        extractionStatus: "EDITED",
-      },
-      include: {
-        patient: true,
-        email: true,
-        reminders: true,
-      },
-    });
+    if (
+      parsedDueDate &&
+      Number.isNaN(parsedDueDate.getTime())
+    ) {
+      return NextResponse.json(
+        {
+          error: "Invalid due date",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Update the task first.
+    const updatedTask =
+      await prisma.task.update({
+        where: {
+          id,
+        },
+        data: {
+          title: title.trim(),
+          description:
+            summary?.trim() || null,
+          dueDate: parsedDueDate,
+          patientId,
+
+          // Manually edited by the user
+          extractionStatus: "EDITED",
+          status: "PENDING",
+        },
+        include: {
+          patient: true,
+          email: true,
+          reminders: true,
+        },
+      });
 
     console.log(
       "EDIT TASK SUCCESS:",
       updatedTask.id
     );
+
+    /*
+     * Create the Google Calendar event AFTER
+     * the task has been successfully edited.
+     */
+    if (updatedTask.dueDate) {
+      try {
+        const calendar =
+          await getGoogleCalendar();
+
+        const googleEvent =
+          await calendar.events.insert({
+            calendarId: "primary",
+
+            requestBody: {
+              summary: updatedTask.title,
+
+              description:
+                updatedTask.description ??
+                undefined,
+
+              start: {
+                dateTime:
+                  updatedTask.dueDate.toISOString(),
+                timeZone:
+                  "America/Los_Angeles",
+              },
+
+              end: {
+                dateTime: new Date(
+                  updatedTask.dueDate.getTime() +
+                    30 * 60 * 1000
+                ).toISOString(),
+                timeZone:
+                  "America/Los_Angeles",
+              },
+
+              reminders: buildGoogleReminders(
+                updatedTask.reminders,
+                updatedTask.dueDate
+              ),
+            },
+          });
+
+        if (googleEvent.data.id) {
+          const taskWithGoogleEvent =
+            await prisma.task.update({
+              where: {
+                id: updatedTask.id,
+              },
+              data: {
+                googleEventId:
+                  googleEvent.data.id,
+              },
+              include: {
+                patient: true,
+                email: true,
+                reminders: true,
+              },
+            });
+
+          console.log(
+            "GOOGLE CALENDAR EVENT CREATED:",
+            googleEvent.data.id
+          );
+
+          return NextResponse.json(
+            taskWithGoogleEvent
+          );
+        }
+      } catch (calendarError) {
+        console.error(
+          "Google Calendar creation failed:",
+          calendarError
+        );
+
+        // The task remains EDITED locally.
+        // Calendar failure should not undo the user's edit.
+      }
+    }
 
     return NextResponse.json(updatedTask);
   } catch (error) {
