@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { POST } from "../route";
 import { prisma } from "@/lib/prisma";
 import { analyzeSchedulingEmails } from "@/app/(dashboard)/calendar/aiService";
+import { ExtractionStatus } from "@/app/generated/prisma/client";
 
 // Mock dependencies
 vi.mock("@/lib/prisma", () => ({
@@ -173,6 +174,7 @@ describe("POST /api/events/sync-from-emails", () => {
       googleEventId: null,
       createdAt: new Date(),
       updatedAt: new Date(),
+      extractionStatus: ExtractionStatus.PENDING_REVIEW,
     };
 
     vi.mocked(prisma.email.findMany).mockResolvedValue(mockEmails);
