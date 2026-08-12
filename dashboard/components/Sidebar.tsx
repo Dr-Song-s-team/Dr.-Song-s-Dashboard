@@ -22,23 +22,6 @@ function EmailIcon({ className }: { className?: string }) {
   );
 }
 
-function CalendarIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <rect x="3" y="5" width="18" height="16" rx="2" />
-      <path d="M8 3v4M16 3v4M3 11h18" />
-    </svg>
-  );
-}
 
 function UsersIcon({ className }: { className?: string }) {
   return (
@@ -78,23 +61,6 @@ function UsersIcon({ className }: { className?: string }) {
 //   );
 // }
 
-function InsuranceIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <path d="M14 2v6h6M12 18v-6M9 15l3 3 3-3" />
-    </svg>
-  );
-}
 
 function MetricsIcon({ className }: { className?: string }) {
   return (
@@ -120,19 +86,9 @@ const navLinks = [
     icon: <EmailIcon className="size-5" />,
   },
   {
-    label: "Calendar",
-    href: "/calendar",
-    icon: <CalendarIcon className="size-5" />,
-  },
-  {
     label: "Patient/Admin Info",
     href: "/info",
     icon: <UsersIcon className="size-5" />,
-  },
-  {
-    label: "Insurance",
-    href: "/insurance",
-    icon: <InsuranceIcon className="size-5" />,
   },
   {
     label: "Metrics",

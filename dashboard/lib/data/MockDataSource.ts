@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type { Prisma, EmailStatus, TaskStatus } from "@/app/generated/prisma/client";
+import type { Prisma, EmailStatus } from "@/app/generated/prisma/client";
 import type {
   ClinicDataSource,
   PatientCreateInput,
@@ -7,9 +7,6 @@ import type {
   EmailListFilters,
   EmailListItem,
   EmailDetail,
-  TaskCreateInput,
-  TaskUpdateInput,
-  TaskWithRelations,
 } from "./ClinicDataSource";
 
 /**
@@ -206,119 +203,6 @@ export class MockDataSource implements ClinicDataSource {
       }
       throw error;
     }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Tasks
-  // ---------------------------------------------------------------------------
-
-  async listTasks(): Promise<TaskWithRelations[]> {
-    return (await prisma.task.findMany({
-      where: {
-        extractionStatus: {
-          in: ["ACCEPTED", "EDITED"],
-        },
-      },
-      include: {
-        patient: true,
-        email: true,
-        reminders: true,
-      },
-      orderBy: {
-        dueDate: "asc",
-      },
-    })) as TaskWithRelations[];
-  }
-
-  async getTask(id: string): Promise<TaskWithRelations | null> {
-    return (await prisma.task.findUnique({
-      where: { id },
-      include: {
-        reminders: true,
-        patient: true,
-        email: true,
-      },
-    })) as TaskWithRelations | null;
-  }
-
-  async findTaskByEmailAndTitle(
-    emailId: string | null,
-    title: string,
-  ): Promise<TaskWithRelations | null> {
-    return (await prisma.task.findFirst({
-      where: {
-        emailId: emailId ?? null,
-        title,
-      },
-      include: {
-        reminders: true,
-        patient: true,
-        email: true,
-      },
-    })) as TaskWithRelations | null;
-  }
-
-  async createTask(input: TaskCreateInput): Promise<TaskWithRelations> {
-    const { title, description, dueDate, emailId, patientId, reminders } = input;
-
-    return (await prisma.task.create({
-      data: {
-        title,
-        description: description ?? null,
-        dueDate: dueDate ?? null,
-        emailId: emailId ?? null,
-        patientId: patientId ?? null,
-        reminders: {
-          create: (reminders ?? []).map((r) => ({
-            remindAt: r.remindAt,
-          })),
-        },
-      },
-      include: {
-        reminders: true,
-        patient: true,
-        email: true,
-      },
-    })) as TaskWithRelations;
-  }
-
-  async updateTask(id: string, input: TaskUpdateInput): Promise<TaskWithRelations> {
-    const { title, description, dueDate, reminders } = input;
-
-    return (await prisma.task.update({
-      where: { id },
-      data: {
-        ...(title !== undefined ? { title } : {}),
-        ...(description !== undefined ? { description } : {}),
-        ...(dueDate !== undefined ? { dueDate } : {}),
-        ...(reminders !== undefined
-          ? {
-              reminders: {
-                deleteMany: {},
-                create: reminders.map((r) => ({
-                  remindAt: r.remindAt,
-                })),
-              },
-            }
-          : {}),
-      },
-      include: {
-        patient: true,
-        email: true,
-        reminders: true,
-      },
-    })) as TaskWithRelations;
-  }
-
-  async deleteTask(id: string): Promise<void> {
-    await prisma.task.delete({ where: { id } });
-  }
-
-  async setTaskStatus(id: string, status: TaskStatus) {
-    return prisma.task.update({
-      where: { id },
-      data: { status },
-    });
   }
 
   // ---------------------------------------------------------------------------

@@ -57,18 +57,6 @@ enum EmailClassification {
   UNKNOWN
 }
 
-enum TaskStatus {
-  PENDING
-  COMPLETE
-  ARCHIVED
-}
-
-enum ExtractionStatus {
-  PENDING_REVIEW
-  ACCEPTED
-  EDITED
-  REJECTED
-}
 
 // ---------------------------------------------------------------------------
 // Models
@@ -95,7 +83,6 @@ model Patient {
 
   documents Document[]
   emails    Email[]
-  tasks     Task[]
 }
 
 /// A form or report associated with a patient. `fixturePath` is the
@@ -160,50 +147,11 @@ model Email {
   patientId String?
   patient   Patient? @relation(fields: [patientId], references: [id])
 
-  tasks   Task[]
   metrics EmailMetric[]
 
   @@index([receivedAt])
   @@index([status])
   @@index([insurerLabel])
-}
-
-/// A calendar task; may originate from an email or be created manually.
-model Task {
-  id          String     @id @default(cuid())
-
-  title       String
-  description String?
-  dueDate     DateTime?
-
-  status      TaskStatus @default(PENDING)
-  extractionStatus ExtractionStatus @default(PENDING_REVIEW)
-
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-
-  googleEventId String?
-
-  patientId String?
-  patient   Patient? @relation(fields: [patientId], references: [id])
-
-  emailId String?
-  email   Email?  @relation(fields: [emailId], references: [id])
-
-  reminders Reminder[]
-}
-
-model Reminder {
-  id Int @id @default(autoincrement())
-
-  taskId String
-  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  remindAt DateTime
-
-  sent Boolean @default(false)
-
-  createdAt DateTime @default(now())
 }
 
 model PushSubscription {

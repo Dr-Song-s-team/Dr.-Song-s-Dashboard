@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { translateEmailContent } from "@/app/(dashboard)/calendar/aiService";
+import { translateEmailContent } from "@/lib/ai/emailAnalysis";
 
 export async function POST(
   request: Request,

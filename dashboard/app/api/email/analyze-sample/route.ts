@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { analyzeEmails } from "@/app/(dashboard)/calendar/aiService";
+import { analyzeEmails } from "@/lib/ai/emailAnalysis";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
