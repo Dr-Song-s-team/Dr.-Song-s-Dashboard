@@ -17,14 +17,6 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: vi.fn(),
       update: vi.fn(),
     },
-    task: {
-      findMany: vi.fn(),
-      findUnique: vi.fn(),
-      findFirst: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-      delete: vi.fn(),
-    },
   },
 }));
 
@@ -41,13 +33,6 @@ describe("ClinicDataSource", () => {
       expect(typeof source.getEmail).toBe("function");
       expect(typeof source.updateEmailStatus).toBe("function");
       expect(typeof source.listInsurerLabels).toBe("function");
-      expect(typeof source.listTasks).toBe("function");
-      expect(typeof source.getTask).toBe("function");
-      expect(typeof source.findTaskByEmailAndTitle).toBe("function");
-      expect(typeof source.createTask).toBe("function");
-      expect(typeof source.updateTask).toBe("function");
-      expect(typeof source.deleteTask).toBe("function");
-      expect(typeof source.setTaskStatus).toBe("function");
     });
   });
 
@@ -120,52 +105,6 @@ describe("ClinicDataSource", () => {
 
     it("listInsurerLabels throws not implemented error", async () => {
       await expect(source.listInsurerLabels()).rejects.toThrow(
-        "PracticeQDataSource not implemented — pending API access + BAA",
-      );
-    });
-
-    it("listTasks throws not implemented error", async () => {
-      await expect(source.listTasks()).rejects.toThrow(
-        "PracticeQDataSource not implemented — pending API access + BAA",
-      );
-    });
-
-    it("getTask throws not implemented error", async () => {
-      await expect(source.getTask("test-id")).rejects.toThrow(
-        "PracticeQDataSource not implemented — pending API access + BAA",
-      );
-    });
-
-    it("findTaskByEmailAndTitle throws not implemented error", async () => {
-      await expect(source.findTaskByEmailAndTitle("email-id", "Test Task")).rejects.toThrow(
-        "PracticeQDataSource not implemented — pending API access + BAA",
-      );
-    });
-
-    it("createTask throws not implemented error", async () => {
-      await expect(
-        source.createTask({
-          title: "Test Task",
-          description: "Test description",
-          dueDate: new Date(),
-        }),
-      ).rejects.toThrow("PracticeQDataSource not implemented — pending API access + BAA");
-    });
-
-    it("updateTask throws not implemented error", async () => {
-      await expect(source.updateTask("test-id", { title: "Updated" })).rejects.toThrow(
-        "PracticeQDataSource not implemented — pending API access + BAA",
-      );
-    });
-
-    it("deleteTask throws not implemented error", async () => {
-      await expect(source.deleteTask("test-id")).rejects.toThrow(
-        "PracticeQDataSource not implemented — pending API access + BAA",
-      );
-    });
-
-    it("setTaskStatus throws not implemented error", async () => {
-      await expect(source.setTaskStatus("test-id", "COMPLETE")).rejects.toThrow(
         "PracticeQDataSource not implemented — pending API access + BAA",
       );
     });

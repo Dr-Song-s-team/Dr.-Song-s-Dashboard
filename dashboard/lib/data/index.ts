@@ -30,7 +30,4 @@ export type {
   EmailListFilters,
   EmailListItem,
   EmailDetail,
-  TaskCreateInput,
-  TaskUpdateInput,
-  TaskWithRelations,
 } from "./ClinicDataSource";

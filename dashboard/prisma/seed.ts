@@ -154,10 +154,9 @@ async function main(prisma: PrismaClient) {
 
   // ------------------------------------------------------------------
   // Reset derived rows so re-running the seed is idempotent.
-  // Deletion order follows the foreign keys: Task → Email → Document.
+  // Deletion order follows the foreign keys: Email → Document.
   // Patients are upserted below, keeping their ids stable across runs.
   // ------------------------------------------------------------------
-  await prisma.task.deleteMany();
   await prisma.email.deleteMany();
   await prisma.document.deleteMany();
 
@@ -339,7 +338,7 @@ async function main(prisma: PrismaClient) {
   const baseDate = new Date("2024-07-01T09:00:00Z");
   const h = (n: number) => new Date(baseDate.getTime() + n * 3_600_000);
 
-  const [authEmail, claimEmail, referralEmail] = await Promise.all([
+  await Promise.all([
     prisma.email.create({
       data: {
         toInbox: "AUTHORIZATIONS",
@@ -597,65 +596,6 @@ async function main(prisma: PrismaClient) {
 
   console.log(`  ✓ ${mockEmails.length + 18} emails seeded from clinic fixtures`);
 
-  // ------------------------------------------------------------------
-  // Tasks
-  // ------------------------------------------------------------------
-  await prisma.task.createMany({
-    data: [
-      {
-        title: "Follow up on Anthem auth — Alex Thompson",
-        description:
-          "Auth #AUTH-2024-07-001 approved. Update chart and schedule visits 7–18.",
-        dueDate: new Date("2024-07-05"),
-        status: "PENDING",
-        patientId: alex.id,
-        emailId: authEmail.id,
-      },
-      {
-        title: "Resubmit CMS-1500 — James Mitchell",
-        description:
-          "Claim denied for missing dx code. Correct and resubmit. Deadline: 90 days from 2024-06-15.",
-        dueDate: new Date("2024-07-08"),
-        status: "PENDING",
-        patientId: james.id,
-        emailId: claimEmail.id,
-      },
-      {
-        title: "Process referral — Maria Santos",
-        description:
-          "Referral from Dr. Lee. Schedule initial evaluation; up to 12 visits authorized.",
-        dueDate: new Date("2024-07-05"),
-        status: "PENDING",
-        patientId: maria.id,
-        emailId: referralEmail.id,
-      },
-      {
-        title: "Submit new auth request — Lisa Park",
-        description:
-          "UHC auth limit of 16 reached. Submit continuation-of-care auth before next appointment.",
-        dueDate: new Date("2024-07-04"),
-        status: "PENDING",
-        patientId: lisa.id,
-      },
-      {
-        title: "Schedule Lisa Park",
-        description: "Requested Tue/Thu afternoon slot. Check availability.",
-        dueDate: new Date("2024-07-05"),
-        status: "PENDING",
-        patientId: lisa.id,
-      },
-      {
-        title: "Verify Medicare supplement — David Rivera",
-        description:
-          "Confirm primary payer for next visit. EOB received; no patient balance.",
-        dueDate: new Date("2024-07-10"),
-        status: "PENDING",
-        patientId: david.id,
-      },
-    ],
-  });
-
-  console.log("  ✓ Tasks seeded");
   console.log("\n✅  Seed complete.");
 }
 

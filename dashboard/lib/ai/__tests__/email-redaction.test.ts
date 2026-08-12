@@ -9,7 +9,7 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { EntityData } from "@/lib/redaction";
-import type { Email } from "@/app/(dashboard)/calendar/aiService"
+import type { Email } from "@/lib/ai/emailAnalysis"
 
 // Mock loadEntities to return fixed test data (never touch DB in unit tests)
 const TEST_ENTITY_DATA: EntityData = {
@@ -35,7 +35,7 @@ vi.mock("@/lib/redaction", async () => {
 });
 
 // Import after mocking
-const { analyzeEmails, translateEmailContent, analyzeSchedulingEmails } = await import("@/app/(dashboard)/calendar/aiService");
+const { analyzeEmails, translateEmailContent } = await import("@/lib/ai/emailAnalysis");
 const aiProvider = await import("@/lib/ai/provider");
 const redactionModule = await import("@/lib/redaction");
 
@@ -347,41 +347,6 @@ describe("Email AI Redaction Pipeline", () => {
       const resultKoCached = await translateEmailContent("same-id", "Summary", "Body", "ko");
       expect(mockCallAI).not.toHaveBeenCalled();
       expect(resultKoCached).toEqual(resultKo);
-    });
-  });
-
-  describe("analyzeSchedulingEmails", () => {
-    it("should redact before scheduling analysis and scanText after", async () => {
-      const mockCallAI = vi.spyOn(aiProvider, "callAI");
-      mockCallAI.mockResolvedValueOnce(JSON.stringify(
-         [{
-        emailId: "sched-1",
-        type: "appointment",
-        patientName: "Patient Name",
-        date: "2026-08-15",
-        time: "14:00",
-        title: "Follow-up appointment",
-        urgency: "medium",
-        category: "client",
-      }]
-    ));
-
-      const mockScanText = vi.mocked(redactionModule.scanText);
-
-      const emails: Email[] = [{
-        id: "sched-1",
-        sender: "patient@example.com",
-        subject: "Appointment",
-        body: "I'd like to schedule for next week",
-      }];
-
-      await analyzeSchedulingEmails(emails);
-
-      // Verify scanText was called
-      expect(mockScanText).toHaveBeenCalled();
-      const scanCalls = mockScanText.mock.calls.map(call => call[0]);
-      expect(scanCalls).toContain("Patient Name");
-      expect(scanCalls).toContain("Follow-up appointment");
     });
   });
 });
