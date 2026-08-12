@@ -1,7 +1,7 @@
 import { loadAllEmails } from "./csvParser";
 import { AnalyzedEmail, analyzeEmails, clearTranslationCache } from "./aiService";
 import { prisma } from "@/lib/prisma";
-import { createGoogleCalendarEvent } from "@/lib/googleCalendar"; 
+// import { createGoogleCalendarEvent } from "@/lib/googleCalendar"; 
 
 let cache = [];
 let isReady = false;
@@ -372,49 +372,49 @@ export async function createTasksFromAnalysis(
         /*
          * Create corresponding Google Calendar event.
          */
-        if (dueDate) {
-          try {
-            const googleEvent =
-              await createGoogleCalendarEvent({
-                title,
-                description,
-                dueDate,
+        // if (dueDate) {
+        //   try {
+        //     const googleEvent =
+        //       await createGoogleCalendarEvent({
+        //         title,
+        //         description,
+        //         dueDate,
 
-                reminders:
-                  task.reminders,
-              });
+        //         reminders:
+        //           task.reminders,
+        //       });
 
-            /*
-             * Save Google Calendar event ID.
-             */
-            if (googleEvent.id) {
-              await prisma.task.update({
-                where: {
-                  id: task.id,
-                },
+        //     /*
+        //      * Save Google Calendar event ID.
+        //      */
+        //     if (googleEvent.id) {
+        //       await prisma.task.update({
+        //         where: {
+        //           id: task.id,
+        //         },
 
-                data: {
-                  googleEventId:
-                    googleEvent.id,
-                },
-              });
+        //         data: {
+        //           googleEventId:
+        //             googleEvent.id,
+        //         },
+        //       });
 
-              console.log(
-                `Created Google Calendar event "${title}" ->`,
-                googleEvent.id
-              );
-            }
-          } catch (calendarError) {
-            /*
-             * Calendar failure should NOT destroy
-             * the locally-created task.
-             */
-            console.error(
-              `Failed creating Google Calendar event for "${title}":`,
-              calendarError
-            );
-          }
-        }
+        //       console.log(
+        //         `Created Google Calendar event "${title}" ->`,
+        //         googleEvent.id
+        //       );
+        //     }
+        //   } catch (calendarError) {
+        //     /*
+        //      * Calendar failure should NOT destroy
+        //      * the locally-created task.
+        //      */
+        //     console.error(
+        //       `Failed creating Google Calendar event for "${title}":`,
+        //       calendarError
+        //     );
+        //   }
+        // }
       }
     } catch (err) {
       console.error(

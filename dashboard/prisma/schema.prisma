@@ -64,6 +64,7 @@ enum TaskStatus {
 }
 
 enum ExtractionStatus {
+  PENDING_REVIEW
   ACCEPTED
   EDITED
   REJECTED
@@ -170,10 +171,14 @@ model Email {
 /// A calendar task; may originate from an email or be created manually.
 model Task {
   id          String     @id @default(cuid())
+
   title       String
   description String?
   dueDate     DateTime?
+
   status      TaskStatus @default(PENDING)
+  extractionStatus ExtractionStatus @default(PENDING_REVIEW)
+
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 

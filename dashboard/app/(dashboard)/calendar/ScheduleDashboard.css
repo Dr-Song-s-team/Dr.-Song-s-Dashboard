@@ -461,6 +461,17 @@
 .et--deadline     { background: var(--urgency-high-bg); color: var(--urgency-high);  border: 1px solid var(--urgency-high); }
 .et--inquiry      { background: var(--cat-insurance-bg); color: var(--cat-insurance); border: 1px solid var(--cat-insurance); }
 
+.needs-review-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem; /* Creates clean spacing between text and badge */
+}
+
+.needs-review-badge {
+  margin-left: 0.5rem;
+  /* ... your existing badge styling (background color, padding, border-radius) */
+}
+
 .urgency-dot {
   width: 8px;
   height: 8px;

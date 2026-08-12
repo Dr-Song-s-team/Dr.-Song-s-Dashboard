@@ -213,6 +213,7 @@ export async function POST() {
             emailId: email.id,
             patientId,
             status: "PENDING",
+            extractionStatus: "PENDING_REVIEW",
           },
         });
 

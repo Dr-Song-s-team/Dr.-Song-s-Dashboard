@@ -1,0 +1,540 @@
+.edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.edit-field label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  text-align: left;
+}
+
+.edit-field input,
+.edit-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1.5;
+  background: #fff;
+}
+
+.edit-field input:focus,
+.edit-field textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+.edit-field textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.needs-review-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 24px;
+
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(3px);
+}
+
+.needs-review-modal {
+  width: min(760px, 100%);
+  max-height: min(800px, 90vh);
+
+  display: flex;
+  flex-direction: column;
+
+  background: #ffffff;
+  border-radius: 14px;
+
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.18),
+    0 4px 12px rgba(0, 0, 0, 0.08);
+
+  overflow: hidden;
+}
+
+.needs-review-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  padding: 22px 24px 18px;
+
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.needs-review-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.needs-review-title-row h2 {
+  margin: 0;
+
+  font-size: 21px;
+  font-weight: 650;
+  color: #111827;
+  white-space: nowrap;
+}
+
+.needs-review-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-width: 24px;
+  height: 24px;
+
+  border-radius: 999px;
+
+  background: #eef2ff;
+  color: #4338ca;
+
+  padding: 2px 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1;
+
+}
+
+.needs-review-header p {
+  display: flex;
+  margin: 6px 0 0;
+  align-items: center;
+
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.needs-review-header-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.needs-review-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 34px;
+  height: 34px;
+
+  border: none;
+  border-radius: 8px;
+
+  background: transparent;
+  color: #6b7280;
+
+  cursor: pointer;
+}
+
+.needs-review-close:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.needs-review-content {
+  padding: 18px 20px 24px;
+
+  overflow-y: auto;
+}
+
+.review-card {
+  margin-bottom: 12px;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+
+  background: #ffffff;
+
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.review-card:last-child {
+  margin-bottom: 0;
+}
+
+.review-card:hover {
+  border-color: #d1d5db;
+
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.review-card-main {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+
+  padding: 17px 18px 14px;
+}
+
+.review-card-info {
+  min-width: 0;
+}
+
+.review-card-info h3 {
+  margin: 0;
+
+  color: #111827;
+
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.review-patient {
+  margin-top: 5px;
+
+  color: #4b5563;
+  font-size: 13px;
+}
+
+.review-due-date {
+  margin-top: 3px;
+
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.review-summary {
+  margin: 11px 0 0;
+
+  color: #374151;
+
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.review-expand-button {
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 30px;
+  height: 30px;
+
+  border: none;
+  border-radius: 7px;
+
+  background: #f3f4f6;
+  color: #6b7280;
+
+  cursor: pointer;
+}
+
+.review-expand-button:hover {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.recommended-actions {
+  margin-top: 15px;
+  padding-top: 14px;
+
+  border-top: 1px solid #e5e7eb;
+}
+
+.recommended-actions h4 {
+  margin: 0 0 8px;
+
+  font-size: 13px;
+  font-weight: 650;
+  color: #374151;
+}
+
+.recommended-actions ul {
+  margin: 0;
+  padding-left: 20px;
+
+  color: #4b5563;
+
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.review-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+
+  padding: 12px 18px;
+
+  border-top: 1px solid #f0f1f3;
+  background: #fafafa;
+}
+
+.review-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  min-height: 34px;
+  padding: 0 12px;
+
+  border: 1px solid transparent;
+  border-radius: 7px;
+
+  font-size: 13px;
+  font-weight: 550;
+
+  cursor: pointer;
+
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.review-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.review-button.secondary {
+  border-color: #d1d5db;
+  background: #ffffff;
+  color: #374151;
+}
+
+.review-button.secondary:hover:not(:disabled) {
+  background: #f3f4f6;
+}
+
+.review-button.reject {
+  border-color: #fecaca;
+  background: #ffffff;
+  color: #dc2626;
+}
+
+.review-button.reject:hover:not(:disabled) {
+  background: #fef2f2;
+}
+
+.review-button.accept {
+  background: #111827;
+  color: #ffffff;
+}
+
+.review-button.accept:hover:not(:disabled) {
+  background: #1f2937;
+}
+
+.needs-review-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  padding: 65px 20px;
+
+  text-align: center;
+
+  color: #6b7280;
+}
+
+.needs-review-empty svg {
+  margin-bottom: 12px;
+
+  color: #16a34a;
+}
+
+.needs-review-empty h3 {
+  margin: 0;
+
+  color: #111827;
+
+  font-size: 16px;
+}
+
+.needs-review-empty p {
+  margin: 6px 0 0;
+
+  max-width: 380px;
+
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .needs-review-overlay {
+    padding: 10px;
+  }
+
+  .needs-review-modal {
+    max-height: 95vh;
+    border-radius: 12px;
+  }
+
+  .review-card-actions {
+    flex-wrap: wrap;
+    justify-content: stretch;
+  }
+
+  .review-button {
+    flex: 1;
+  }
+
+  .review-button:first-child {
+    flex-basis: 100%;
+  }
+}
+
+/* Source email section */
+.source-email-panel {
+  width: 100%;
+  max-width: 900px;
+  margin: 24px auto 0;
+  padding: 24px 32px;
+  box-sizing: border-box;
+
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+
+  text-align: left;
+}
+
+/* Header stays centered */
+.source-email-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+
+  margin-bottom: 20px;
+}
+
+.source-email-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.source-email-title h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.source-email-close {
+  position: absolute;
+  right: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: none;
+  background: transparent;
+  cursor: pointer;
+
+  padding: 6px;
+  border-radius: 6px;
+}
+
+.source-email-close:hover {
+  background: #e2e8f0;
+}
+
+/* Subject */
+.source-email-subject {
+  max-width: 760px;
+  margin: 0 auto 18px;
+
+  text-align: center;
+
+  font-size: 17px;
+  line-height: 1.5;
+}
+
+/* Sender/date information */
+.source-email-meta {
+  max-width: 760px;
+  margin: 0 auto 24px;
+
+  padding: 14px 18px;
+
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+
+  text-align: center;
+
+  line-height: 1.7;
+  color: #475569;
+}
+
+.source-email-meta strong {
+  color: #1e293b;
+}
+
+/* Actual email body */
+.source-email-body {
+  max-width: 760px;
+  max-height: 400px;
+  margin: 0 auto;
+
+  padding: 24px;
+
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+
+  text-align: left;
+
+  line-height: 1.7;
+  color: #334155;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  overflow-wrap: anywhere;
+}
+
+/* Make the scrollbar a little cleaner */
+.source-email-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.source-email-body::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 8px;
+}
+
+.source-email-body::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 8px;
+}
+
+.source-email-body::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.source-email-body p {
+  margin: 0 0 12px;
+}
+
+.source-email-body p:last-child {
+  margin-bottom: 0;
+}

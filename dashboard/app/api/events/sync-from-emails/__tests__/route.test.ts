@@ -7,6 +7,7 @@ import {
   extractTasksDeterministically,
   loadEntities,
 } from "@/app/(dashboard)/calendar/aiService";
+import { ExtractionStatus } from "@/app/generated/prisma/client";
 
 // Mock dependencies
 vi.mock("@/lib/prisma", () => ({
@@ -123,6 +124,7 @@ describe("POST /api/events/sync-from-emails", () => {
       googleEventId: null,
       createdAt: new Date(),
       updatedAt: new Date(),
+      extractionStatus: "PENDING_REVIEW",
     });
 
     const response = await POST();
@@ -142,6 +144,7 @@ describe("POST /api/events/sync-from-emails", () => {
         emailId: "email-1",
         patientId: null,
         status: "PENDING",
+        extractionStatus: "PENDING_REVIEW",
       },
     });
   });
@@ -195,6 +198,7 @@ describe("POST /api/events/sync-from-emails", () => {
       googleEventId: null,
       createdAt: new Date(),
       updatedAt: new Date(),
+      extractionStatus: ExtractionStatus.PENDING_REVIEW,
     };
 
     vi.mocked(prisma.email.findMany).mockResolvedValue(mockEmails);
@@ -340,6 +344,7 @@ describe("POST /api/events/sync-from-emails", () => {
       googleEventId: null,
       createdAt: new Date(),
       updatedAt: new Date(),
+      extractionStatus: "PENDING_REVIEW"
     });
 
     const response = await POST();
@@ -517,6 +522,7 @@ describe("POST /api/events/sync-from-emails", () => {
       googleEventId: null,
       createdAt: new Date(),
       updatedAt: new Date(),
+      extractionStatus: "PENDING_REVIEW",
     });
 
     const response = await POST();
@@ -599,6 +605,7 @@ describe("POST /api/events/sync-from-emails", () => {
       googleEventId: null,
       createdAt: new Date(),
       updatedAt: new Date(),
+      extractionStatus: "PENDING_REVIEW",
     });
 
     const response = await POST();
@@ -692,6 +699,7 @@ describe("POST /api/events/sync-from-emails", () => {
       googleEventId: null,
       createdAt: new Date(),
       updatedAt: new Date(),
+      extractionStatus: "PENDING_REVIEW",
     });
 
     const response = await POST();
@@ -763,6 +771,7 @@ describe("POST /api/events/sync-from-emails", () => {
       googleEventId: null,
       createdAt: new Date(),
       updatedAt: new Date(),
+      extractionStatus: "PENDING_REVIEW"
     });
 
     const response = await POST();
@@ -835,6 +844,7 @@ describe("POST /api/events/sync-from-emails", () => {
       googleEventId: null,
       createdAt: new Date(),
       updatedAt: new Date(),
+      extractionStatus: "PENDING_REVIEW",
     });
 
     const response = await POST();
