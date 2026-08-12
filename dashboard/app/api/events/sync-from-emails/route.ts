@@ -176,67 +176,6 @@ export async function POST() {
           continue;
         }
 
-<<<<<<< HEAD
-      // Create task
-      const task = await prisma.task.create({
-        data: {
-          title: result.title,
-          description: `From email: ${email.subject}`,
-          dueDate,
-          emailId: email.id,
-          patientId,
-          status: "PENDING",
-          extractionStatus: "PENDING_REVIEW",
-        },
-      });
-
-      created++;
-
-      // // Attempt Google Calendar sync (gracefully fails if no account)
-      // if (dueDate) {
-      //   try {
-      //     const { getGoogleCalendar, buildGoogleReminders } = await import(
-      //       "@/lib/googleCalendar"
-      //     );
-
-      //     const calendar = await getGoogleCalendar();
-
-      //     const googleEvent = await calendar.events.insert({
-      //       calendarId: "primary",
-      //       requestBody: {
-      //         summary: task.title,
-      //         description: task.description ?? undefined,
-      //         start: {
-      //           dateTime: dueDate.toISOString(),
-      //           timeZone: "America/Los_Angeles",
-      //         },
-      //         end: {
-      //           dateTime: new Date(
-      //             dueDate.getTime() + 30 * 60 * 1000
-      //           ).toISOString(),
-      //           timeZone: "America/Los_Angeles",
-      //         },
-      //         reminders: buildGoogleReminders([], dueDate),
-      //       },
-      //     });
-
-      //     if (googleEvent.data.id) {
-      //       await prisma.task.update({
-      //         where: { id: task.id },
-      //         data: { googleEventId: googleEvent.data.id },
-      //       });
-      //     }
-      //   } catch (calendarError) {
-      //     console.error(
-      //       "Google Calendar creation failed for task",
-      //       task.id,
-      //       ":",
-      //       calendarError
-      //     );
-      //     // Task still exists locally - calendar sync can be retried later
-      //   }
-      // }
-=======
         // Find patient by name if mentioned
         let patientId: string | null = null;
         if (result.patientName && result.patientName !== "Unknown") {
@@ -274,6 +213,7 @@ export async function POST() {
             emailId: email.id,
             patientId,
             status: "PENDING",
+            extractionStatus: "PENDING_REVIEW",
           },
         });
 
@@ -335,7 +275,6 @@ export async function POST() {
     const remainingCount = totalSyncableEmails - emails.length;
     if (remainingCount > 0) {
       message += ` — ${remainingCount} more emails pending, click Sync again`;
->>>>>>> origin/main
     }
 
     return NextResponse.json({

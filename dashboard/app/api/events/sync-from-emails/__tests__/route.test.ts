@@ -1,17 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { POST } from "../route";
 import { prisma } from "@/lib/prisma";
-<<<<<<< HEAD
-import { analyzeSchedulingEmails } from "@/app/(dashboard)/calendar/aiService";
-import { ExtractionStatus } from "@/app/generated/prisma/client";
-=======
 import {
   analyzeSchedulingEmails,
   analyzeSchedulingEmailBatch,
   extractTasksDeterministically,
   loadEntities,
 } from "@/app/(dashboard)/calendar/aiService";
->>>>>>> origin/main
+import { ExtractionStatus } from "@/app/generated/prisma/client";
 
 // Mock dependencies
 vi.mock("@/lib/prisma", () => ({

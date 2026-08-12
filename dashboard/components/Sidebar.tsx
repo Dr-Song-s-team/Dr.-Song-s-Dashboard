@@ -243,6 +243,16 @@ export default function Sidebar({ title = "Dashboard", onRefresh, isRefreshing =
         })}
       </nav>
 
+      <button
+  type="button"
+  onClick={() => {
+    window.location.href = "/api/connect-gmail";
+  }}
+  className="cursor-pointer sidebar-connect-gmail mx-3 mb-3 flex items-center justify-center gap-2 rounded-2xl border border-white/15 bg-[#143e54]/35 px-4 py-3 text-sm font-medium transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+>
+  Connect Gmail
+</button>
+
       {isOpen && (
   <button
     type="button"

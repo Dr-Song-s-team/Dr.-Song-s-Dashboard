@@ -442,14 +442,6 @@ async function enableNotifications() {
           {/* <StatBubble value={deadlineCount} label="Deadlines" color="ins" />
           <StatBubble value={apptCount}     label="Appointments" color="appt" /> */}
         </div>
-        <button
-  onClick={() => {
-    window.location.href = "/api/connect-gmail";
-  }}
-  className="cursor-pointer"
->
-  Connect Gmail
-</button>
         <button onClick={enableNotifications}
         className="cursor-pointer">
 Enable Notifications
