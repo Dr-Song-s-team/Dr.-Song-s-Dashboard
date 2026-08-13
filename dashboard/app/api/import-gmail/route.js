@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import { fetchEmails } from "@/lib/fetchEmails";
-import { analyzeEmails } from "@/app/(dashboard)/calendar/aiService";
-import {
-  createTasksFromAnalysis,
-  ensureEmailExists,
-} from "@/app/(dashboard)/calendar/emailService";
+import { analyzeEmails } from "@/lib/ai/emailAnalysis";
+import { ensureEmailExists } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 
 export async function POST() {
@@ -19,7 +16,6 @@ export async function POST() {
       return NextResponse.json({
         success: true,
         imported: 0,
-        tasksCreated: 0,
       });
     }
 
@@ -88,7 +84,6 @@ export async function POST() {
               ? aiError.message
               : String(aiError),
           imported: prismaEmails.length,
-          tasksCreated: 0,
         },
         { status: 500 }
       );
@@ -96,13 +91,12 @@ export async function POST() {
 
     if (!analyses || analyses.length === 0) {
       console.log(
-        "No analyses returned. Skipping task creation."
+        "No analyses returned."
       );
 
       return NextResponse.json({
         success: true,
         imported: prismaEmails.length,
-        tasksCreated: 0,
       });
     }
 
@@ -153,51 +147,6 @@ export async function POST() {
       );
     }
 
-    /*
-     * --------------------------------------------------
-     * STEP 4: CREATE TASKS
-     * --------------------------------------------------
-     */
-
-    console.log("========================================");
-    console.log("CALLING createTasksFromAnalysis");
-    console.log("Emails:", emails.length);
-    console.log("Analyses:", analyses.length);
-    console.log("========================================");
-
-    let tasksCreated = 0;
-
-    try {
-      tasksCreated = await createTasksFromAnalysis(
-        emails,
-        analyses
-      );
-
-      console.log(
-        "createTasksFromAnalysis finished:",
-        tasksCreated
-      );
-    } catch (taskError) {
-      console.error(
-        "TASK CREATION FAILED:",
-        taskError
-      );
-
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Task creation failed",
-          details:
-            taskError instanceof Error
-              ? taskError.message
-              : String(taskError),
-          imported: prismaEmails.length,
-          tasksCreated: 0,
-        },
-        { status: 500 }
-      );
-    }
-
     console.log(
       "========== GMAIL IMPORT COMPLETE =========="
     );
@@ -206,7 +155,6 @@ export async function POST() {
       success: true,
       imported: prismaEmails.length,
       analyzed: analyses.length,
-      tasksCreated,
     });
 
   } catch (err) {
