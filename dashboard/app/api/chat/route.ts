@@ -140,8 +140,32 @@ export async function POST(request: Request): Promise<NextResponse> {
   // Load entities for redaction
   const entities = await loadEntities();
 
+  // === Fetch message history (last 4 messages for intent call) ===
+  let intentHistory: { role: string; content: string }[] = [];
+  try {
+    const messages = await prisma.chatMessage.findMany({
+      where: { sessionId },
+      orderBy: { createdAt: "desc" },
+      take: 5, // 4 + 1 (the user message we just added)
+      select: { role: true, content: true },
+    });
+    // Reverse to get chronological order, exclude the last one (current user message)
+    intentHistory = messages.reverse().slice(0, -1);
+  } catch (err) {
+    console.error("[chat] Failed to fetch history for intent:", err);
+    // Continue without history
+  }
+
   // === CALL 1: Intent classification ===
-  const userMessageRedaction = redact(userMessage, entities);
+  // Build conversation for intent call (includes history for context like "she")
+  const intentConversationMessages: string[] = [];
+  for (const msg of intentHistory) {
+    intentConversationMessages.push(`${msg.role}: ${msg.content}`);
+  }
+  intentConversationMessages.push(`user: ${userMessage}`);
+
+  const intentConversationText = intentConversationMessages.join("\n\n");
+  const intentRedaction = redact(intentConversationText, entities);
 
   const INTENT_SYSTEM = `You are an intent classifier for a clinic admin chatbot.
 The user is asking a question about clinic data (emails, patients, documents) or asking a general question.
@@ -158,15 +182,22 @@ Respond with ONLY valid JSON (no markdown, no code fences):
   - "emails" = search emails only
   - "patients" = search patients only
   - "documents" = search documents only
-  - "all" = search all three
+  - "all" = search all three (PREFER "all" when uncertain - names appear in both patients AND emails)
   - "none" = general question needing no clinic data
+
+IMPORTANT: When a name is mentioned, ALWAYS use scope: "all" because:
+- The person might be a patient OR mentioned in emails
+- We need to search both to provide complete information
 
 Examples:
 User: "Show me emails about Blue Cross"
 Response: {"searchTerms": ["Blue Cross"], "scope": "emails"}
 
 User: "Find patient John Smith"
-Response: {"searchTerms": ["John", "Smith"], "scope": "patients"}
+Response: {"searchTerms": ["John", "Smith"], "scope": "all"}
+
+User: "What's the status of Alice Vance"
+Response: {"searchTerms": ["Alice", "Vance"], "scope": "all"}
 
 User: "What's our policy on billing?"
 Response: {"searchTerms": [], "scope": "none"}
@@ -176,7 +207,7 @@ Response: {"searchTerms": ["authorization", "denials"], "scope": "all"}`;
 
   let intentResponse: string;
   try {
-    intentResponse = await callAI(userMessageRedaction.redactedText, {
+    intentResponse = await callAI(intentRedaction.redactedText, {
       systemPrompt: INTENT_SYSTEM,
       temperature: 0.2,
       jsonMode: true,
@@ -223,6 +254,52 @@ Response: {"searchTerms": ["authorization", "denials"], "scope": "all"}`;
     );
   }
 
+  // FIX BUG A: Unredact search terms to get real names/values for Prisma queries
+  // The DB is inside our trust boundary - redaction is only for what goes to Groq
+  const unredactedSearchTerms: string[] = [];
+  for (const term of intent.searchTerms) {
+    // Check if term contains redaction tokens
+    if (term.includes("{{") && term.includes("}}")) {
+      // Unredact the term
+      const { originalText } = unredact(term, intentRedaction.tokenMap);
+      unredactedSearchTerms.push(originalText);
+    } else {
+      unredactedSearchTerms.push(term);
+    }
+  }
+
+  // Also append all entity values from the user message's tokenMap
+  // This ensures we catch names even if AI didn't extract them as search terms
+  for (const [_token, value] of intentRedaction.tokenMap.entries()) {
+    if (value.length <= 2) continue;
+
+    // Add the full entity value if not already included
+    const valueLower = value.toLowerCase();
+    const alreadyIncluded = unredactedSearchTerms.some(
+      (term) => term.toLowerCase().includes(valueLower) || valueLower.includes(term.toLowerCase())
+    );
+    if (!alreadyIncluded) {
+      unredactedSearchTerms.push(value);
+    }
+
+    // ALSO split multi-word values into individual words
+    // e.g. "Maria Santos" → ["Maria", "Santos"] for matching firstName/lastName columns
+    const words = value.split(/\s+/).filter(w => w.length > 2);
+    if (words.length > 1) {
+      for (const word of words) {
+        const wordLower = word.toLowerCase();
+        const wordAlreadyIncluded = unredactedSearchTerms.some(
+          (term) => term.toLowerCase() === wordLower
+        );
+        if (!wordAlreadyIncluded) {
+          unredactedSearchTerms.push(word);
+        }
+      }
+    }
+  }
+
+  console.log("[chat] Intent - scope:", intent.scope, "| Search terms - original:", intent.searchTerms, "unredacted:", unredactedSearchTerms);
+
   // === Retrieval phase ===
   let retrievedEmails: Awaited<ReturnType<typeof searchEmails>> = [];
   let retrievedPatients: Awaited<ReturnType<typeof searchPatients>> = [];
@@ -230,14 +307,15 @@ Response: {"searchTerms": ["authorization", "denials"], "scope": "all"}`;
 
   if (intent.scope !== "none") {
     try {
+      // Use UNREDACTED search terms for Prisma queries
       if (intent.scope === "emails" || intent.scope === "all") {
-        retrievedEmails = await searchEmails(intent.searchTerms);
+        retrievedEmails = await searchEmails(unredactedSearchTerms);
       }
       if (intent.scope === "patients" || intent.scope === "all") {
-        retrievedPatients = await searchPatients(intent.searchTerms);
+        retrievedPatients = await searchPatients(unredactedSearchTerms);
       }
       if (intent.scope === "documents" || intent.scope === "all") {
-        retrievedDocuments = await searchDocuments(intent.searchTerms);
+        retrievedDocuments = await searchDocuments(unredactedSearchTerms);
       }
     } catch (err) {
       console.error("[chat] Retrieval failed:", err);
@@ -257,6 +335,8 @@ Response: {"searchTerms": ["authorization", "denials"], "scope": "all"}`;
     retrievedDocuments
   );
 
+  console.log("[chat] Built context length:", context.length, "chars");
+
   // === Fetch message history (last 6 messages) ===
   let history: { role: string; content: string }[] = [];
   try {
@@ -274,17 +354,6 @@ Response: {"searchTerms": ["authorization", "denials"], "scope": "all"}`;
   }
 
   // === CALL 2: Answer generation ===
-  const ANSWER_SYSTEM = `You are a professional clinic admin assistant for Dr. Song's acupuncture clinic.
-
-CRITICAL INSTRUCTIONS:
-- Answer ONLY from the provided context below
-- If the context doesn't contain the answer, say "I don't have that information in the clinic records"
-- NEVER fabricate patient data, dates, or details
-- Be concise and professional
-- Use markdown for formatting (lists, bold, etc.)
-
-${context ? `CLINIC DATA CONTEXT:\n${context}` : "No clinic data retrieved for this query."}`;
-
   // Build conversation for AI call 2
   const conversationMessages: string[] = [];
   for (const msg of history) {
@@ -293,13 +362,32 @@ ${context ? `CLINIC DATA CONTEXT:\n${context}` : "No clinic data retrieved for t
   conversationMessages.push(`user: ${userMessage}`);
 
   const conversationText = conversationMessages.join("\n\n");
-  const conversationRedaction = redact(conversationText, entities);
+
+  // FIX BUG B: Redact BOTH conversation and context together
+  // This ensures entities from retrieved records are also redacted
+  const fullPromptText = context
+    ? `CLINIC DATA CONTEXT:\n${context}\n\nCONVERSATION:\n${conversationText}`
+    : conversationText;
+
+  const fullRedaction = redact(fullPromptText, entities);
+
+  console.log("[chat] Redacted prompt length:", fullRedaction.redactedText.length, "chars, tokens:", fullRedaction.tokenMap.size);
+
+  const ANSWER_SYSTEM = `You are a clinic admin assistant for Dr. Song's acupuncture clinic.
+
+Answer naturally as the clinic's assistant. Never refer to "the provided data", "the context", or "the records I can see"—just state the information.
+
+If the asked-for detail is present in the clinic data below, answer it directly and stop. Only mention missing information when the specific detail requested is genuinely absent from the clinic data. Never invent data not shown below.
+
+Placeholder tokens like {{PATIENT_NAME_1}}, {{DOB_2}}, etc. are privacy placeholders that refer to real people—treat identical tokens as the same person.
+
+Be concise, professional, and use markdown for formatting. Use headers only for multi-part answers; single-fact answers should be one or two plain sentences.`;
 
   let answerResponse: string;
   try {
-    answerResponse = await callAI(conversationRedaction.redactedText, {
+    answerResponse = await callAI(fullRedaction.redactedText, {
       systemPrompt: ANSWER_SYSTEM,
-      temperature: 0.7,
+      temperature: 0.2,
       jsonMode: false,
       timeoutMs: 45000,
     });
@@ -323,10 +411,10 @@ ${context ? `CLINIC DATA CONTEXT:\n${context}` : "No clinic data retrieved for t
     );
   }
 
-  // Unredact answer
+  // Unredact answer using the full tokenMap (includes entities from context + conversation)
   const { originalText: unredactedAnswer } = unredact(
     answerResponse,
-    conversationRedaction.tokenMap
+    fullRedaction.tokenMap
   );
 
   // Strip leftover tokens

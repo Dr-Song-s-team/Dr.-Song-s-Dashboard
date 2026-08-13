@@ -13,7 +13,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
-    "db:reset": "prisma migrate reset"
+    "db:reset": "prisma migrate reset",
+    "eval:chat": "tsx scripts/eval-chat.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",

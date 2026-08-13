@@ -279,6 +279,60 @@ describe("POST /api/chat", () => {
     expect(data.retrievedCounts).toEqual({ emails: 0, patients: 0, documents: 0 });
   });
 
+  it("should pass REAL patient name to Prisma, not redaction tokens, and split multi-word names", async () => {
+    const retrievalModule = await import("@/lib/chat/retrieval");
+    const redactionModule = await import("@/lib/redaction");
+
+    vi.mocked(prisma.chatSession.create).mockResolvedValue({ id: "session-1" } as never);
+    vi.mocked(prisma.chatMessage.create).mockResolvedValue({} as never);
+
+    // Mock redact to replace "Alice Vance" with a token
+    vi.mocked(redactionModule.redact).mockImplementation((text) => {
+      const tokenMap = new Map<string, string>();
+      let redactedText = text;
+
+      if (text.includes("Alice Vance")) {
+        tokenMap.set("{{PERSON_1}}", "Alice Vance");
+        redactedText = text.replace(/Alice Vance/g, "{{PERSON_1}}");
+      }
+
+      return {
+        redactedText: redactedText as never,
+        tokenMap,
+      };
+    });
+
+    // Mock unredact to restore original text
+    vi.mocked(redactionModule.unredact).mockImplementation((text, tokenMap) => ({
+      originalText: text.replace(/\{\{PERSON_1\}\}/g, tokenMap.get("{{PERSON_1}}") || "{{PERSON_1}}"),
+      unknownTokens: [],
+    }));
+
+    // AI returns tokens in search terms (BUG A scenario)
+    vi.mocked(callAI)
+      .mockResolvedValueOnce(JSON.stringify({ searchTerms: ["{{PERSON_1}}"], scope: "patients" }))
+      .mockResolvedValueOnce("Patient info");
+
+    vi.mocked(retrievalModule.searchPatients).mockResolvedValue([]);
+
+    const req = makePostRequest({ message: "What's the status of Alice Vance" });
+    const res = await POST(req);
+
+    expect(res.status).toBe(200);
+
+    // CRITICAL: searchPatients should receive "Alice Vance", not "{{PERSON_1}}"
+    expect(retrievalModule.searchPatients).toHaveBeenCalled();
+    const searchArgs = vi.mocked(retrievalModule.searchPatients).mock.calls[0][0];
+
+    // Should include the real name "Alice Vance"
+    expect(searchArgs).toContain("Alice Vance");
+    // Should NOT include the token
+    expect(searchArgs).not.toContain("{{PERSON_1}}");
+    // NEW: Should also include split words for firstName/lastName matching
+    expect(searchArgs).toContain("Alice");
+    expect(searchArgs).toContain("Vance");
+  });
+
   it("should return 500 on invalid intent JSON", async () => {
     vi.mocked(prisma.chatSession.create).mockResolvedValue({ id: "session-1" } as never);
     vi.mocked(prisma.chatMessage.create).mockResolvedValue({} as never);

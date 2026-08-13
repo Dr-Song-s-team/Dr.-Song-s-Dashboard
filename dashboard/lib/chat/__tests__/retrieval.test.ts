@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { buildContext } from "../retrieval";
+import { buildContext } from "../context";
 import type { Email, Patient, Document } from "@/app/generated/prisma/client";
 
 // Mock data helpers
