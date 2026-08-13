@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import { createPatient, type ActionState } from "../actions";
 import type { PatientFields } from "@/lib/validatePatient";
+import { PAYMENT_STATUSES, PAYMENT_METHODS } from "@/lib/validatePatient";
 
 const US_STATES = [
   "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA",
@@ -149,6 +150,13 @@ const emptyFields: Required<PatientFields> = {
   memberId: "",
   authLimit: "",
   statusNotes: "",
+  copay: "",
+  deductible: "",
+  deductibleMet: "",
+  paymentStatus: "",
+  outstandingBalance: "",
+  lastPaymentDate: "",
+  paymentMethod: "",
 };
 
 export default function IntakeForm() {
@@ -443,6 +451,138 @@ export default function IntakeForm() {
             onChange={handleFieldChange}
             className="w-full rounded-xl border border-[#d8c9ba] bg-white/70 px-3.5 py-2.5 text-sm text-[#513a2e] placeholder-[#9b8070] outline-none transition focus:border-[#9b6a4b] focus:ring-2 focus:ring-[#9b6a4b]/40"
           />
+        </div>
+      </section>
+
+      {/* Billing & Payment */}
+      <section>
+        <h3 className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-[#9b6a4b]">
+          Billing &amp; Payment
+        </h3>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <Label htmlFor="copay">Co-pay ($)</Label>
+            <Input
+              id="copay"
+              name="copay"
+              type="number"
+              min={0}
+              step="0.01"
+              placeholder="30.00"
+              value={fields.copay}
+              onChange={handleFieldChange}
+              hasError={!!state.errors?.copay}
+            />
+            <FieldError messages={state.errors?.copay} />
+          </div>
+          <div>
+            <Label htmlFor="deductible">Annual Deductible ($)</Label>
+            <Input
+              id="deductible"
+              name="deductible"
+              type="number"
+              min={0}
+              step="0.01"
+              placeholder="1500.00"
+              value={fields.deductible}
+              onChange={handleFieldChange}
+              hasError={!!state.errors?.deductible}
+            />
+            <FieldError messages={state.errors?.deductible} />
+          </div>
+          <div>
+            <Label htmlFor="deductibleMet">Deductible Met ($)</Label>
+            <Input
+              id="deductibleMet"
+              name="deductibleMet"
+              type="number"
+              min={0}
+              step="0.01"
+              placeholder="750.00"
+              value={fields.deductibleMet}
+              onChange={handleFieldChange}
+              hasError={!!state.errors?.deductibleMet}
+            />
+            <FieldError messages={state.errors?.deductibleMet} />
+          </div>
+          <div>
+            <Label htmlFor="outstandingBalance">Outstanding Balance ($)</Label>
+            <Input
+              id="outstandingBalance"
+              name="outstandingBalance"
+              type="number"
+              min={0}
+              step="0.01"
+              placeholder="0.00"
+              value={fields.outstandingBalance}
+              onChange={handleFieldChange}
+              hasError={!!state.errors?.outstandingBalance}
+            />
+            <FieldError messages={state.errors?.outstandingBalance} />
+          </div>
+          <div>
+            <Label htmlFor="paymentStatus">Payment Status</Label>
+            <select
+              id="paymentStatus"
+              name="paymentStatus"
+              value={fields.paymentStatus}
+              onChange={handleFieldChange}
+              className={`w-full rounded-xl border px-3.5 py-2.5 text-sm text-[#513a2e] outline-none transition focus:ring-2 focus:ring-[#9b6a4b]/40 ${
+                state.errors?.paymentStatus
+                  ? "border-rose-400 bg-rose-50/50 focus:border-rose-400"
+                  : "border-[#d8c9ba] bg-white/70 focus:border-[#9b6a4b]"
+              }`}
+            >
+              <option value="">— Not set —</option>
+              {PAYMENT_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {s === "current" && "Current"}
+                  {s === "overdue" && "Overdue"}
+                  {s === "payment_plan" && "Payment Plan"}
+                  {s === "insurance_only" && "Insurance Only"}
+                </option>
+              ))}
+            </select>
+            <FieldError messages={state.errors?.paymentStatus} />
+          </div>
+          <div>
+            <Label htmlFor="paymentMethod">Payment Method</Label>
+            <select
+              id="paymentMethod"
+              name="paymentMethod"
+              value={fields.paymentMethod}
+              onChange={handleFieldChange}
+              className={`w-full rounded-xl border px-3.5 py-2.5 text-sm text-[#513a2e] outline-none transition focus:ring-2 focus:ring-[#9b6a4b]/40 ${
+                state.errors?.paymentMethod
+                  ? "border-rose-400 bg-rose-50/50 focus:border-rose-400"
+                  : "border-[#d8c9ba] bg-white/70 focus:border-[#9b6a4b]"
+              }`}
+            >
+              <option value="">— Not set —</option>
+              {PAYMENT_METHODS.map((m) => (
+                <option key={m} value={m}>
+                  {m === "cash" && "Cash"}
+                  {m === "check" && "Check"}
+                  {m === "card_on_file" && "Card on File"}
+                  {m === "insurance_only" && "Insurance Only"}
+                  {m === "other" && "Other"}
+                </option>
+              ))}
+            </select>
+            <FieldError messages={state.errors?.paymentMethod} />
+          </div>
+          <div>
+            <Label htmlFor="lastPaymentDate">Last Payment Date</Label>
+            <Input
+              id="lastPaymentDate"
+              name="lastPaymentDate"
+              type="date"
+              value={fields.lastPaymentDate}
+              onChange={handleFieldChange}
+              hasError={!!state.errors?.lastPaymentDate}
+            />
+            <FieldError messages={state.errors?.lastPaymentDate} />
+          </div>
         </div>
       </section>
 

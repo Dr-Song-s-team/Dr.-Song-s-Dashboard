@@ -25,6 +25,13 @@ function extractFields(formData: FormData) {
     memberId: String(formData.get("memberId") ?? ""),
     authLimit: String(formData.get("authLimit") ?? ""),
     statusNotes: String(formData.get("statusNotes") ?? ""),
+    copay: String(formData.get("copay") ?? ""),
+    deductible: String(formData.get("deductible") ?? ""),
+    deductibleMet: String(formData.get("deductibleMet") ?? ""),
+    paymentStatus: String(formData.get("paymentStatus") ?? ""),
+    outstandingBalance: String(formData.get("outstandingBalance") ?? ""),
+    lastPaymentDate: String(formData.get("lastPaymentDate") ?? ""),
+    paymentMethod: String(formData.get("paymentMethod") ?? ""),
   };
 }
 
