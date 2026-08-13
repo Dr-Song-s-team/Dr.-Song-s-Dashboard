@@ -9,7 +9,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 // Mock fetch globally
-global.fetch = vi.fn() as any;
+global.fetch = vi.fn() as unknown as typeof fetch;
 
 describe("EmailAnalysisPanel - Auto-analyze behavior", () => {
   beforeEach(() => {
@@ -22,9 +22,6 @@ describe("EmailAnalysisPanel - Auto-analyze behavior", () => {
       status: 200,
       json: async () => ({ success: true, emailId: "email-1", analyzed: true }),
     } as Response);
-
-    // Import and execute the component logic
-    const { default: EmailAnalysisPanel } = await import("../EmailAnalysisPanel");
 
     // Simulate mounting with no analysis
     const props = {

@@ -161,7 +161,7 @@ export async function callAI(
     jsonMode = false,
     jsonSchema,
     timeoutMs = DEFAULT_TIMEOUT_MS,
-    maxCompletionTokens = 1500,
+    maxCompletionTokens: _maxCompletionTokens = 1500,
   } = options ?? {};
 
   const model = process.env.GROQ_MODEL ?? DEFAULT_GROQ_MODEL;

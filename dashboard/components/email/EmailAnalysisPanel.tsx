@@ -46,6 +46,16 @@ export default function EmailAnalysisPanel({
   const hasAnalyzedRef = useRef(false);
   const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Store previous props in state for render-time comparison
+  const [prevProps, setPrevProps] = useState({
+    initialAnalysis,
+    initialSummaryTitle,
+    initialSummaryDetails,
+    initialClientTags,
+    initialRecommendedActions,
+    initialDraftResponse,
+  });
+
   // Local state for analysis data (starts with initial, updates after auto-analyze)
   const [analysis, setAnalysis] = useState<AiAnalysis | null>(initialAnalysis);
   const [summaryTitle, setSummaryTitle] = useState(initialSummaryTitle);
@@ -54,22 +64,31 @@ export default function EmailAnalysisPanel({
   const [recommendedActions, setRecommendedActions] = useState(initialRecommendedActions);
   const [draftResponse, setDraftResponse] = useState(initialDraftResponse);
 
+  // Render-time prop comparison pattern (React docs recommended)
   // Sync props to state when they change (e.g., after router.refresh())
-  useEffect(() => {
+  if (
+    prevProps.initialAnalysis !== initialAnalysis ||
+    prevProps.initialSummaryTitle !== initialSummaryTitle ||
+    prevProps.initialSummaryDetails !== initialSummaryDetails ||
+    prevProps.initialClientTags !== initialClientTags ||
+    prevProps.initialRecommendedActions !== initialRecommendedActions ||
+    prevProps.initialDraftResponse !== initialDraftResponse
+  ) {
+    setPrevProps({
+      initialAnalysis,
+      initialSummaryTitle,
+      initialSummaryDetails,
+      initialClientTags,
+      initialRecommendedActions,
+      initialDraftResponse,
+    });
     setAnalysis(initialAnalysis);
     setSummaryTitle(initialSummaryTitle);
     setSummaryDetails(initialSummaryDetails);
     setClientTags(initialClientTags);
     setRecommendedActions(initialRecommendedActions);
     setDraftResponse(initialDraftResponse);
-  }, [
-    initialAnalysis,
-    initialSummaryTitle,
-    initialSummaryDetails,
-    initialClientTags,
-    initialRecommendedActions,
-    initialDraftResponse,
-  ]);
+  }
 
   // Auto-analyze on mount if needed
   useEffect(() => {

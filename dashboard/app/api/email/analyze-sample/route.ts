@@ -336,7 +336,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     entities
   );
 
-  const tokenMap = new Map<string, string>([
+  const _tokenMap = new Map<string, string>([
     ...senderRedaction.tokenMap,
     ...subjectRedaction.tokenMap,
     ...bodyRedaction.tokenMap,

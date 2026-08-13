@@ -632,7 +632,7 @@ export async function translateEmailContent(
   );
 
   // Merge token maps
-  const tokenMap = new Map<string, string>([
+  const _tokenMap = new Map<string, string>([
     ...summaryRedaction.tokenMap,
     ...bodyRedaction.tokenMap,
   ]);
