@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { correctTokenIndices } from "../route";
+import { correctTokenIndices } from "@/lib/ai/analysisPostprocess";
 
 describe("correctTokenIndices", () => {
   it("corrects wrong index when only one token of that type exists", () => {

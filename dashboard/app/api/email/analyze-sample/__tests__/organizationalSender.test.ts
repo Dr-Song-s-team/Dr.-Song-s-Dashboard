@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isOrganizationalSender, fixDraftGreeting } from "../route";
+import { isOrganizationalSender, fixDraftGreeting } from "@/lib/ai/analysisPostprocess";
 
 describe("isOrganizationalSender", () => {
   describe("organizational keyword detection", () => {

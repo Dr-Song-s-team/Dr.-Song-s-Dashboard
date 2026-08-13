@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { fixDraftGreeting } from "../route";
+import { fixDraftGreeting } from "@/lib/ai/analysisPostprocess";
 
 describe("fixDraftGreeting - human senders", () => {
   it("fixes 'Dear [unavailable]' with sender's first name", () => {
