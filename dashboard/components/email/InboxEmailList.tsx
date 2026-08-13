@@ -1,10 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import AnalyzeSampleInboxButton from "./AnalyzeSampleInboxButton";
-
-const MAX_SELECTED_EMAILS = 3;
 
 const statusLabels = {
   UNREAD: "Unread",
@@ -55,44 +51,8 @@ function preview(body: string) {
 }
 
 export default function InboxEmailList({ emails, folderLabel }: InboxEmailListProps) {
-  const [selectedEmailIds, setSelectedEmailIds] = useState<string[]>([]);
-  const [selectionMode, setSelectionMode] = useState(false);
-
-  function toggleSelection(emailId: string) {
-    setSelectedEmailIds((selectedIds) => {
-      if (selectedIds.includes(emailId)) {
-        return selectedIds.filter((id) => id !== emailId);
-      }
-
-      if (selectedIds.length >= MAX_SELECTED_EMAILS) {
-        return selectedIds;
-      }
-
-      return [...selectedIds, emailId];
-    });
-  }
-
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        {selectionMode ? (
-          <p className="text-sm text-[#765d4e]">
-            Select up to {MAX_SELECTED_EMAILS} un-analyzed sample emails, or analyze
-            the latest five automatically.
-          </p>
-        ) : (
-          <span />
-        )}
-        <AnalyzeSampleInboxButton
-          selectedEmailIds={selectedEmailIds}
-          selectionMode={selectionMode}
-          onStartSelection={() => setSelectionMode(true)}
-          onAnalysisComplete={() => {
-            setSelectedEmailIds([]);
-            setSelectionMode(false);
-          }}
-        />
-      </div>
 
       {emails.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-[#cbb199] bg-[#fffaf2]/70 px-6 py-12 text-center">
@@ -109,24 +69,8 @@ export default function InboxEmailList({ emails, folderLabel }: InboxEmailListPr
         <div className="overflow-hidden rounded-2xl border border-[#8c6349]/15 bg-[#fffaf2]/80 shadow-sm">
           <ul className="divide-y divide-[#e8d9cc]">
             {emails.map((email) => {
-              const isSelected = selectedEmailIds.includes(email.id);
-              const selectionLimitReached =
-                selectedEmailIds.length >= MAX_SELECTED_EMAILS && !isSelected;
-
               return (
                 <li key={email.id} className="flex items-stretch">
-                  {selectionMode && email.isSelectable && (
-                    <label className="flex shrink-0 items-start px-4 pt-5 sm:px-5">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        disabled={selectionLimitReached}
-                        onChange={() => toggleSelection(email.id)}
-                        aria-label={`Select ${email.subject} for AI analysis`}
-                        className="mt-1 size-4 rounded border-[#b99b86] text-[#9b6a4b] focus:ring-[#9b6a4b] disabled:cursor-not-allowed disabled:opacity-50"
-                      />
-                    </label>
-                  )}
                   <Link
                     href={`/email/${email.id}`}
                     className="group block min-w-0 flex-1 px-4 py-4 transition hover:bg-[#f7eee4] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#9b6a4b] sm:px-5"

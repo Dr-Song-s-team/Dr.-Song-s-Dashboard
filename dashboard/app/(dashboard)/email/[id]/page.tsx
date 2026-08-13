@@ -4,7 +4,7 @@ import { connection } from "next/server";
 
 import EmailStatusToggle from "@/components/email/EmailStatusToggle";
 import AiDraftLabel from "@/components/AiDraftLabel";
-import AiDraftReply from "@/components/email/AiDraftReply";
+import EmailAnalysisPanel from "@/components/email/EmailAnalysisPanel";
 import { prisma } from "@/lib/prisma";
 import TranslateEmailButton from "@/components/email/TranslateEmailButton";
 
@@ -57,6 +57,7 @@ export default async function InboxMessagePage({
       status: true,
       classification: true,
       receivedAt: true,
+      gmailMessageId: true,
       aiSummary: true,
       aiDraft: true,
       aiAnalysis: true,
@@ -184,134 +185,16 @@ export default async function InboxMessagePage({
       </article>
 
       {/* AI ANALYSIS */}
-      <section className="rounded-2xl border border-[#8c6349]/15 bg-[#fffaf2]/80 p-5 shadow-sm sm:p-7">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-semibold text-[#3f2b20]">
-              AI Analysis
-            </h2>
-
-            <p className="mt-1 text-sm text-[#765d4e]">
-              AI-generated information extracted from this email.
-            </p>
-          </div>
-
-          <AiDraftLabel />
-        </div>
-
-        {summaryDetails.length > 0 ? (
-          <div className="mt-6">
-            <h3 className="text-sm font-semibold text-[#765d4e]">
-              Details
-            </h3>
-
-            <div className="mt-2 rounded-xl border border-[#d8c9ba] bg-white/70 p-4">
-              <ul className="space-y-3">
-                {summaryDetails.map(
-                  (detail, index) => (
-                    <li
-                      key={`${detail}-${index}`}
-                      className="flex gap-3 text-sm leading-6 text-[#513a2e]"
-                    >
-                      <span className="mt-2 size-1.5 shrink-0 rounded-full bg-[#9b6a4b]" />
-
-                      <span>
-                        {detail}{" "}
-                        <AiDraftLabel />
-                      </span>
-                    </li>
-                  )
-                )}
-              </ul>
-            </div>
-          </div>
-        ) : null}
-
-        {clientTags.length > 0 ? (
-          <div className="mt-6">
-            <h3 className="text-sm font-semibold text-[#765d4e]">
-              Client Tags
-            </h3>
-
-            <div className="mt-2 flex flex-wrap gap-2">
-              {clientTags.map(
-                (client, index) => (
-                  <span
-                    key={`${client}-${index}`}
-                    className="rounded-full bg-[#eee1d1] px-3 py-1.5 text-sm font-medium text-[#76513c]"
-                  >
-                    {client}{" "}
-                    <AiDraftLabel />
-                  </span>
-                )
-              )}
-            </div>
-          </div>
-        ) : null}
-
-        {recommendedActions &&
-        recommendedActions.length > 0 ? (
-          <div className="mt-6">
-            <h3 className="text-sm font-semibold text-[#765d4e]">
-              Recommended Actions
-            </h3>
-
-            <div className="mt-2 rounded-xl border border-[#d8c9ba] bg-white/70 p-4">
-              <ul className="space-y-3">
-                {recommendedActions.map(
-                  (action, index) => (
-                    <li
-                      key={`${action}-${index}`}
-                      className="flex items-start gap-3 text-sm leading-6 text-[#513a2e]"
-                    >
-                      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#9b6a4b] text-xs font-semibold text-white">
-                        {index + 1}
-                      </span>
-
-                      <span className="pt-0.5">
-                        {action}{" "}
-                        <AiDraftLabel />
-                      </span>
-                    </li>
-                  )
-                )}
-              </ul>
-            </div>
-          </div>
-        ) : null}
-
-        {!summaryTitle &&
-        summaryDetails.length === 0 &&
-        clientTags.length === 0 &&
-        (!recommendedActions ||
-          recommendedActions.length === 0) ? (
-          <div className="mt-6 rounded-xl border border-dashed border-[#cbb199] bg-[#fffaf2]/70 p-5 text-center">
-            <p className="text-sm text-[#765d4e]">
-              AI analysis is not available for this email yet.
-            </p>
-          </div>
-        ) : null}
-      </section>
-
-      {/* AI DRAFT */}
-      {email.aiDraft ? (
-        <section className="rounded-2xl border border-[#8c6349]/15 bg-[#fffaf2]/80 p-5 shadow-sm sm:p-7">
-          <div>
-            <h2 className="text-xl font-semibold text-[#3f2b20]">
-              Draft Reply
-            </h2>
-
-            <p className="mt-1 text-sm text-[#765d4e]">
-              Review the AI-generated response before sending.
-            </p>
-          </div>
-
-          <AiDraftReply
-            emailId={email.id}
-            draftResponse={email.aiDraft}
-          />
-        </section>
-      ) : null}
+      <EmailAnalysisPanel
+        emailId={email.id}
+        gmailMessageId={email.gmailMessageId}
+        initialAnalysis={analysis}
+        initialSummaryTitle={summaryTitle}
+        initialSummaryDetails={summaryDetails}
+        initialClientTags={clientTags}
+        initialRecommendedActions={recommendedActions}
+        initialDraftResponse={email.aiDraft}
+      />
     </div>
   );
 }

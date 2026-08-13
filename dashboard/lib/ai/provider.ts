@@ -29,9 +29,7 @@ import type { RedactedText } from "@/lib/redaction";
  * Default Groq model for LLM calls.
  * Can be overridden via GROQ_MODEL environment variable.
  */
-//export const DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile";
-
-export const DEFAULT_GROQ_MODEL = "openai/gpt-oss-20b";
+export const DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile";
 
 /**
  * Default timeout for API calls in milliseconds (30 seconds).
@@ -104,10 +102,20 @@ function getSafeGroqErrorDetails(errorBody: string): Record<string, string> {
 
     const providerRecord = providerError as Record<string, unknown>;
     const details: Record<string, string> = {};
+
+    // Extract standard error fields
     for (const key of ["message", "code", "type"]) {
       const value = providerRecord[key];
       if (typeof value === "string" || typeof value === "number") {
         details[key] = String(value).slice(0, 500);
+      }
+    }
+
+    // Extract failed_generation if present (for json_validate_failed errors)
+    if ("failed_generation" in providerRecord) {
+      const failedGen = providerRecord.failed_generation;
+      if (typeof failedGen === "string") {
+        details.failed_generation = failedGen.slice(0, 1000); // Show more for debugging
       }
     }
 
@@ -153,7 +161,7 @@ export async function callAI(
     jsonMode = false,
     jsonSchema,
     timeoutMs = DEFAULT_TIMEOUT_MS,
-    maxCompletionTokens = 1500,
+    maxCompletionTokens: _maxCompletionTokens = 1500,
   } = options ?? {};
 
   const model = process.env.GROQ_MODEL ?? DEFAULT_GROQ_MODEL;
