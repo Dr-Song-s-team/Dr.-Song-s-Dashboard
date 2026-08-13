@@ -27,8 +27,11 @@ import { resolveOverlaps } from "./overlap";
  * @returns RedactionResult containing redacted text, token map, and matches
  */
 export function redact(text: string, entities: EntityData): RedactionResult {
+  // Create cache for this redaction session
+  const cache = new Map<string, string>();
+
   // Run all detectors
-  const allMatches = runAllDetectors(text, entities);
+  const allMatches = runAllDetectors(text, entities, cache);
 
   // Resolve overlaps
   const resolvedMatches = resolveOverlaps(allMatches);

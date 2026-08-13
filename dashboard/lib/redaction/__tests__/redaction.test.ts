@@ -588,4 +588,58 @@ describe("Redaction Test Suite", () => {
       expect(wrongUnredact.originalText).toContain("{{"); // Tokens left in place
     });
   });
+
+  // ================================================================
+  // 6. CHAT API SCENARIO — same entity in question + context
+  // ================================================================
+  describe("Chat API Scenario (Issue: token collision)", () => {
+    it("should use the SAME token for the same entity in question + context", () => {
+      resetTokenCounter();
+
+      // Simulate what the chat API does: combine user question + retrieved context
+      const userQuestion = "What's Maria Santos's insurer?";
+      const contextBlock = `=== PATIENTS ===
+- Maria Santos | DOB: 1990-07-22 | Insurer: Blue Cross | Auth: 12/20`;
+
+      const combinedText = `CLINIC DATA CONTEXT:\n${contextBlock}\n\nCONVERSATION:\nuser: ${userQuestion}`;
+
+      // Redact in a single call (as the route should do)
+      const result = redact(combinedText, entityData);
+
+      // Extract all PATIENT_NAME tokens from the redacted text
+      const patientNameTokens = result.redactedText.match(/\{\{PATIENT_NAME_\d+\}\}/g) || [];
+
+      // All instances of "Maria Santos" should map to the SAME token
+      const uniqueTokens = new Set(patientNameTokens);
+
+      // Debug output if test fails
+      if (uniqueTokens.size !== 1) {
+        console.log("Redacted text:", result.redactedText);
+        console.log("Found tokens:", patientNameTokens);
+        console.log("Unique tokens:", Array.from(uniqueTokens));
+      }
+
+      // ASSERTION: Only ONE unique PATIENT_NAME token should exist
+      expect(uniqueTokens.size).toBe(1);
+      expect(patientNameTokens.length).toBe(2); // Two mentions of "Maria Santos"
+    });
+
+    it("should handle multiple occurrences of the same first name", () => {
+      resetTokenCounter();
+
+      const text = `Context: Maria Santos and Maria Lopez are both patients.\nQuestion: What is Maria Santos's phone?`;
+      const result = redact(text, entityData);
+
+      // "Maria Santos" should get one token, "Maria Lopez" should get different token(s)
+      // "Maria" alone might appear separately
+      const tokens = result.redactedText.match(/\{\{PATIENT_NAME_\d+\}\}/g) || [];
+
+      // Should have at least one token for "Maria Santos"
+      expect(tokens.length).toBeGreaterThan(0);
+
+      // Round-trip should restore original
+      const unredacted = unredact(result.redactedText, result.tokenMap);
+      expect(unredacted.originalText).toBe(text);
+    });
+  });
 });

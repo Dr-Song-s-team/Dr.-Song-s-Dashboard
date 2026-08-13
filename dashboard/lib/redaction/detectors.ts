@@ -20,19 +20,34 @@ export function resetTokenCounter(): void {
 }
 
 /**
- * Generate a unique token for a given PII type.
+ * Generate a unique token for a given PII type and original text.
+ * Returns the same token if the same (type, text) pair has been seen before in this cache.
  */
-function generateToken(type: PIIType): string {
+function generateToken(type: PIIType, originalText: string, cache: Map<string, string>): string {
+  const cacheKey = `${type}:${originalText.toLowerCase()}`;
+
+  // Check if we've already generated a token for this exact text
+  const cachedToken = cache.get(cacheKey);
+  if (cachedToken) {
+    return cachedToken;
+  }
+
+  // Generate new token
   tokenCounter += 1;
   const typeUpper = type.toUpperCase().replace(/_/g, "_");
-  return `{{${typeUpper}_${tokenCounter}}}`;
+  const newToken = `{{${typeUpper}_${tokenCounter}}}`;
+
+  // Cache it for future use
+  cache.set(cacheKey, newToken);
+
+  return newToken;
 }
 
 /**
  * Detect Social Security Numbers (SSN).
  * Patterns: XXX-XX-XXXX or XXXXXXXXX
  */
-export function detectSSN(text: string): DetectorMatch[] {
+export function detectSSN(text: string, cache: Map<string, string>): DetectorMatch[] {
   const matches: DetectorMatch[] = [];
   // Pattern: XXX-XX-XXXX or XXX XX XXXX
   const ssnRegex = /\b\d{3}[-\s]?\d{2}[-\s]?\d{4}\b/g;
@@ -45,7 +60,7 @@ export function detectSSN(text: string): DetectorMatch[] {
       type: "ssn",
       confidence: "high",
       originalText: match[0],
-      token: generateToken("ssn"),
+      token: generateToken("ssn", match[0], cache),
     });
   }
 
@@ -55,7 +70,7 @@ export function detectSSN(text: string): DetectorMatch[] {
 /**
  * Detect email addresses.
  */
-export function detectEmail(text: string): DetectorMatch[] {
+export function detectEmail(text: string, cache: Map<string, string>): DetectorMatch[] {
   const matches: DetectorMatch[] = [];
   // Simple email pattern
   const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g;
@@ -68,7 +83,7 @@ export function detectEmail(text: string): DetectorMatch[] {
       type: "email",
       confidence: "high",
       originalText: match[0],
-      token: generateToken("email"),
+      token: generateToken("email", match[0], cache),
     });
   }
 
@@ -79,7 +94,7 @@ export function detectEmail(text: string): DetectorMatch[] {
  * Detect phone numbers.
  * Patterns: (XXX) XXX-XXXX, XXX-XXX-XXXX, XXX.XXX.XXXX, XXX-XXXX, XXXXXXXXXX
  */
-export function detectPhone(text: string): DetectorMatch[] {
+export function detectPhone(text: string, cache: Map<string, string>): DetectorMatch[] {
   const matches: DetectorMatch[] = [];
   // Pattern for various phone formats including 7-digit local numbers
   const phoneRegex =
@@ -93,7 +108,7 @@ export function detectPhone(text: string): DetectorMatch[] {
       type: "phone",
       confidence: "high",
       originalText: match[0],
-      token: generateToken("phone"),
+      token: generateToken("phone", match[0], cache),
     });
   }
 
@@ -104,7 +119,7 @@ export function detectPhone(text: string): DetectorMatch[] {
  * Detect dates that might be dates of birth.
  * Patterns: MM/DD/YYYY, MM-DD-YYYY, YYYY-MM-DD
  */
-export function detectDOB(text: string): DetectorMatch[] {
+export function detectDOB(text: string, cache: Map<string, string>): DetectorMatch[] {
   const matches: DetectorMatch[] = [];
   // Pattern for common date formats
   const dobRegex =
@@ -118,7 +133,7 @@ export function detectDOB(text: string): DetectorMatch[] {
       type: "dob",
       confidence: "medium",
       originalText: match[0],
-      token: generateToken("dob"),
+      token: generateToken("dob", match[0], cache),
     });
   }
 
@@ -129,7 +144,7 @@ export function detectDOB(text: string): DetectorMatch[] {
  * Detect date of service (DOS) patterns.
  * Patterns: "DOS YYYY-MM-DD" or "DOS: YYYY-MM-DD"
  */
-export function detectDOS(text: string): DetectorMatch[] {
+export function detectDOS(text: string, cache: Map<string, string>): DetectorMatch[] {
   const matches: DetectorMatch[] = [];
   // Pattern: DOS followed by optional colon/space and a date in YYYY-MM-DD format
   const dosRegex = /\bDOS:?\s*(\d{4}-\d{2}-\d{2})\b/gi;
@@ -142,7 +157,7 @@ export function detectDOS(text: string): DetectorMatch[] {
       type: "date_of_service",
       confidence: "high",
       originalText: match[0],
-      token: generateToken("date_of_service"),
+      token: generateToken("date_of_service", match[0], cache),
     });
   }
 
@@ -153,7 +168,7 @@ export function detectDOS(text: string): DetectorMatch[] {
  * Detect street addresses.
  * Pattern: Number followed by street name (e.g., "200 Oak Ave", "123 Main Street")
  */
-export function detectStreetAddress(text: string): DetectorMatch[] {
+export function detectStreetAddress(text: string, cache: Map<string, string>): DetectorMatch[] {
   const matches: DetectorMatch[] = [];
   // Pattern: digits followed by one or more words (street name)
   const addressRegex = /\b\d{1,5}\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*(?:\s+(?:St|Street|Ave|Avenue|Rd|Road|Blvd|Boulevard|Dr|Drive|Ln|Lane|Way|Ct|Court|Pl|Place))\.?\b/g;
@@ -166,7 +181,7 @@ export function detectStreetAddress(text: string): DetectorMatch[] {
       type: "address",
       confidence: "high",
       originalText: match[0],
-      token: generateToken("address"),
+      token: generateToken("address", match[0], cache),
     });
   }
 
@@ -177,7 +192,7 @@ export function detectStreetAddress(text: string): DetectorMatch[] {
  * Detect city, state, zip patterns.
  * Pattern: "City, ST 12345" or "City, ST 12345-6789"
  */
-export function detectCityStateZip(text: string): DetectorMatch[] {
+export function detectCityStateZip(text: string, cache: Map<string, string>): DetectorMatch[] {
   const matches: DetectorMatch[] = [];
   // Pattern: City name, two-letter state code, and optional zip
   const cityStateZipRegex = /\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*,\s+[A-Z]{2}\s+\d{5}(?:-\d{4})?\b/g;
@@ -190,7 +205,7 @@ export function detectCityStateZip(text: string): DetectorMatch[] {
       type: "address",
       confidence: "high",
       originalText: match[0],
-      token: generateToken("address"),
+      token: generateToken("address", match[0], cache),
     });
   }
 
@@ -201,7 +216,7 @@ export function detectCityStateZip(text: string): DetectorMatch[] {
  * Detect claim IDs.
  * Pattern: CLM-####-####
  */
-export function detectClaimID(text: string): DetectorMatch[] {
+export function detectClaimID(text: string, cache: Map<string, string>): DetectorMatch[] {
   const matches: DetectorMatch[] = [];
   const claimRegex = /\bCLM-\d{4}-\d{4}\b/g;
 
@@ -213,7 +228,7 @@ export function detectClaimID(text: string): DetectorMatch[] {
       type: "claim_id",
       confidence: "high",
       originalText: match[0],
-      token: generateToken("claim_id"),
+      token: generateToken("claim_id", match[0], cache),
     });
   }
 
@@ -224,7 +239,7 @@ export function detectClaimID(text: string): DetectorMatch[] {
  * Detect authorization IDs.
  * Pattern: AUTH-####-##-###
  */
-export function detectAuthID(text: string): DetectorMatch[] {
+export function detectAuthID(text: string, cache: Map<string, string>): DetectorMatch[] {
   const matches: DetectorMatch[] = [];
   const authRegex = /\bAUTH-\d{4}-\d{2}-\d{3}\b/g;
 
@@ -236,7 +251,7 @@ export function detectAuthID(text: string): DetectorMatch[] {
       type: "auth_id",
       confidence: "high",
       originalText: match[0],
-      token: generateToken("auth_id"),
+      token: generateToken("auth_id", match[0], cache),
     });
   }
 
@@ -247,7 +262,7 @@ export function detectAuthID(text: string): DetectorMatch[] {
  * Detect member IDs by pattern.
  * Pattern: [A-Z]{2,4}-####-###
  */
-export function detectMemberID(text: string): DetectorMatch[] {
+export function detectMemberID(text: string, cache: Map<string, string>): DetectorMatch[] {
   const matches: DetectorMatch[] = [];
   const memberIdRegex = /\b[A-Z]{2,4}-\d{4}-\d{3}\b/g;
 
@@ -259,7 +274,7 @@ export function detectMemberID(text: string): DetectorMatch[] {
       type: "member_id",
       confidence: "high",
       originalText: match[0],
-      token: generateToken("member_id"),
+      token: generateToken("member_id", match[0], cache),
     });
   }
 
@@ -272,7 +287,8 @@ export function detectMemberID(text: string): DetectorMatch[] {
  */
 export function detectEntities(
   text: string,
-  entities: EntityData
+  entities: EntityData,
+  cache: Map<string, string>
 ): DetectorMatch[] {
   const matches: DetectorMatch[] = [];
 
@@ -289,7 +305,7 @@ export function detectEntities(
         type: "patient_name",
         confidence: "high",
         originalText: match[0],
-        token: generateToken("patient_name"),
+        token: generateToken("patient_name", match[0], cache),
       });
     }
   }
@@ -312,7 +328,7 @@ export function detectEntities(
           type: "patient_name",
           confidence: "medium",
           originalText: match[0],
-          token: generateToken("patient_name"),
+          token: generateToken("patient_name", match[0], cache),
         });
       }
     }
@@ -336,7 +352,7 @@ export function detectEntities(
           type: "patient_name",
           confidence: "medium",
           originalText: match[0],
-          token: generateToken("patient_name"),
+          token: generateToken("patient_name", match[0], cache),
         });
       }
     }
@@ -355,7 +371,7 @@ export function detectEntities(
         type: "member_id",
         confidence: "high",
         originalText: match[0],
-        token: generateToken("member_id"),
+        token: generateToken("member_id", match[0], cache),
       });
     }
   }
@@ -366,18 +382,18 @@ export function detectEntities(
 /**
  * Run all pattern-based detectors on the given text.
  */
-export function runPatternDetectors(text: string): DetectorMatch[] {
+export function runPatternDetectors(text: string, cache: Map<string, string>): DetectorMatch[] {
   return [
-    ...detectSSN(text),
-    ...detectEmail(text),
-    ...detectPhone(text),
-    ...detectDOB(text),
-    ...detectDOS(text),
-    ...detectStreetAddress(text),
-    ...detectCityStateZip(text),
-    ...detectClaimID(text),
-    ...detectAuthID(text),
-    ...detectMemberID(text),
+    ...detectSSN(text, cache),
+    ...detectEmail(text, cache),
+    ...detectPhone(text, cache),
+    ...detectDOB(text, cache),
+    ...detectDOS(text, cache),
+    ...detectStreetAddress(text, cache),
+    ...detectCityStateZip(text, cache),
+    ...detectClaimID(text, cache),
+    ...detectAuthID(text, cache),
+    ...detectMemberID(text, cache),
   ];
 }
 
@@ -386,7 +402,8 @@ export function runPatternDetectors(text: string): DetectorMatch[] {
  */
 export function runAllDetectors(
   text: string,
-  entities: EntityData
+  entities: EntityData,
+  cache: Map<string, string>
 ): DetectorMatch[] {
-  return [...runPatternDetectors(text), ...detectEntities(text, entities)];
+  return [...runPatternDetectors(text, cache), ...detectEntities(text, entities, cache)];
 }

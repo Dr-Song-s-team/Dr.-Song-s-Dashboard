@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import Sidebar from "@/components/Sidebar";
+import ChatWidget from "@/components/chat/ChatWidget";
 
 export default function DashboardLayout({
   children,
@@ -47,6 +48,8 @@ export default function DashboardLayout({
       <main className="min-w-0 flex-1">
         {children}
       </main>
+
+      <ChatWidget />
     </div>
   );
 }
