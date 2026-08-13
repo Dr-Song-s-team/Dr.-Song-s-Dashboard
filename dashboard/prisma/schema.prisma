@@ -104,6 +104,7 @@ model Document {
   title       String
   fixturePath String
   notes       String?
+  content     String?        @db.Text
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
@@ -202,4 +203,27 @@ model EmailMetric {
   createdAt                 DateTime @default(now())
 
   @@index([emailId])
+}
+
+/// Represents an AI chat session with the admin assistant.
+model ChatSession {
+  id        String        @id @default(cuid())
+  title     String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  messages  ChatMessage[]
+
+  @@index([createdAt])
+}
+
+/// Individual messages within a chat session.
+model ChatMessage {
+  id        String      @id @default(cuid())
+  sessionId String
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role      String
+  content   String      @db.Text
+  createdAt DateTime    @default(now())
+
+  @@index([sessionId])
 }
