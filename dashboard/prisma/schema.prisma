@@ -78,8 +78,18 @@ model Patient {
   authLimit   Int
   visitsUsed  Int      @default(0)
   statusNotes String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+
+  // Billing profile — monetary values stored as integer cents to avoid float issues.
+  copayCents             Int?
+  deductibleCents        Int?
+  deductibleMetCents     Int?
+  paymentStatus          String?
+  outstandingBalanceCents Int?
+  lastPaymentDate        DateTime?
+  paymentMethod          String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   documents Document[]
   emails    Email[]

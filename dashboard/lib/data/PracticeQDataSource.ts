@@ -46,6 +46,13 @@ export class PracticeQDataSource implements ClinicDataSource {
       | "authLimit"
       | "visitsUsed"
       | "statusNotes"
+      | "copayCents"
+      | "deductibleCents"
+      | "deductibleMetCents"
+      | "paymentStatus"
+      | "outstandingBalanceCents"
+      | "lastPaymentDate"
+      | "paymentMethod"
     >[]
   > {
     throw new Error(NOT_IMPLEMENTED);

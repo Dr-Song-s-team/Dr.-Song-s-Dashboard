@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { centsToDollars } from "@/lib/validatePatient";
 import EditForm from "./EditForm";
 
 export async function generateMetadata({
@@ -153,6 +154,101 @@ export default async function PatientDetailPage({
               <p className="text-sm leading-relaxed text-[#513a2e]">
                 {patient.statusNotes}
               </p>
+            </div>
+          )}
+
+          {/* Billing summary */}
+          {(patient.copayCents != null ||
+            patient.deductibleCents != null ||
+            patient.paymentStatus ||
+            patient.outstandingBalanceCents != null ||
+            patient.paymentMethod) && (
+            <div className="mt-4 rounded-xl border border-[#e8d9cc] bg-[#faf5ee] p-4">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#7a5138]">
+                Billing &amp; Payment
+              </p>
+              <dl className="space-y-1.5">
+                {patient.copayCents != null && (
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <dt className="text-[#9b8070]">Co-pay</dt>
+                    <dd className="font-medium text-[#513a2e]">
+                      ${centsToDollars(patient.copayCents)}
+                    </dd>
+                  </div>
+                )}
+                {patient.deductibleCents != null && (
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <dt className="text-[#9b8070]">Deductible</dt>
+                    <dd className="font-medium text-[#513a2e]">
+                      ${centsToDollars(patient.deductibleCents)}
+                      {patient.deductibleMetCents != null && (
+                        <span className="ml-1 text-[#9b8070]">
+                          (${centsToDollars(patient.deductibleMetCents)} met)
+                        </span>
+                      )}
+                    </dd>
+                  </div>
+                )}
+                {patient.outstandingBalanceCents != null && (
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <dt className="text-[#9b8070]">Balance</dt>
+                    <dd
+                      className={`font-medium ${
+                        patient.outstandingBalanceCents > 0
+                          ? "text-rose-600"
+                          : "text-[#513a2e]"
+                      }`}
+                    >
+                      ${centsToDollars(patient.outstandingBalanceCents)}
+                    </dd>
+                  </div>
+                )}
+                {patient.paymentStatus && (
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <dt className="text-[#9b8070]">Status</dt>
+                    <dd>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                          patient.paymentStatus === "overdue"
+                            ? "bg-rose-100 text-rose-700"
+                            : patient.paymentStatus === "payment_plan"
+                              ? "bg-amber-100 text-amber-700"
+                              : "bg-emerald-100 text-emerald-700"
+                        }`}
+                      >
+                        {patient.paymentStatus === "current" && "Current"}
+                        {patient.paymentStatus === "overdue" && "Overdue"}
+                        {patient.paymentStatus === "payment_plan" && "Payment Plan"}
+                        {patient.paymentStatus === "insurance_only" && "Insurance Only"}
+                      </span>
+                    </dd>
+                  </div>
+                )}
+                {patient.paymentMethod && (
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <dt className="text-[#9b8070]">Method</dt>
+                    <dd className="text-[#513a2e]">
+                      {patient.paymentMethod === "cash" && "Cash"}
+                      {patient.paymentMethod === "check" && "Check"}
+                      {patient.paymentMethod === "card_on_file" && "Card on File"}
+                      {patient.paymentMethod === "insurance_only" && "Insurance Only"}
+                      {patient.paymentMethod === "other" && "Other"}
+                    </dd>
+                  </div>
+                )}
+                {patient.lastPaymentDate && (
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <dt className="text-[#9b8070]">Last Payment</dt>
+                    <dd className="text-[#513a2e]">
+                      {patient.lastPaymentDate.toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </dd>
+                  </div>
+                )}
+              </dl>
             </div>
           )}
         </div>

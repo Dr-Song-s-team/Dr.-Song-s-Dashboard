@@ -38,6 +38,13 @@ export class MockDataSource implements ClinicDataSource {
         authLimit: true,
         visitsUsed: true,
         statusNotes: true,
+        copayCents: true,
+        deductibleCents: true,
+        deductibleMetCents: true,
+        paymentStatus: true,
+        outstandingBalanceCents: true,
+        lastPaymentDate: true,
+        paymentMethod: true,
       },
     });
   }

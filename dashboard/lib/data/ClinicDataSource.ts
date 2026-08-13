@@ -22,6 +22,13 @@ export type PatientCreateInput = {
   authLimit: number;
   visitsUsed?: number;
   statusNotes?: string | null;
+  copayCents?: number | null;
+  deductibleCents?: number | null;
+  deductibleMetCents?: number | null;
+  paymentStatus?: string | null;
+  outstandingBalanceCents?: number | null;
+  lastPaymentDate?: Date | null;
+  paymentMethod?: string | null;
 };
 
 /**
@@ -85,6 +92,13 @@ export interface ClinicDataSource {
       | "authLimit"
       | "visitsUsed"
       | "statusNotes"
+      | "copayCents"
+      | "deductibleCents"
+      | "deductibleMetCents"
+      | "paymentStatus"
+      | "outstandingBalanceCents"
+      | "lastPaymentDate"
+      | "paymentMethod"
     >[]
   >;
 
