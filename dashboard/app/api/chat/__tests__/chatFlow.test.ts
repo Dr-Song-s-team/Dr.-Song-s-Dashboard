@@ -3,7 +3,7 @@
  * Tests full request flow with mocked callAI and shaped Prisma mocks.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { POST } from "../route";
 import { prisma } from "@/lib/prisma";
 import { callAI } from "@/lib/ai/provider";
@@ -67,7 +67,12 @@ describe("Chat Flow Integration Tests", () => {
     process.env.GROQ_API_KEY = "test-api-key";
 
     // Default mocks
-    vi.mocked(loadEntities).mockResolvedValue([]);
+    vi.mocked(loadEntities).mockResolvedValue({
+      patientFirstNames: [],
+      patientLastNames: [],
+      patientFullNames: [],
+      memberIds: [],
+    });
     vi.mocked(prisma.chatMessage.findMany).mockResolvedValue([]);
 
     // Default redaction behavior
@@ -75,6 +80,7 @@ describe("Chat Flow Integration Tests", () => {
     vi.mocked(redactionModule.redact).mockImplementation((text) => ({
       redactedText: text as never,
       tokenMap: new Map(),
+      matches: [],
     }));
     vi.mocked(redactionModule.unredact).mockImplementation((text) => ({
       originalText: text,
@@ -220,9 +226,12 @@ describe("Chat Flow Integration Tests", () => {
     vi.mocked(prisma.chatMessage.create).mockResolvedValue({} as never);
 
     // Mock loadEntities to return Alice Vance as an entity
-    vi.mocked(loadEntities).mockResolvedValue([
-      { type: "PERSON_NAME", value: "Alice Vance" },
-    ] as never);
+    vi.mocked(loadEntities).mockResolvedValue({
+      patientFirstNames: ["Alice"],
+      patientLastNames: ["Vance"],
+      patientFullNames: ["Alice Vance"],
+      memberIds: [],
+    });
 
     // Mock redact to actually redact "Alice Vance"
     vi.mocked(redactionModule.redact).mockImplementation((text) => {
@@ -237,6 +246,7 @@ describe("Chat Flow Integration Tests", () => {
       return {
         redactedText: redactedText as never,
         tokenMap,
+        matches: [],
       };
     });
 
@@ -349,6 +359,7 @@ describe("Chat Flow Integration Tests", () => {
       return {
         redactedText: redactedText as never,
         tokenMap,
+        matches: [],
       };
     });
 

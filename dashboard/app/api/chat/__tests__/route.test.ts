@@ -76,7 +76,12 @@ describe("POST /api/chat", () => {
     process.env.GROQ_API_KEY = "test-api-key";
 
     // Default mock implementations
-    vi.mocked(loadEntities).mockResolvedValue([]);
+    vi.mocked(loadEntities).mockResolvedValue({
+      patientFirstNames: [],
+      patientLastNames: [],
+      patientFullNames: [],
+      memberIds: [],
+    });
     vi.mocked(prisma.chatMessage.findMany).mockResolvedValue([]);
 
     // Mock redact to return the same text (simplified for testing)
@@ -84,6 +89,7 @@ describe("POST /api/chat", () => {
     vi.mocked(redactionModule.redact).mockImplementation((text) => ({
       redactedText: text as never,
       tokenMap: new Map(),
+      matches: [],
     }));
 
     // Mock unredact to return the same text
@@ -299,6 +305,7 @@ describe("POST /api/chat", () => {
       return {
         redactedText: redactedText as never,
         tokenMap,
+        matches: [],
       };
     });
 
