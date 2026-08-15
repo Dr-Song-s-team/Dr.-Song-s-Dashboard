@@ -29,6 +29,8 @@ export type PatientCreateInput = {
   outstandingBalanceCents?: number | null;
   lastPaymentDate?: Date | null;
   paymentMethod?: string | null;
+  services?: string[];
+  servicesOther?: string | null;
 };
 
 /**
@@ -100,6 +102,8 @@ export interface ClinicDataSource {
       | "outstandingBalanceCents"
       | "lastPaymentDate"
       | "paymentMethod"
+      | "services"
+      | "servicesOther"
     >[]
   >;
 

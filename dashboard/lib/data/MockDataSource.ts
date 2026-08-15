@@ -45,6 +45,8 @@ export class MockDataSource implements ClinicDataSource {
         outstandingBalanceCents: true,
         lastPaymentDate: true,
         paymentMethod: true,
+        services: true,
+        servicesOther: true,
       },
     });
   }

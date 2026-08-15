@@ -32,6 +32,8 @@ function extractFields(formData: FormData) {
     outstandingBalance: String(formData.get("outstandingBalance") ?? ""),
     lastPaymentDate: String(formData.get("lastPaymentDate") ?? ""),
     paymentMethod: String(formData.get("paymentMethod") ?? ""),
+    services: formData.getAll("services").map(String),
+    servicesOther: String(formData.get("servicesOther") ?? ""),
   };
 }
 

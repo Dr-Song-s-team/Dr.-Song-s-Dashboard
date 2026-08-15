@@ -21,6 +21,25 @@ export const PAYMENT_METHODS = [
 ] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
+export const MAJOR_SERVICES = [
+  "acupuncture",
+  "massage_therapy",
+  "manual_therapy",
+  "qi_therapy",
+  "herbal_medicine",
+  "other",
+] as const;
+export type MajorService = (typeof MAJOR_SERVICES)[number];
+
+export const MAJOR_SERVICE_LABELS: Record<MajorService, string> = {
+  acupuncture: "Acupuncture",
+  massage_therapy: "Massage Therapy",
+  manual_therapy: "Manual Therapy",
+  qi_therapy: "Qi Therapy",
+  herbal_medicine: "Herbal Medicine",
+  other: "Other",
+};
+
 export type PatientFields = {
   firstName: string;
   lastName: string;
@@ -43,6 +62,9 @@ export type PatientFields = {
   outstandingBalance?: string;
   lastPaymentDate?: string;
   paymentMethod?: string;
+  // Major services
+  services?: string[];
+  servicesOther?: string;
 };
 
 export type FieldErrors = Record<string, string[]>;
@@ -144,6 +166,17 @@ export function validatePatient(fields: PatientFields): FieldErrors {
     }
   }
 
+  const services = fields.services ?? [];
+  for (const svc of services) {
+    if (!(MAJOR_SERVICES as readonly string[]).includes(svc)) {
+      errors.services = [`"${svc}" is not a valid service.`];
+      break;
+    }
+  }
+  if (services.includes("other") && !(fields.servicesOther ?? "").trim()) {
+    errors.servicesOther = ["Please specify the other service."];
+  }
+
   return errors;
 }
 
@@ -180,6 +213,8 @@ export function buildPatientData(fields: PatientFields) {
         ? new Date(fields.lastPaymentDate!.trim())
         : null,
     paymentMethod: (fields.paymentMethod ?? "").trim() || null,
+    services: fields.services ?? [],
+    servicesOther: (fields.servicesOther ?? "").trim() || null,
   };
 }
 
