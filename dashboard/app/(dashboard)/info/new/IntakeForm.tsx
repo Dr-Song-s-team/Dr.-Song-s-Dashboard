@@ -136,7 +136,7 @@ function SubmitButton() {
 }
 
 const initialState: ActionState = {};
-const emptyFields: Required<PatientFields> = {
+const emptyFields: PatientFields = {
   firstName: "",
   lastName: "",
   dob: "",
@@ -157,13 +157,13 @@ const emptyFields: Required<PatientFields> = {
   outstandingBalance: "",
   lastPaymentDate: "",
   paymentMethod: "",
-  services: [],
   servicesOther: "",
 };
 
 export default function IntakeForm() {
   const [state, formAction] = useActionState(createPatient, initialState);
   const [fields, setFields] = useState(emptyFields);
+  const [checkedServices, setCheckedServices] = useState<string[]>([]);
   const [isAutofilling, setIsAutofilling] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [autofillError, setAutofillError] = useState<string | null>(null);
@@ -173,7 +173,7 @@ export default function IntakeForm() {
   const handleFieldChange = (
     event: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
   ) => {
-    const key = event.currentTarget.name as keyof PatientFields;
+    const key = event.currentTarget.name as Exclude<keyof PatientFields, "services">;
     setFields((current) => ({ ...current, [key]: event.currentTarget.value }));
   };
 
@@ -203,7 +203,11 @@ export default function IntakeForm() {
         throw new Error(data.error || "Autofill failed. Please try another intake PDF.");
       }
 
-      setFields((current) => ({ ...current, ...data.fields }));
+      const { services: autofillServices, ...stringFields } = data.fields;
+      setFields((current) => ({ ...current, ...stringFields }));
+      if (Array.isArray(autofillServices)) {
+        setCheckedServices(autofillServices as string[]);
+      }
       setAutofillSuccess(true);
     } catch (error) {
       setAutofillError(
@@ -605,15 +609,12 @@ export default function IntakeForm() {
                 type="checkbox"
                 name="services"
                 value={svc}
-                checked={fields.services?.includes(svc) ?? false}
+                checked={checkedServices.includes(svc)}
                 onChange={(e) => {
                   const checked = e.currentTarget.checked;
-                  setFields((prev) => ({
-                    ...prev,
-                    services: checked
-                      ? [...(prev.services ?? []), svc]
-                      : (prev.services ?? []).filter((s) => s !== svc),
-                  }));
+                  setCheckedServices((prev) =>
+                    checked ? [...prev, svc] : prev.filter((s) => s !== svc),
+                  );
                 }}
                 className="size-4 rounded accent-[#9b6a4b]"
               />
@@ -621,7 +622,7 @@ export default function IntakeForm() {
             </label>
           ))}
         </div>
-        {fields.services?.includes("other") && (
+        {checkedServices.includes("other") && (
           <div className="mt-3">
             <Label htmlFor="servicesOther">Other service — please specify *</Label>
             <Input

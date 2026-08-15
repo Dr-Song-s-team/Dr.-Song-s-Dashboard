@@ -102,7 +102,7 @@ export function validatePatient(fields: PatientFields): FieldErrors {
   const errors: FieldErrors = {};
 
   for (const [key, label] of REQUIRED) {
-    const val = (fields[key] ?? "").trim();
+    const val = ((fields[key] as string | undefined) ?? "").trim();
     if (!val) {
       errors[key] = [`${label} is required.`];
     }

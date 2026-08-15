@@ -79,6 +79,8 @@ function createMockPatient(
     outstandingBalanceCents: null,
     lastPaymentDate: null,
     paymentMethod: null,
+    services: [],
+    servicesOther: null,
     createdAt: new Date("2024-01-01T12:00:00Z"),
     updatedAt: new Date("2024-01-01T12:00:00Z"),
     emails: [],
