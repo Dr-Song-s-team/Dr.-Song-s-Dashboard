@@ -66,7 +66,7 @@ export class MockDataSource implements ClinicDataSource {
   // ---------------------------------------------------------------------------
 
   async listEmails(filters?: EmailListFilters): Promise<EmailListItem[]> {
-    const { insurer, status, client, from, to } = filters ?? {};
+    const { insurer, status, client, subject, from, to } = filters ?? {};
 
     // Build where clause — copied from email/page.tsx:76-117
     const where: Prisma.EmailWhereInput = {};
@@ -97,6 +97,10 @@ export class MockDataSource implements ClinicDataSource {
           },
         },
       ];
+    }
+
+    if (subject) {
+      where.subject = { contains: subject, mode: "insensitive" };
     }
 
     const validDate = (value?: string) =>

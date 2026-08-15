@@ -43,6 +43,7 @@ export type EmailListFilters = {
   insurer?: string;
   status?: EmailStatus;
   client?: string;
+  subject?: string;
   from?: string; // ISO date string YYYY-MM-DD
   to?: string; // ISO date string YYYY-MM-DD
 };

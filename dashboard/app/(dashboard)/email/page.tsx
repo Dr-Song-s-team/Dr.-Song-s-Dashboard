@@ -178,6 +178,7 @@ type SearchParams = Promise<{
   insurer?: string | string[];
   status?: string | string[];
   client?: string | string[];
+  subject?: string | string[];
   from?: string | string[];
   to?: string | string[];
   classification?: string | string[];
@@ -204,6 +205,7 @@ type InboxFilters = {
   insurer: string;
   status: string;
   client: string;
+  subject: string;
   from: string;
   to: string;
   classification: string;
@@ -218,7 +220,7 @@ function validDate(value: string | undefined) {
 }
 
 function buildWhere(
-  { insurer, status, client, from, to, classification }: InboxFilters,
+  { insurer, status, client, subject, from, to, classification }: InboxFilters,
   useEmailInsurerLabel: boolean,
 ): Prisma.EmailWhereInput {
   const where: Prisma.EmailWhereInput = {};
@@ -257,6 +259,9 @@ function buildWhere(
         },
       },
     ];
+  }
+  if (subject) {
+    where.subject = { contains: subject, mode: "insensitive" };
   }
   if (validDate(from) || validDate(to)) {
     where.receivedAt = {
@@ -392,6 +397,7 @@ export default async function EmailInboxPage({
   const insurer = firstValue(params.insurer) ?? "";
   const selectedStatus = firstValue(params.status) ?? "";
   const client = firstValue(params.client) ?? "";
+  const subject = firstValue(params.subject) ?? "";
   const from = firstValue(params.from) ?? "";
   const to = firstValue(params.to) ?? "";
   const rawClassification = firstValue(params.classification) ?? "";
@@ -410,10 +416,11 @@ export default async function EmailInboxPage({
     loadFolderCounts(),
     isFolderGrid
       ? Promise.resolve({ emails: [] as InboxEmail[], insurers: [] as string[] })
-      : loadInbox({
+      :         loadInbox({
           insurer,
           status: selectedStatus,
           client,
+          subject,
           from,
           to,
           classification: selectedClassification ?? "",
@@ -550,7 +557,7 @@ export default async function EmailInboxPage({
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-4 text-sm font-semibold text-[#4a3327] marker:content-none sm:px-5">
               <span>Filter inbox</span>
               <span className="flex items-center gap-2 text-xs font-medium text-[#765d4e]">
-                Insurer, status, client, date
+                Subject, insurer, status, client, date
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -581,6 +588,17 @@ export default async function EmailInboxPage({
               {view === "all" && !selectedClassification && (
                 <input type="hidden" name="view" value="all" />
               )}
+
+              <label className="flex flex-col gap-1.5 text-sm font-medium text-[#5f4538]">
+                Subject
+                <input
+                  type="search"
+                  name="subject"
+                  defaultValue={subject}
+                  placeholder="Search email subject…"
+                  className="rounded-lg border border-[#d8c9ba] bg-white px-3 py-2 text-sm text-[#513a2e] outline-none placeholder:text-[#a99384] focus:border-[#9b6a4b] focus:ring-2 focus:ring-[#9b6a4b]/20"
+                />
+              </label>
 
               <label className="flex flex-col gap-1.5 text-sm font-medium text-[#5f4538]">
                 Client name
