@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { centsToDollars } from "@/lib/validatePatient";
+import { centsToDollars, MAJOR_SERVICE_LABELS, type MajorService } from "@/lib/validatePatient";
 import EditForm from "./EditForm";
 
 export async function generateMetadata({
@@ -249,6 +249,26 @@ export default async function PatientDetailPage({
                   </div>
                 )}
               </dl>
+            </div>
+          )}
+
+          {/* Major Services */}
+          {patient.services.length > 0 && (
+            <div className="mt-4 rounded-xl border border-[#e8d9cc] bg-[#faf5ee] p-4">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#7a5138]">
+                Major Services
+              </p>
+              <ul className="space-y-1">
+                {patient.services.map((svc) => (
+                  <li key={svc} className="flex items-center gap-2 text-xs text-[#513a2e]">
+                    <span className="size-1.5 shrink-0 rounded-full bg-[#9b6a4b]" />
+                    {MAJOR_SERVICE_LABELS[svc as MajorService] ?? svc}
+                    {svc === "other" && patient.servicesOther && (
+                      <span className="text-[#765d4e]">— {patient.servicesOther}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
         </div>

@@ -5,7 +5,7 @@ import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import { createPatient, type ActionState } from "../actions";
 import type { PatientFields } from "@/lib/validatePatient";
-import { PAYMENT_STATUSES, PAYMENT_METHODS } from "@/lib/validatePatient";
+import { PAYMENT_STATUSES, PAYMENT_METHODS, MAJOR_SERVICES, MAJOR_SERVICE_LABELS } from "@/lib/validatePatient";
 
 const US_STATES = [
   "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA",
@@ -157,6 +157,8 @@ const emptyFields: Required<PatientFields> = {
   outstandingBalance: "",
   lastPaymentDate: "",
   paymentMethod: "",
+  services: [],
+  servicesOther: "",
 };
 
 export default function IntakeForm() {
@@ -584,6 +586,60 @@ export default function IntakeForm() {
             <FieldError messages={state.errors?.lastPaymentDate} />
           </div>
         </div>
+      </section>
+
+      <section className="border-t border-[#e8d9cc] pt-6">
+        <h3 className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-[#9b6a4b]">
+          Major Services
+        </h3>
+        <p className="mb-4 text-sm text-[#765d4e]">
+          Select all services this patient receives (select at least one if applicable).
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {MAJOR_SERVICES.map((svc) => (
+            <label
+              key={svc}
+              className="flex cursor-pointer items-center gap-3 rounded-xl border border-[#d8c9ba] bg-white/70 px-4 py-3 text-sm text-[#513a2e] transition hover:border-[#9b6a4b]/50 hover:bg-[#f0e6d8]/40 has-[:checked]:border-[#9b6a4b] has-[:checked]:bg-[#f0e6d8]/60"
+            >
+              <input
+                type="checkbox"
+                name="services"
+                value={svc}
+                checked={fields.services?.includes(svc) ?? false}
+                onChange={(e) => {
+                  const checked = e.currentTarget.checked;
+                  setFields((prev) => ({
+                    ...prev,
+                    services: checked
+                      ? [...(prev.services ?? []), svc]
+                      : (prev.services ?? []).filter((s) => s !== svc),
+                  }));
+                }}
+                className="size-4 rounded accent-[#9b6a4b]"
+              />
+              <span className="font-medium">{MAJOR_SERVICE_LABELS[svc]}</span>
+            </label>
+          ))}
+        </div>
+        {fields.services?.includes("other") && (
+          <div className="mt-3">
+            <Label htmlFor="servicesOther">Other service — please specify *</Label>
+            <Input
+              id="servicesOther"
+              name="servicesOther"
+              placeholder="e.g. Cupping, Moxibustion…"
+              value={fields.servicesOther ?? ""}
+              onChange={handleFieldChange}
+              hasError={!!state.errors?.servicesOther}
+            />
+            <FieldError messages={state.errors?.servicesOther} />
+          </div>
+        )}
+        {state.errors?.services && (
+          <p className="mt-2 text-xs text-rose-600" role="alert">
+            {state.errors.services[0]}
+          </p>
+        )}
       </section>
 
       <section className="border-t border-[#e8d9cc] pt-6">

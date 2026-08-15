@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import { updatePatient, type ActionState } from "../actions";
@@ -8,6 +8,8 @@ import {
   centsToDollars,
   PAYMENT_STATUSES,
   PAYMENT_METHODS,
+  MAJOR_SERVICES,
+  MAJOR_SERVICE_LABELS,
 } from "@/lib/validatePatient";
 
 const US_STATES = [
@@ -41,6 +43,8 @@ type Patient = {
   outstandingBalanceCents: number | null;
   lastPaymentDate: Date | null;
   paymentMethod: string | null;
+  services: string[];
+  servicesOther: string | null;
 };
 
 function FieldError({ messages }: { messages?: string[] }) {
@@ -137,6 +141,9 @@ function toDateInputValue(date: Date): string {
 export default function EditForm({ patient }: { patient: Patient }) {
   const updateWithId = updatePatient.bind(null, patient.id);
   const [state, formAction] = useActionState(updateWithId, initialState);
+  const [checkedServices, setCheckedServices] = useState<string[]>(
+    patient.services ?? [],
+  );
 
   return (
     <form action={formAction} noValidate className="space-y-8">
@@ -483,6 +490,54 @@ export default function EditForm({ patient }: { patient: Patient }) {
             <FieldError messages={state.errors?.lastPaymentDate} />
           </div>
         </div>
+      </section>
+
+      {/* Major Services */}
+      <section>
+        <h3 className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-[#9b6a4b]">
+          Major Services
+        </h3>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {MAJOR_SERVICES.map((svc) => (
+            <label
+              key={svc}
+              className="flex cursor-pointer items-center gap-3 rounded-xl border border-[#d8c9ba] bg-white/70 px-4 py-3 text-sm text-[#513a2e] transition hover:border-[#9b6a4b]/50 hover:bg-[#f0e6d8]/40 has-[:checked]:border-[#9b6a4b] has-[:checked]:bg-[#f0e6d8]/60"
+            >
+              <input
+                type="checkbox"
+                name="services"
+                value={svc}
+                checked={checkedServices.includes(svc)}
+                onChange={(e) => {
+                  const checked = e.currentTarget.checked;
+                  setCheckedServices((prev) =>
+                    checked ? [...prev, svc] : prev.filter((s) => s !== svc),
+                  );
+                }}
+                className="size-4 rounded accent-[#9b6a4b]"
+              />
+              <span className="font-medium">{MAJOR_SERVICE_LABELS[svc]}</span>
+            </label>
+          ))}
+        </div>
+        {checkedServices.includes("other") && (
+          <div className="mt-3">
+            <Label htmlFor="servicesOther">Other service — please specify *</Label>
+            <Input
+              id="servicesOther"
+              name="servicesOther"
+              placeholder="e.g. Cupping, Moxibustion…"
+              defaultValue={patient.servicesOther ?? ""}
+              hasError={!!state.errors?.servicesOther}
+            />
+            <FieldError messages={state.errors?.servicesOther} />
+          </div>
+        )}
+        {state.errors?.services && (
+          <p className="mt-2 text-xs text-rose-600" role="alert">
+            {state.errors.services[0]}
+          </p>
+        )}
       </section>
 
       <div className="flex items-center justify-end gap-3 border-t border-[#e8d9cc] pt-6">
