@@ -189,6 +189,8 @@ async function main(prisma: PrismaClient) {
         outstandingBalanceCents: 0,
         lastPaymentDate: new Date("2024-06-15"),
         paymentMethod: "card_on_file",
+        services: ["acupuncture", "manual_therapy"],
+        servicesOther: null,
       },
     }),
     prisma.patient.upsert({
@@ -216,6 +218,8 @@ async function main(prisma: PrismaClient) {
         outstandingBalanceCents: 4000,
         lastPaymentDate: new Date("2024-07-01"),
         paymentMethod: "check",
+        services: ["massage_therapy", "herbal_medicine"],
+        servicesOther: null,
       },
     }),
     prisma.patient.upsert({
@@ -243,6 +247,8 @@ async function main(prisma: PrismaClient) {
         outstandingBalanceCents: 0,
         lastPaymentDate: new Date("2024-05-20"),
         paymentMethod: "cash",
+        services: ["acupuncture", "qi_therapy"],
+        servicesOther: null,
       },
     }),
     prisma.patient.upsert({
@@ -270,6 +276,8 @@ async function main(prisma: PrismaClient) {
         outstandingBalanceCents: 15000,
         lastPaymentDate: new Date("2024-04-10"),
         paymentMethod: "card_on_file",
+        services: ["acupuncture", "massage_therapy", "manual_therapy"],
+        servicesOther: null,
       },
     }),
     prisma.patient.upsert({
@@ -297,6 +305,8 @@ async function main(prisma: PrismaClient) {
         outstandingBalanceCents: 6000,
         lastPaymentDate: new Date("2024-07-15"),
         paymentMethod: "check",
+        services: ["qi_therapy", "herbal_medicine", "other"],
+        servicesOther: "Cupping Therapy",
       },
     }),
   ]);
