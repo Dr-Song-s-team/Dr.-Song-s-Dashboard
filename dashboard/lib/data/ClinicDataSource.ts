@@ -29,6 +29,8 @@ export type PatientCreateInput = {
   outstandingBalanceCents?: number | null;
   lastPaymentDate?: Date | null;
   paymentMethod?: string | null;
+  services?: string[];
+  servicesOther?: string | null;
 };
 
 /**
@@ -43,6 +45,7 @@ export type EmailListFilters = {
   insurer?: string;
   status?: EmailStatus;
   client?: string;
+  subject?: string;
   from?: string; // ISO date string YYYY-MM-DD
   to?: string; // ISO date string YYYY-MM-DD
 };
@@ -99,6 +102,8 @@ export interface ClinicDataSource {
       | "outstandingBalanceCents"
       | "lastPaymentDate"
       | "paymentMethod"
+      | "services"
+      | "servicesOther"
     >[]
   >;
 

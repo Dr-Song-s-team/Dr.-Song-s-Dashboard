@@ -53,6 +53,8 @@ export class PracticeQDataSource implements ClinicDataSource {
       | "outstandingBalanceCents"
       | "lastPaymentDate"
       | "paymentMethod"
+      | "services"
+      | "servicesOther"
     >[]
   > {
     throw new Error(NOT_IMPLEMENTED);

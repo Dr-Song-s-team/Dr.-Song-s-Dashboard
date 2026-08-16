@@ -88,6 +88,10 @@ model Patient {
   lastPaymentDate        DateTime?
   paymentMethod          String?
 
+  // Major services — multi-select; "other" text stored separately.
+  services      String[]
+  servicesOther String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
