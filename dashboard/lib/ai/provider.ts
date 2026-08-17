@@ -29,7 +29,7 @@ import type { RedactedText } from "@/lib/redaction";
  * Default Groq model for LLM calls.
  * Can be overridden via GROQ_MODEL environment variable.
  */
-export const DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile";
+export const DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b";
 
 /**
  * Default timeout for API calls in milliseconds (30 seconds).
@@ -164,7 +164,7 @@ export async function callAI(
     maxCompletionTokens: _maxCompletionTokens = 1500,
   } = options ?? {};
 
-  const model = process.env.GROQ_MODEL ?? DEFAULT_GROQ_MODEL;
+  const model = process.env.GROQ_MODEL?.trim() || DEFAULT_GROQ_MODEL;
 
   // Build messages array
   const messages: Array<{ role: string; content: string }> = [];
