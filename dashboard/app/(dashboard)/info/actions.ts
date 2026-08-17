@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { validatePatient, buildPatientData } from "@/lib/validatePatient";
+import { normalizeConfirmationName } from "@/lib/patient/confirmationName";
 
 export type ActionState = {
   errors?: Record<string, string[]>;
@@ -96,4 +97,52 @@ export async function updatePatient(
   revalidatePath("/info");
   revalidatePath(`/info/${id}`);
   redirect(`/info/${id}`);
+}
+
+export async function deletePatient(
+  id: string,
+  prevState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const submittedName = normalizeConfirmationName(
+    String(formData.get("confirmName") ?? ""),
+  );
+
+  const patient = await prisma.patient.findUnique({
+    where: { id },
+    select: { firstName: true, lastName: true },
+  });
+
+  if (!patient) {
+    return { message: "Patient not found." };
+  }
+
+  const expectedName = normalizeConfirmationName(
+    `${patient.firstName} ${patient.lastName}`,
+  );
+
+  if (submittedName !== expectedName) {
+    return {
+      message: `The name you entered does not match. Please type "${expectedName}" exactly.`,
+    };
+  }
+
+  try {
+    await prisma.$transaction([
+      prisma.document.updateMany({
+        where: { patientId: id },
+        data: { patientId: null },
+      }),
+      prisma.email.updateMany({
+        where: { patientId: id },
+        data: { patientId: null },
+      }),
+      prisma.patient.delete({ where: { id } }),
+    ]);
+  } catch {
+    return { message: "An unexpected error occurred. Please try again." };
+  }
+
+  revalidatePath("/info");
+  redirect("/info");
 }
