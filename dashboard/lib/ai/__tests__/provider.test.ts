@@ -192,6 +192,62 @@ describe("AI Provider (Groq)", () => {
     expect(body.model).toBe("llama-3.1-8b-instant");
   });
 
+  it("should fall back to DEFAULT_GROQ_MODEL when GROQ_MODEL is empty string", async () => {
+    process.env.GROQ_MODEL = "";
+
+    const mockResponse = {
+      choices: [
+        {
+          message: {
+            content: "Response",
+          },
+        },
+      ],
+    };
+
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => mockResponse,
+    });
+
+    const redactedPrompt = asRedactedText("Test prompt");
+    await callAI(redactedPrompt);
+
+    const [, options] = fetchMock.mock.calls[0];
+    const body = JSON.parse(options.body);
+
+    expect(body.model).toBe(DEFAULT_GROQ_MODEL);
+  });
+
+  it("should fall back to DEFAULT_GROQ_MODEL when GROQ_MODEL is whitespace", async () => {
+    process.env.GROQ_MODEL = "   ";
+
+    const mockResponse = {
+      choices: [
+        {
+          message: {
+            content: "Response",
+          },
+        },
+      ],
+    };
+
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => mockResponse,
+    });
+
+    const redactedPrompt = asRedactedText("Test prompt");
+    await callAI(redactedPrompt);
+
+    const [, options] = fetchMock.mock.calls[0];
+    const body = JSON.parse(options.body);
+
+    expect(body.model).toBe(DEFAULT_GROQ_MODEL);
+  });
+
   it("should throw AIProviderError when response has no content", async () => {
     const mockResponse = {
       choices: [

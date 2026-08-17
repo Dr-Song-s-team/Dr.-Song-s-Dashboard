@@ -22,7 +22,7 @@ The repository deliberately seeds only synthetic data. It is not yet a complete 
 - **Styling:** Tailwind CSS 4 plus component-local CSS for the calendar.
 - **Database:** PostgreSQL through Prisma 7 and the `@prisma/adapter-pg` driver adapter.
 - **Database hosting convention:** Neon-compatible pooled `DATABASE_URL` for the app and direct `DIRECT_URL` for migrations.
-- **AI provider:** Groq's OpenAI-compatible chat-completions API. Default model: `llama-3.3-70b-versatile`; overridable with `GROQ_MODEL`.
+- **AI provider:** Groq's OpenAI-compatible chat-completions API. Default model: `openai/gpt-oss-120b`; overridable with `GROQ_MODEL`.
 - **Testing:** Node's built-in test runner is currently the default `npm test`; Vitest is installed and contains the redaction/provider suites.
 - **Other installed dependencies:** Google APIs, Express, CORS, CSV parsing, JWT utilities, and holiday support. Several of these are not wired into the observed Next.js application path.
 
