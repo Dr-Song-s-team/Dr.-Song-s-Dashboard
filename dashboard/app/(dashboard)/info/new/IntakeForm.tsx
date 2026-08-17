@@ -174,7 +174,10 @@ export default function IntakeForm() {
     event: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
   ) => {
     const key = event.currentTarget.name as Exclude<keyof PatientFields, "services">;
-    setFields((current) => ({ ...current, [key]: event.currentTarget.value }));
+    // React clears `currentTarget` after the event handler returns. Capture the
+    // value before the state updater runs so typing does not throw during render.
+    const value = event.currentTarget.value;
+    setFields((current) => ({ ...current, [key]: value }));
   };
 
   const uploadIntake = async (file: File) => {
