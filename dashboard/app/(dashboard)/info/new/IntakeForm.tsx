@@ -168,6 +168,7 @@ export default function IntakeForm() {
   const [isDragging, setIsDragging] = useState(false);
   const [autofillError, setAutofillError] = useState<string | null>(null);
   const [autofillSuccess, setAutofillSuccess] = useState(false);
+  const [autofillWarnings, setAutofillWarnings] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFieldChange = (
@@ -183,6 +184,7 @@ export default function IntakeForm() {
   const uploadIntake = async (file: File) => {
     setAutofillSuccess(false);
     setAutofillError(null);
+    setAutofillWarnings([]);
 
     if (file.type && file.type !== "application/pdf") {
       setAutofillError("Only PDF intake files can be uploaded.");
@@ -200,6 +202,7 @@ export default function IntakeForm() {
       const data = (await response.json()) as {
         error?: string;
         fields?: Partial<Record<keyof PatientFields, string>>;
+        warnings?: string[];
       };
 
       if (!response.ok || !data.fields) {
@@ -211,6 +214,7 @@ export default function IntakeForm() {
       if (Array.isArray(autofillServices)) {
         setCheckedServices(autofillServices as string[]);
       }
+      setAutofillWarnings(data.warnings ?? []);
       setAutofillSuccess(true);
     } catch (error) {
       setAutofillError(
@@ -663,9 +667,12 @@ export default function IntakeForm() {
           )}
           {autofillSuccess && (
             <StatusAlert
-              tone="success"
-              title="Intake autofilled"
-              message="All required patient fields were filled. Review the information before saving."
+              tone={autofillWarnings.length ? "error" : "success"}
+              title={autofillWarnings.length ? "Intake partially autofilled" : "Intake autofilled"}
+              message={
+                autofillWarnings[0] ??
+                "Patient information was filled. Review the information before saving."
+              }
             />
           )}
         </div>
