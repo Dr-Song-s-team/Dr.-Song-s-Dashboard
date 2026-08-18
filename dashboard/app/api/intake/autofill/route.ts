@@ -48,8 +48,10 @@ export async function POST(request: Request) {
     const fields = parseIntakeFields(pdfText);
     const validationErrors = validatePatient(fields as PatientFields);
     const missingFields = Object.keys(validationErrors);
+    const onlyAuthorizationLimitMissing =
+      missingFields.length === 1 && missingFields[0] === "authLimit";
 
-    if (missingFields.length > 0) {
+    if (missingFields.length > 0 && !onlyAuthorizationLimitMissing) {
       return error(
         "Autofill failed because this intake PDF does not contain all required patient details. Complete the form manually or upload a completed intake PDF.",
         422,
@@ -60,7 +62,10 @@ export async function POST(request: Request) {
     return NextResponse.json({
       fields,
       filledCount: Object.keys(fields).length,
-      skippedCount: 0,
+      skippedCount: onlyAuthorizationLimitMissing ? 1 : 0,
+      warnings: onlyAuthorizationLimitMissing
+        ? ["Authorization limit is not present in this PDF. Enter it manually before saving."]
+        : [],
     });
   } catch (cause) {
     if (cause instanceof PdfTextExtractionError) {

@@ -52,6 +52,21 @@ function normalizeState(value: string) {
  */
 export function parseIntakeFields(pdfText: string): IntakeAutofillFields {
   const text = pdfText.replace(/\r/g, "\n");
+
+  // Accept one or more AcroForm field name aliases; returns the first non-empty match.
+  // Supports both the canonical scheme (patient.first_name) and the Dr. Song
+  // multilingual scheme (patient_en.first_name, insurance_primary.id, etc.).
+  const formFieldValue = (...names: string[]) =>
+    names.reduce<string>((acc, name) => acc || valueAfterLabel(text, [`PDF form field ${name}`]), "");
+
+  const formAddress = compact(
+    [
+      formFieldValue("patient.street_address", "patient_en.street_address"),
+      formFieldValue("patient.apt_unit", "patient_en.apt_unit"),
+    ]
+      .filter(Boolean)
+      .join(", "),
+  );
   const address = valueAfterLabel(text, ["Street Address", "Address"]);
   const city = valueAfterLabel(text, ["City"]);
   const state = normalizeState(valueAfterLabel(text, ["State"]));
@@ -59,27 +74,50 @@ export function parseIntakeFields(pdfText: string): IntakeAutofillFields {
   const combinedLocation = compact(`${city}, ${state} ${zip}`);
 
   const fields: IntakeAutofillFields = {
-    firstName: valueAfterLabel(text, ["First Name", "Given Name"]),
-    lastName: valueAfterLabel(text, ["Last Name", "Family Name"]),
-    dob: normalizeDate(valueAfterLabel(text, ["Date of Birth", "DOB"])),
-    phone: valueAfterLabel(text, ["Mobile Phone", "Cell Phone", "Home Phone", "Work Phone"]),
-    email: valueAfterLabel(text, ["Email(?: Address)?"]),
-    address,
-    city,
-    state,
-    zip,
-    insurer: valueAfterLabel(text, [
-      "Primary Insurance(?: Company| Carrier)?",
-      "Insurance (?:Company|Carrier)",
-    ]),
-    memberId: valueAfterLabel(text, ["Member (?:ID|Id)", "Policy (?:Number|#)"]),
-    authLimit: valueAfterLabel(text, [
-      "Authorization(?: Visit)? Limit",
-      "Authorized Visits?",
-      "Visits Authorized",
-      "Units Approved",
-    ]).replace(/[^\d]/g, ""),
-    statusNotes: valueAfterLabel(text, ["Status Notes?", "Notes?"]),
+    firstName:
+      formFieldValue("patient.first_name", "patient_en.first_name") ||
+      valueAfterLabel(text, ["First Name", "Given Name"]),
+    lastName:
+      formFieldValue("patient.last_name", "patient_en.last_name") ||
+      valueAfterLabel(text, ["Last Name", "Family Name"]),
+    dob: normalizeDate(
+      formFieldValue("patient.dob", "patient_en.date_of_birth") ||
+        valueAfterLabel(text, ["Date of Birth", "DOB"]),
+    ),
+    phone:
+      formFieldValue("patient.mobile_phone", "patient_en.mobile_phone") ||
+      formFieldValue("patient.home_phone", "patient_en.home_phone") ||
+      formFieldValue("patient_en.work_phone") ||
+      valueAfterLabel(text, ["Mobile Phone", "Cell Phone", "Home Phone", "Work Phone"]),
+    email:
+      formFieldValue("patient.email", "patient_en.email") ||
+      valueAfterLabel(text, ["Email(?: Address)?"]),
+    address: formAddress || address,
+    city: formFieldValue("patient.city", "patient_en.city") || city,
+    state: normalizeState(formFieldValue("patient.state", "patient_en.state") || state),
+    zip: formFieldValue("patient.zip", "patient_en.zip_code") || zip,
+    // insurance_primary.text_109 is the primary company name field in the Dr. Song
+    // multilingual AcroForm; insurance_primary.id is its member/policy ID field.
+    insurer:
+      formFieldValue("insurance.primary.company", "insurance_primary.text_109") ||
+      valueAfterLabel(text, [
+        "Primary Insurance(?: Company| Carrier)?",
+        "Insurance (?:Company|Carrier)",
+      ]),
+    memberId:
+      formFieldValue("insurance.primary.member_id", "insurance_primary.id") ||
+      valueAfterLabel(text, ["Member (?:ID|Id)", "Policy (?:Number|#)"]),
+    authLimit:
+      formFieldValue("patient.auth_limit") ||
+      valueAfterLabel(text, [
+        "Authorization(?: Visit)? Limit",
+        "Authorized Visits?",
+        "Visits Authorized",
+        "Units Approved",
+      ]).replace(/[^\d]/g, ""),
+    statusNotes:
+      formFieldValue("patient.status_notes") ||
+      valueAfterLabel(text, ["Status Notes?", "Notes?"]),
   };
 
   // Some exports use a single `City, ST 12345` line rather than separate fields.

@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import { updatePatient, type ActionState } from "../actions";
+import DeletePatientDialog from "./DeletePatientDialog";
 import {
   centsToDollars,
   PAYMENT_STATUSES,
@@ -144,6 +145,7 @@ export default function EditForm({ patient }: { patient: Patient }) {
   const [checkedServices, setCheckedServices] = useState<string[]>(
     patient.services ?? [],
   );
+  const patientName = `${patient.firstName} ${patient.lastName}`;
 
   return (
     <form action={formAction} noValidate className="space-y-8">
@@ -540,14 +542,17 @@ export default function EditForm({ patient }: { patient: Patient }) {
         )}
       </section>
 
-      <div className="flex items-center justify-end gap-3 border-t border-[#e8d9cc] pt-6">
-        <Link
-          href={`/info/${patient.id}`}
-          className="rounded-xl border border-[#d8c9ba] px-5 py-2.5 text-sm font-medium text-[#513a2e] transition hover:bg-[#f0e6d8]"
-        >
-          Cancel
-        </Link>
-        <SubmitButton />
+      <div className="flex items-center justify-between gap-3 border-t border-[#e8d9cc] pt-6">
+        <DeletePatientDialog patientId={patient.id} patientName={patientName} />
+        <div className="flex items-center gap-3">
+          <Link
+            href={`/info/${patient.id}`}
+            className="rounded-xl border border-[#d8c9ba] px-5 py-2.5 text-sm font-medium text-[#513a2e] transition hover:bg-[#f0e6d8]"
+          >
+            Cancel
+          </Link>
+          <SubmitButton />
+        </div>
       </div>
     </form>
   );
