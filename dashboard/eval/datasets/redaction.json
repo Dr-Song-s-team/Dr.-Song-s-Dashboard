@@ -1,0 +1,289 @@
+{
+  "cases": [
+    {
+      "id": "phone-1",
+      "text": "Please call me at 555-0101",
+      "expectedPHI": [
+        {"type": "phone", "text": "555-0101"}
+      ]
+    },
+    {
+      "id": "phone-2",
+      "text": "Contact number: (555) 123-4567",
+      "expectedPHI": [
+        {"type": "phone", "text": "(555) 123-4567"}
+      ]
+    },
+    {
+      "id": "email-1",
+      "text": "Send results to alex.thompson@example-patient.dev",
+      "expectedPHI": [
+        {"type": "email", "text": "alex.thompson@example-patient.dev"}
+      ]
+    },
+    {
+      "id": "email-2",
+      "text": "Email maria.santos@example-patient.dev for questions",
+      "expectedPHI": [
+        {"type": "email", "text": "maria.santos@example-patient.dev"}
+      ]
+    },
+    {
+      "id": "member-id-1",
+      "text": "Member ANT-2024-001 has authorization",
+      "expectedPHI": [
+        {"type": "member_id", "text": "ANT-2024-001"}
+      ]
+    },
+    {
+      "id": "member-id-2",
+      "text": "Coverage for BCBS-2024-002",
+      "expectedPHI": [
+        {"type": "member_id", "text": "BCBS-2024-002"}
+      ]
+    },
+    {
+      "id": "claim-id-1",
+      "text": "Claim CLM-2024-0301 was denied",
+      "expectedPHI": [
+        {"type": "claim_id", "text": "CLM-2024-0301"}
+      ]
+    },
+    {
+      "id": "claim-id-2",
+      "text": "Submit under CLM-2024-0501",
+      "expectedPHI": [
+        {"type": "claim_id", "text": "CLM-2024-0501"}
+      ]
+    },
+    {
+      "id": "auth-id-1",
+      "text": "Authorization number AUTH-2024-07-001",
+      "expectedPHI": [
+        {"type": "auth_id", "text": "AUTH-2024-07-001"}
+      ]
+    },
+    {
+      "id": "dos-1",
+      "text": "Services rendered DOS 2024-06-15",
+      "expectedPHI": [
+        {"type": "date_of_service", "text": "DOS 2024-06-15"}
+      ]
+    },
+    {
+      "id": "dob-1",
+      "text": "Patient DOB 03/15/1978",
+      "expectedPHI": [
+        {"type": "dob", "text": "03/15/1978"}
+      ]
+    },
+    {
+      "id": "dob-2",
+      "text": "Born on 1990-07-22",
+      "expectedPHI": [
+        {"type": "dob", "text": "1990-07-22"}
+      ]
+    },
+    {
+      "id": "address-1",
+      "text": "Patient resides at 100 Maple St",
+      "expectedPHI": [
+        {"type": "address", "text": "100 Maple St"}
+      ]
+    },
+    {
+      "id": "address-2",
+      "text": "Address: 200 Oak Ave",
+      "expectedPHI": [
+        {"type": "address", "text": "200 Oak Ave"}
+      ]
+    },
+    {
+      "id": "city-state-zip-1",
+      "text": "Located in Anytown, CA 90001",
+      "expectedPHI": [
+        {"type": "address", "text": "Anytown, CA 90001"}
+      ]
+    },
+    {
+      "id": "city-state-zip-2",
+      "text": "Mailing address: Springfield, CA 90002",
+      "expectedPHI": [
+        {"type": "address", "text": "Springfield, CA 90002"}
+      ]
+    },
+    {
+      "id": "patient-name-1",
+      "text": "Patient Alex Thompson needs follow-up",
+      "expectedPHI": [
+        {"type": "patient_name", "text": "Alex Thompson"}
+      ]
+    },
+    {
+      "id": "patient-name-2",
+      "text": "Maria Santos requested appointment",
+      "expectedPHI": [
+        {"type": "patient_name", "text": "Maria Santos"}
+      ]
+    },
+    {
+      "id": "patient-name-3",
+      "text": "Referral for James Mitchell",
+      "expectedPHI": [
+        {"type": "patient_name", "text": "James Mitchell"}
+      ]
+    },
+    {
+      "id": "patient-name-4",
+      "text": "Insurance for Lisa Park",
+      "expectedPHI": [
+        {"type": "patient_name", "text": "Lisa Park"}
+      ]
+    },
+    {
+      "id": "patient-name-5",
+      "text": "David Rivera has outstanding balance",
+      "expectedPHI": [
+        {"type": "patient_name", "text": "David Rivera"}
+      ]
+    },
+    {
+      "id": "multiple-phi-1",
+      "text": "Alex Thompson (ANT-2024-001) at 555-0101",
+      "expectedPHI": [
+        {"type": "patient_name", "text": "Alex Thompson"},
+        {"type": "member_id", "text": "ANT-2024-001"},
+        {"type": "phone", "text": "555-0101"}
+      ]
+    },
+    {
+      "id": "multiple-phi-2",
+      "text": "Maria Santos, BCBS-2024-002, maria.santos@example-patient.dev, DOB 07/22/1990",
+      "expectedPHI": [
+        {"type": "patient_name", "text": "Maria Santos"},
+        {"type": "member_id", "text": "BCBS-2024-002"},
+        {"type": "email", "text": "maria.santos@example-patient.dev"},
+        {"type": "dob", "text": "07/22/1990"}
+      ]
+    },
+    {
+      "id": "multiple-phi-3",
+      "text": "James Mitchell, 300 Pine Rd, Riverdale, CA 90003, phone 555-0103",
+      "expectedPHI": [
+        {"type": "patient_name", "text": "James Mitchell"},
+        {"type": "address", "text": "300 Pine Rd"},
+        {"type": "address", "text": "Riverdale, CA 90003"},
+        {"type": "phone", "text": "555-0103"}
+      ]
+    },
+    {
+      "id": "complex-1",
+      "text": "Claim CLM-2024-0301 for James Mitchell (AET-2024-003), DOS 2024-06-15. Contact at 555-0103.",
+      "expectedPHI": [
+        {"type": "claim_id", "text": "CLM-2024-0301"},
+        {"type": "patient_name", "text": "James Mitchell"},
+        {"type": "member_id", "text": "AET-2024-003"},
+        {"type": "date_of_service", "text": "DOS 2024-06-15"},
+        {"type": "phone", "text": "555-0103"}
+      ]
+    },
+    {
+      "id": "complex-2",
+      "text": "Authorization AUTH-2024-07-001 approved for member ANT-2024-001 (Alex Thompson). DOS: 2024-07-01. Patient email: alex.thompson@example-patient.dev",
+      "expectedPHI": [
+        {"type": "auth_id", "text": "AUTH-2024-07-001"},
+        {"type": "member_id", "text": "ANT-2024-001"},
+        {"type": "patient_name", "text": "Alex Thompson"},
+        {"type": "date_of_service", "text": "DOS: 2024-07-01"},
+        {"type": "email", "text": "alex.thompson@example-patient.dev"}
+      ]
+    },
+    {
+      "id": "no-phi-1",
+      "text": "The weather is nice today",
+      "expectedPHI": []
+    },
+    {
+      "id": "no-phi-2",
+      "text": "Please review the treatment protocol",
+      "expectedPHI": []
+    },
+    {
+      "id": "no-phi-3",
+      "text": "Office will be closed on Friday",
+      "expectedPHI": []
+    },
+    {
+      "id": "no-phi-4",
+      "text": "New insurance forms available at front desk",
+      "expectedPHI": []
+    },
+    {
+      "id": "no-phi-5",
+      "text": "Staff meeting scheduled for next week",
+      "expectedPHI": []
+    },
+    {
+      "id": "no-phi-6",
+      "text": "Please update the database records",
+      "expectedPHI": []
+    },
+    {
+      "id": "no-phi-7",
+      "text": "General clinic information and hours",
+      "expectedPHI": []
+    },
+    {
+      "id": "no-phi-8",
+      "text": "Treatment room needs supplies",
+      "expectedPHI": []
+    },
+    {
+      "id": "no-phi-9",
+      "text": "Insurance verification process updated",
+      "expectedPHI": []
+    },
+    {
+      "id": "no-phi-10",
+      "text": "Monthly report is ready for review",
+      "expectedPHI": []
+    },
+    {
+      "id": "edge-case-name-twice",
+      "text": "Alex Thompson called. Alex Thompson needs callback.",
+      "expectedPHI": [
+        {"type": "patient_name", "text": "Alex Thompson"},
+        {"type": "patient_name", "text": "Alex Thompson"}
+      ]
+    },
+    {
+      "id": "edge-case-name-start",
+      "text": "Maria Santos is the first patient",
+      "expectedPHI": [
+        {"type": "patient_name", "text": "Maria Santos"}
+      ]
+    },
+    {
+      "id": "edge-case-name-end",
+      "text": "Insurance authorization for Lisa Park",
+      "expectedPHI": [
+        {"type": "patient_name", "text": "Lisa Park"}
+      ]
+    },
+    {
+      "id": "edge-case-lowercase-name",
+      "text": "patient james mitchell requires follow-up",
+      "expectedPHI": [
+        {"type": "patient_name", "text": "james mitchell"}
+      ]
+    },
+    {
+      "id": "edge-case-two-patients",
+      "text": "Alex Thompson and Maria Santos both need appointments",
+      "expectedPHI": [
+        {"type": "patient_name", "text": "Alex Thompson"},
+        {"type": "patient_name", "text": "Maria Santos"}
+      ]
+    }
+  ]
+}

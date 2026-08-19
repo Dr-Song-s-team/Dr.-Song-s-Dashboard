@@ -1,0 +1,104 @@
+{
+  "description": "PDF autofill test cases using seeded patient data. Pattern-based regex extraction (NOT AI). Tests the production parseIntakeFields() function through redact → parse → unredact pipeline. Single run per case (deterministic).",
+  "cases": [
+    {
+      "id": "autofill-alex-thompson",
+      "patientName": "Alex Thompson",
+      "pdfText": "Patient Intake Form\n\nFirst Name: Alex\nLast Name: Thompson\nDate of Birth: 03/15/1978\nMobile Phone: 555-0101\nEmail: alex.thompson@example-patient.dev\nStreet Address: 100 Maple St\nCity: Anytown\nState: CA\nZip Code: 90001\nPrimary Insurance Company: Anthem\nMember ID: ANT-2024-001\nAuthorization Visit Limit: 24\nStatus Notes: Active; next auth renewal due 2024-09-01.",
+      "expectedFields": {
+        "firstName": "Alex",
+        "lastName": "Thompson",
+        "dob": "1978-03-15",
+        "phone": "555-0101",
+        "email": "alex.thompson@example-patient.dev",
+        "address": "100 Maple St",
+        "city": "Anytown",
+        "state": "CA",
+        "zip": "90001",
+        "insurer": "Anthem",
+        "memberId": "ANT-2024-001",
+        "authLimit": "24",
+        "statusNotes": "Active; next auth renewal due 2024-09-01."
+      }
+    },
+    {
+      "id": "autofill-maria-santos",
+      "patientName": "Maria Santos",
+      "pdfText": "New Patient Intake\n\nGiven Name: Maria\nFamily Name: Santos\nDOB: 1990-07-22\nCell Phone: 555-0102\nEmail Address: maria.santos@example-patient.dev\nAddress: 200 Oak Ave\nCity, State, Zip: Springfield, CA 90002\nInsurance Carrier: Blue Cross\nPolicy Number: BCBS-2024-002\nAuthorized Visits: 20\nNotes: Approaching auth limit; contact insurer by visit 18.",
+      "expectedFields": {
+        "firstName": "Maria",
+        "lastName": "Santos",
+        "dob": "1990-07-22",
+        "phone": "555-0102",
+        "email": "maria.santos@example-patient.dev",
+        "address": "200 Oak Ave",
+        "city": "Springfield",
+        "state": "CA",
+        "zip": "90002",
+        "insurer": "Blue Cross",
+        "memberId": "BCBS-2024-002",
+        "authLimit": "20",
+        "statusNotes": "Approaching auth limit; contact insurer by visit 18."
+      }
+    },
+    {
+      "id": "autofill-james-mitchell",
+      "patientName": "James Mitchell",
+      "pdfText": "Patient Information\n\nFirst Name: James\nLast Name: Mitchell\nDate of Birth: 11/08/1965\nHome Phone: 555-0103\nEmail: james.mitchell@example-patient.dev\nStreet Address: 300 Pine Rd\nCity: Riverdale\nState: CA\nZip: 90003\nPrimary Insurance: Aetna\nMember Id: AET-2024-003\nVisits Authorized: 30",
+      "expectedFields": {
+        "firstName": "James",
+        "lastName": "Mitchell",
+        "dob": "1965-11-08",
+        "phone": "555-0103",
+        "email": "james.mitchell@example-patient.dev",
+        "address": "300 Pine Rd",
+        "city": "Riverdale",
+        "state": "CA",
+        "zip": "90003",
+        "insurer": "Aetna",
+        "memberId": "AET-2024-003",
+        "authLimit": "30"
+      }
+    },
+    {
+      "id": "autofill-lisa-park",
+      "patientName": "Lisa Park",
+      "pdfText": "Acupuncture Clinic Intake Form\n\nFirst Name: Lisa\nLast Name: Park\nDate of Birth: 05/30/1982\nMobile Phone: 555-0104\nEmail Address: lisa.park@example-patient.dev\nStreet Address: 400 Elm Blvd\nCity/State/Zip: Lakewood, CA 90004\nInsurance Company: United Health\nPolicy #: UHC-2024-004\nUnits Approved: 16\nStatus Note: Auth limit reached; authorization request in progress.",
+      "expectedFields": {
+        "firstName": "Lisa",
+        "lastName": "Park",
+        "dob": "1982-05-30",
+        "phone": "555-0104",
+        "email": "lisa.park@example-patient.dev",
+        "address": "400 Elm Blvd",
+        "city": "Lakewood",
+        "state": "CA",
+        "zip": "90004",
+        "insurer": "United Health",
+        "memberId": "UHC-2024-004",
+        "authLimit": "16",
+        "statusNotes": "Auth limit reached; authorization request in progress."
+      }
+    },
+    {
+      "id": "autofill-david-rivera",
+      "patientName": "David Rivera",
+      "pdfText": "Patient Registration\n\nFirst Name: David\nLast Name: Rivera\nDOB: 1953-09-12\nWork Phone: 555-0105\nEmail: david.rivera@example-patient.dev\nStreet Address: 500 Cedar Ln\nCity: Hillside\nState: CA\nZip Code: 90005\nPrimary Insurance Carrier: Cigna\nMember ID: CIG-2024-005\nAuthorization Limit: 36\nStatus Notes: Medicare supplement — verify primary payer each visit.",
+      "expectedFields": {
+        "firstName": "David",
+        "lastName": "Rivera",
+        "dob": "1953-09-12",
+        "phone": "555-0105",
+        "email": "david.rivera@example-patient.dev",
+        "address": "500 Cedar Ln",
+        "city": "Hillside",
+        "state": "CA",
+        "zip": "90005",
+        "insurer": "Cigna",
+        "memberId": "CIG-2024-005",
+        "authLimit": "36",
+        "statusNotes": "Medicare supplement — verify primary payer each visit."
+      }
+    }
+  ]
+}

@@ -1,0 +1,243 @@
+{
+  "description": "Stratified sample of 30 emails from seed data for classification testing. Uses AI classifier's real taxonomy: client | insurance | spam. Single run per email = 30 AI calls total.",
+  "note": "Seed data contains no spam examples - spam class untested",
+  "categories": {
+    "client": 20,
+    "insurance": 10,
+    "spam": 0
+  },
+  "emails": [
+    {
+      "id": "sched-1",
+      "sender": "Robert Chen",
+      "senderEmail": "robert.chen@patient-example.dev",
+      "subject": "Need to reschedule Thursday appointment",
+      "body": "Hi, I need to move my appointment scheduled for this Thursday at 2pm. I have a work conflict. Can we do Friday morning instead? I'm flexible between 9am-11am. Thanks!",
+      "expectedCategory": "client"
+    },
+    {
+      "id": "sched-2",
+      "sender": "Sarah Martinez",
+      "senderEmail": "s.martinez@patient-example.dev",
+      "subject": "Appointment availability next week?",
+      "body": "Hello, I'm a current patient and would like to book my next session. Do you have any openings next Tuesday or Wednesday afternoon? Preferably after 3pm. Please let me know what times work. Thank you.",
+      "expectedCategory": "client"
+    },
+    {
+      "id": "sched-3",
+      "sender": "Michael Thompson",
+      "senderEmail": "mthompson@patient-example.dev",
+      "subject": "Confirm appointment for July 8th",
+      "body": "Just wanted to confirm my appointment for Monday July 8th at 10:30am. Is this still on your calendar? I'll plan to arrive 10 minutes early for paperwork. See you then.",
+      "expectedCategory": "client"
+    },
+    {
+      "id": "sched-4",
+      "sender": "Jennifer Lee",
+      "senderEmail": "jlee.patient@example.com",
+      "subject": "Cancel and rebook appointment",
+      "body": "I need to cancel my Friday appointment due to a family emergency. Can we reschedule for sometime next week? I'm available Monday, Wednesday or Thursday mornings. Sorry for the short notice.",
+      "expectedCategory": "client"
+    },
+    {
+      "id": "sched-5",
+      "sender": "Kevin Wu",
+      "senderEmail": "kwu@patient-example.dev",
+      "subject": "Follow-up appointment booking",
+      "body": "Dr. Song asked me to schedule a follow-up in 2 weeks. I'd like to book something around the same time as my last visit - Tuesday afternoon around 2-3pm if possible. Let me know what's available. Thanks!",
+      "expectedCategory": "client"
+    },
+    {
+      "id": "sched-6",
+      "sender": "Amanda Garcia",
+      "senderEmail": "agarcia.patient@example.com",
+      "subject": "Running 15 minutes late for today's appointment",
+      "body": "Hi, I'm stuck in traffic and will be about 15 minutes late for my 2pm appointment today. So sorry! Should I still come or do we need to reschedule? Please let me know ASAP. Thanks for understanding.",
+      "expectedCategory": "client"
+    },
+    {
+      "id": "sched-7",
+      "sender": "Daniel Park",
+      "senderEmail": "dpark@patient-example.dev",
+      "subject": "New patient - requesting initial consultation",
+      "body": "Hello, I was referred by Dr. Kim and would like to schedule an initial consultation for lower back pain. I'm available most weekday afternoons. What's your next available new patient slot? I have Blue Cross insurance. Thank you.",
+      "expectedCategory": "client"
+    },
+    {
+      "id": "sched-8",
+      "sender": "Emily Rodriguez",
+      "senderEmail": "e.rodriguez@patient-example.dev",
+      "subject": "Requesting earlier appointment time",
+      "body": "I have an appointment next Thursday at 4pm but was hoping to come in earlier that day if possible. Do you have any cancellations or openings between 10am-1pm? I'm flexible on the exact time. Let me know, thanks!",
+      "expectedCategory": "client"
+    },
+    {
+      "id": "auth-1",
+      "sender": "Anthem Provider Relations",
+      "senderEmail": "provider.relations@anthem-dummy.example",
+      "subject": "Auth Request Approved — Alex Thompson / ANT-2024-001",
+      "body": "We are writing to confirm authorization for 12 additional visits (units 7–18) for member ANT-2024-001. Auth #: AUTH-2024-07-001. Please reference this number on all claims. Questions: 1-800-555-0001.",
+      "expectedCategory": "insurance"
+    },
+    {
+      "id": "auth-2",
+      "sender": "United Health Provider Line",
+      "senderEmail": "provider@uhc-dummy.example",
+      "subject": "Auth Limit Reached — Lisa Park / UHC-2024-004",
+      "body": "This is a notification that member UHC-2024-004 has reached their authorized visit limit of 16. A new authorization request must be submitted before additional services are rendered. Submit via provider portal or call 1-800-555-0004.",
+      "expectedCategory": "insurance"
+    },
+    {
+      "id": "claim-1",
+      "sender": "Aetna Claims Processing",
+      "senderEmail": "claims@aetna-dummy.example",
+      "subject": "Claim Denied — James Mitchell / AET-2024-003",
+      "body": "Claim #CLM-2024-0301 for DOS 2024-06-15 has been denied. Reason: missing diagnosis code on line 21. Please resubmit with corrected CMS-1500. Resubmission deadline: 90 days from DOS. Questions: 1-800-555-0003.",
+      "expectedCategory": "insurance"
+    },
+    {
+      "id": "claim-2",
+      "sender": "Cigna Claims Department",
+      "senderEmail": "claims@cigna-dummy.example",
+      "subject": "Accident Claim Verification — David Rivera / MVA-2024-0515",
+      "body": "Claim opened for David Rivera (CIG-2024-005) for motor vehicle accident on 5/15/2024. Accident type: rear-end collision. Patient reports neck pain and headaches. Authorization approved for initial evaluation and treatment. Provider: please document all findings, diagnosis codes (ICD-10), and treatment plan. Estimated treatment duration needed for claim review. Reference claim MVA-2024-0515-DR for all submissions.",
+      "expectedCategory": "insurance"
+    },
+    {
+      "id": "claim-3",
+      "sender": "ABC Insurance Corp",
+      "senderEmail": "claims@abc-insurancecorp.com",
+      "subject": "Additional Clinical Documentation Required for Patient Alice Vance Claim",
+      "body": "Our claims department requires further documentation for patient Alice Vance. We are currently reviewing the acupuncture treatment files submitted for last month. Please provide the initial intake evaluation report completed by Dr. Huy. We need specific documentation of structural diagnoses to justify medical necessity.\n\nFailure to submit these medical records may result in claim denial. Please upload the requested documents to our provider portal within fourteen days. Ensure all pages feature the patient's full name and policy ID. We appreciate your prompt cooperation in resolving this open review item.",
+      "expectedCategory": "insurance"
+    },
+    {
+      "id": "ref-1",
+      "sender": "Dr. Patricia Lee",
+      "senderEmail": "p.lee@referral-dummy.example",
+      "subject": "Referral — Maria Santos",
+      "body": "Please see Maria Santos (DOB on file, BCBS-2024-002) for evaluation and treatment. Diagnosis: cervical strain (M54.2). Requesting up to 12 visits. Please fax results to 555-0200. Thank you.",
+      "expectedCategory": "insurance"
+    },
+    {
+      "id": "ref-2",
+      "sender": "Dr. Robert Kim",
+      "senderEmail": "r.kim@primary-care-dummy.example",
+      "subject": "Referral — James Mitchell / Low Back Pain",
+      "body": "Referring patient James Mitchell (DOB 11/8/1965, Aetna AET-2024-003) for chiropractic evaluation and treatment. Chief complaint: low back pain, onset 3 weeks ago after lifting heavy object. Patient reports pain radiating to right leg, difficulty with prolonged sitting and standing. Requesting evaluation and treatment as indicated. Diagnosis: low back pain, possible lumbar subluxation. Please provide treatment plan and updates. Thank you, Dr. Kim.",
+      "expectedCategory": "insurance"
+    },
+    {
+      "id": "bill-1",
+      "sender": "Cigna Billing",
+      "senderEmail": "billing@cigna-dummy.example",
+      "subject": "EOB — David Rivera / CIG-2024-005",
+      "body": "Attached is the Explanation of Benefits for claim CLM-2024-0501 processed 2024-07-01. Patient responsibility: $0.00. Amount paid to provider: $145.00. Questions: 1-800-555-0005.",
+      "expectedCategory": "insurance"
+    },
+    {
+      "id": "bill-2",
+      "sender": "ABC Insurance Corp",
+      "senderEmail": "claims@abc-insurancecorp.com",
+      "subject": "Insurance Coverage Confirmation for Patient Alice Vance Active Policy",
+      "body": "We are pleased to confirm coverage eligibility for Alice Vance today. Her policy ID number AI-nine-eight-seven is currently active and fully valid. Acupuncture benefits are approved at eighty percent of our standard rate. The patient has a twenty dollar copay due per clinic visit.\n\nThis policy allows up to twenty authorized therapeutic sessions per calendar year. Please submit all official medical claims directly through our secure provider portal. Ensure that Dr. Huy is listed as the primary treating physician. Contact our administrative office if you have any questions regarding billing.",
+      "expectedCategory": "insurance"
+    },
+    {
+      "id": "bill-3",
+      "sender": "ABC Insurance Corp",
+      "senderEmail": "claims@abc-insurancecorp.com",
+      "subject": "Verification of Active Acupuncture Benefits for Client Bob Miller",
+      "body": "This letter serves as official verification for patient Bob Miller's account. Policy number BM-four-four-two has been verified for alternative medicine benefits. Therapeutic acupuncture is covered under group plan header number ten thousand four. The client's annual deductible has already been met in full.\n\nYour clinic may proceed with billing under standard physical medicine codes. Co-insurance amounts are calculated at ten percent for network providers. Please maintain accurate attendance logs for all eight currently booked sessions. Let us know if you require any additional electronic document links.",
+      "expectedCategory": "insurance"
+    },
+    {
+      "id": "gen-client-1",
+      "sender": "Alice Vance",
+      "senderEmail": "alice.vance@example.com",
+      "subject": "Initial Acupuncture Intake Form for Chronic Lower Back Pain",
+      "body": "My name is Alice Vance and I am seeking holistic treatment options. For the past six months, I have suffered from constant, dull lower back discomfort. Sitting at my office desk for long periods exacerbates this painful condition significantly. I would like to schedule an initial consultation and evaluation next week.\n\nYour clinic came highly recommended by a close colleague of mine. I am hoping acupuncture can help manage my symptoms without heavy medication. Please let me know what specific documentation is required before my visit. I am generally flexible on Tuesday and Thursday afternoons for appointments.",
+      "expectedCategory": "client"
+    },
+    {
+      "id": "gen-client-2",
+      "sender": "Alice Vance",
+      "senderEmail": "alice.vance@example.com",
+      "subject": "Patient Follow Up for Alice Vance After First Treatment Session",
+      "body": "Dear Dr. Huy, I wanted to share my feedback after yesterday's session. My lower back felt surprisingly light and relaxed immediately after the treatment. However, I noticed a slight bruising sensation around the lumbar insertion points today. Is it normal to experience mild soreness twenty-four hours later?\n\nI drank plenty of water and avoided strenuous physical activities as instructed. The deep muscle tension has definitely decreased compared to last week's baseline. I am scheduled for another appointment this coming Friday at two o'clock. Thank you for your exceptional care and attentive treatment during my visit.",
+      "expectedCategory": "client"
+    },
+    {
+      "id": "gen-client-3",
+      "sender": "Bob Miller",
+      "senderEmail": "bob.miller@example.com",
+      "subject": "Patient Intake Request for Persistent Shoulder Stiffness and Pain",
+      "body": "My name is Bob Miller and I need assistance with joint stiffness. My right shoulder has restricted mobility following an intensive weightlifting injury last month. I experience sharp pain whenever I attempt to lift my arm overhead. Massage therapy provided temporary comfort but failed to resolve the core issue.\n\nI am eager to try acupuncture to reduce inflammation and restore mobility. Can you accommodate a new patient intake session early next week? I want to explore a comprehensive recovery protocol with Dr. Huy directly. Let me know what administrative details you require to confirm my booking.",
+      "expectedCategory": "client"
+    },
+    {
+      "id": "gen-client-4",
+      "sender": "Charlie Davis",
+      "senderEmail": "charlie.davis@example.com",
+      "subject": "New Client Onboarding for Digestive Health and Chronic Bloating",
+      "body": "My name is Charlie Davis and I struggle with digestive issues. For over a year, I have dealt with severe bloating and discomfort. Conventional gastrointestinal treatments have failed to produce any meaningful, lasting improvements. I want to explore how acupuncture can regulate my digestive system function.\n\nI would like to arrange an intake appointment with Dr. Huy. Please let me know your earliest availability for a comprehensive diagnostic consultation. Are there specific dietary records I should bring to my first visit? Thank you for guiding me through the clinic onboarding process today.",
+      "expectedCategory": "client"
+    },
+    {
+      "id": "gen-client-5",
+      "sender": "Diana Textor",
+      "senderEmail": "diana.textor@example.com",
+      "subject": "Patient Intake Inquiry for Severe Sciatica and Radiating Leg Pain",
+      "body": "My name is Diana Textor and I require urgent pain relief. I am experiencing severe sciatica that shoots pain down my left leg. The discomfort becomes unbearable when standing or walking for over ten minutes. My neurologist recommended acupuncture as an excellent complementary therapeutic option for me.\n\nI would love to schedule an intake appointment with Dr. Huy. Do you have any openings available this Thursday morning for new clients? Please let me know what steps are necessary to initiate my care. I am eager to find a solution for this debilitating leg discomfort.",
+      "expectedCategory": "client"
+    },
+    {
+      "id": "gen-insurance-1",
+      "sender": "Aetna Provider Services",
+      "senderEmail": "provider@aetna-dummy.example",
+      "subject": "Coverage Verification — James Mitchell / AET-2024-003",
+      "body": "Member James Mitchell (AET-2024-003) has active chiropractic benefits. Coverage: up to 30 visits per year, current year usage: 3 visits. Authorization not required for evaluation and treatment. Please use diagnosis codes M54.5 (low back pain) and/or M99.03 (lumbar subluxation) on claims. CPT codes: 98940 (spinal manipulation), 97110 (therapeutic exercises) are covered. Submit CMS-1500 claims electronically. Contact provider line with questions.",
+      "expectedCategory": "insurance"
+    },
+    {
+      "id": "gen-client-6",
+      "sender": "Alice Vance",
+      "senderEmail": "alice.vance@example.com",
+      "subject": "Updated Billing Address and Insurance Documentation for Alice Vance",
+      "body": "Please update my official client profile with my new residential address. I recently relocated to 789 Willow Lane, Fullerton, California, ninety-two thousand eight hundred thirty-one. This new location should be used for all future billing statements and correspondence. I want to ensure my contact information remains entirely accurate in your system.\n\nAdditionally, I have attached my updated corporate health insurance card details here. My primary provider is ABC Insurance Corp with policy ID number AI-nine-eight-seven. I currently have a total of six upcoming treatment sessions fully booked. Please verify that these details are correctly reflected in my active file.",
+      "expectedCategory": "client"
+    },
+    {
+      "id": "gen-client-7",
+      "sender": "Bob Miller",
+      "senderEmail": "bob.miller@example.com",
+      "subject": "Insurance Verification and Change of Home Address Record Update",
+      "body": "Please amend my patient records to reflect my current residential address. I am now living at 432 Maple Avenue, Fullerton, California, ninety-two thousand eight hundred thirty-two. I want to make sure all postal mail arrives at the correct destination. Please check if this updates smoothly in your primary client database.\n\nMy billing profile should also link to my ABC Insurance Corp policy. The current member identification string for my active plan is BM-four-four-two. I currently have eight sessions booked in advance for the upcoming weeks. Kindly confirm receipt of these details at your earliest convenience, thank you.",
+      "expectedCategory": "client"
+    },
+    {
+      "id": "gen-client-8",
+      "sender": "Charlie Davis",
+      "senderEmail": "charlie.davis@example.com",
+      "subject": "Charlie Davis Patient File Profile Update with Current Contact Info",
+      "body": "Please record my updated personal details into your main client ledger. My current residential address is 101 Birch Street, Fullerton, California, ninety-two thousand eight hundred thirty-three. I want to verify that all future clinic communications use this address. Ensuring accuracy in my patient file is highly important for insurance claims.\n\nMy health policy is managed through ABC Insurance Corp under code CD-seven-seven-one. Your records should show that I have ten active sessions booked. Please contact me if you find any discrepancies with my appointment count. Thank you for your diligence in maintaining my medical account files.",
+      "expectedCategory": "client"
+    },
+    {
+      "id": "gen-client-9",
+      "sender": "Diana Textor",
+      "senderEmail": "diana.textor@example.com",
+      "subject": "Diana Textor Contact Details and Health Insurance Policy Update",
+      "body": "Please update my official client record with my correct home address. I live at 555 Walnut Court, Fullerton, California, ninety-two thousand eight hundred thirty-four. I want to make sure my mailing address matches my insurance profile. This will prevent any communication issues with claims processing going forward.\n\nMy health plan provider is ABC Insurance Corp with identifier DT-one-one-nine. I currently have a total of seven sessions booked at your facility. Please let me know if you require any additional administrative verifications. Thank you for your assistance in maintaining my accurate patient file.",
+      "expectedCategory": "client"
+    },
+    {
+      "id": "gen-client-10",
+      "sender": "Attorney Sarah Chen",
+      "senderEmail": "schen@injury-law-dummy.example",
+      "subject": "PI Report Request — David Rivera / MVA May 15, 2024",
+      "body": "Dear Dr. Song, I am representing Mr. David Rivera (DOB 9/12/1953, Cigna member CIG-2024-005) in a personal injury case. He was involved in a motor vehicle accident on May 15, 2024 (rear-end collision). Please prepare a comprehensive PI report documenting his injuries, treatment, prognosis, and functional limitations. The report should include: date and type of accident, chief complaint, examination findings, diagnosis codes, treatment plan with frequency and duration, prognosis, and current functional limitations. Claim reference: MVA-2024-0515-DR. Please submit to this email when complete. Thank you.",
+      "expectedCategory": "client"
+    }
+  ]
+}

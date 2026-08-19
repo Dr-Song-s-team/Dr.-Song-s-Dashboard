@@ -1,0 +1,93 @@
+{
+  "description": "Task extraction from SCHEDULING emails. Tests the recommendedActions field from analyzeEmails(). Each email tested 3 times with majority voting. Expected actions are concise staff tasks (3-10 words, beginning with verbs).",
+  "cases": [
+    {
+      "id": "sched-task-1",
+      "sender": "Robert Chen",
+      "senderEmail": "robert.chen@patient-example.dev",
+      "subject": "Need to reschedule Thursday appointment",
+      "body": "Hi, I need to move my appointment scheduled for this Thursday at 2pm. I have a work conflict. Can we do Friday morning instead? I'm flexible between 9am-11am. Thanks!",
+      "expectedActions": [
+        "Reschedule Thursday 2pm to Friday morning",
+        "Check Friday morning availability"
+      ]
+    },
+    {
+      "id": "sched-task-2",
+      "sender": "Sarah Martinez",
+      "senderEmail": "s.martinez@patient-example.dev",
+      "subject": "Appointment availability next week?",
+      "body": "Hello, I'm a current patient and would like to book my next session. Do you have any openings next Tuesday or Wednesday afternoon? Preferably after 3pm. Please let me know what times work. Thank you.",
+      "expectedActions": [
+        "Check Tuesday afternoon availability after 3pm",
+        "Check Wednesday afternoon availability after 3pm"
+      ]
+    },
+    {
+      "id": "sched-task-3",
+      "sender": "Michael Thompson",
+      "senderEmail": "mthompson@patient-example.dev",
+      "subject": "Confirm appointment for July 8th",
+      "body": "Just wanted to confirm my appointment for Monday July 8th at 10:30am. Is this still on your calendar? I'll plan to arrive 10 minutes early for paperwork. See you then.",
+      "expectedActions": [
+        "Confirm July 8th 10:30am appointment"
+      ]
+    },
+    {
+      "id": "sched-task-4",
+      "sender": "Jennifer Lee",
+      "senderEmail": "jlee.patient@example.com",
+      "subject": "Cancel and rebook appointment",
+      "body": "I need to cancel my Friday appointment due to a family emergency. Can we reschedule for sometime next week? I'm available Monday, Wednesday or Thursday mornings. Sorry for the short notice.",
+      "expectedActions": [
+        "Cancel Friday appointment",
+        "Reschedule for Monday Wednesday or Thursday morning"
+      ]
+    },
+    {
+      "id": "sched-task-5",
+      "sender": "Kevin Wu",
+      "senderEmail": "kwu@patient-example.dev",
+      "subject": "Follow-up appointment booking",
+      "body": "Dr. Song asked me to schedule a follow-up in 2 weeks. I'd like to book something around the same time as my last visit - Tuesday afternoon around 2-3pm if possible. Let me know what's available. Thanks!",
+      "expectedActions": [
+        "Schedule follow-up in 2 weeks",
+        "Check Tuesday afternoon 2-3pm availability"
+      ]
+    },
+    {
+      "id": "sched-task-6",
+      "sender": "Amanda Garcia",
+      "senderEmail": "agarcia.patient@example.com",
+      "subject": "Running 15 minutes late for today's appointment",
+      "body": "Hi, I'm stuck in traffic and will be about 15 minutes late for my 2pm appointment today. So sorry! Should I still come or do we need to reschedule? Please let me know ASAP. Thanks for understanding.",
+      "expectedActions": [
+        "Confirm patient can still come 15 min late",
+        "Notify staff of late arrival"
+      ]
+    },
+    {
+      "id": "sched-task-7",
+      "sender": "Daniel Park",
+      "senderEmail": "dpark@patient-example.dev",
+      "subject": "New patient - requesting initial consultation",
+      "body": "Hello, I was referred by Dr. Kim and would like to schedule an initial consultation for lower back pain. I'm available most weekday afternoons. What's your next available new patient slot? I have Blue Cross insurance. Thank you.",
+      "expectedActions": [
+        "Schedule initial consultation for new patient",
+        "Check weekday afternoon availability",
+        "Verify Blue Cross coverage"
+      ]
+    },
+    {
+      "id": "sched-task-8",
+      "sender": "Emily Rodriguez",
+      "senderEmail": "e.rodriguez@patient-example.dev",
+      "subject": "Requesting earlier appointment time",
+      "body": "I have an appointment next Thursday at 4pm but was hoping to come in earlier that day if possible. Do you have any cancellations or openings between 10am-1pm? I'm flexible on the exact time. Let me know, thanks!",
+      "expectedActions": [
+        "Check Thursday 10am-1pm availability",
+        "Move Thursday 4pm appointment to earlier slot"
+      ]
+    }
+  ]
+}
