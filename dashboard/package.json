@@ -15,7 +15,9 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset",
-    "eval:chat": "tsx scripts/eval-chat.ts"
+    "eval:chat": "tsx scripts/eval-chat.ts",
+    "eval:metrics": "DOTENV_CONFIG_PATH=.env.local tsx --require dotenv/config eval/run-metrics.ts",
+    "eval:redteam": "DOTENV_CONFIG_PATH=.env.local tsx --require dotenv/config eval/redteam/run-redteam.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",
