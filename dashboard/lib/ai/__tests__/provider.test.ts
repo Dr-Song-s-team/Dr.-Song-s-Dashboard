@@ -48,6 +48,7 @@ describe("AI Provider (Groq)", () => {
       ok: true,
       status: 200,
       json: async () => mockResponse,
+      headers: new Headers(),
     });
 
     const redactedPrompt = asRedactedText("What is {{PATIENT_NAME_1}}'s condition?");
@@ -92,6 +93,7 @@ describe("AI Provider (Groq)", () => {
       status: 429,
       statusText: "Too Many Requests",
       text: async () => JSON.stringify({ error: "Rate limit exceeded" }),
+      headers: new Headers(),
     });
 
     const redactedPrompt = asRedactedText("Test prompt");
@@ -153,6 +155,7 @@ describe("AI Provider (Groq)", () => {
       ok: true,
       status: 200,
       json: async () => mockResponse,
+      headers: new Headers(),
     });
 
     const redactedPrompt = asRedactedText("Generate JSON");
@@ -181,6 +184,7 @@ describe("AI Provider (Groq)", () => {
       ok: true,
       status: 200,
       json: async () => mockResponse,
+      headers: new Headers(),
     });
 
     const redactedPrompt = asRedactedText("Test prompt");
@@ -209,6 +213,7 @@ describe("AI Provider (Groq)", () => {
       ok: true,
       status: 200,
       json: async () => mockResponse,
+      headers: new Headers(),
     });
 
     const redactedPrompt = asRedactedText("Test prompt");
@@ -237,6 +242,7 @@ describe("AI Provider (Groq)", () => {
       ok: true,
       status: 200,
       json: async () => mockResponse,
+      headers: new Headers(),
     });
 
     const redactedPrompt = asRedactedText("Test prompt");
@@ -263,6 +269,7 @@ describe("AI Provider (Groq)", () => {
       ok: true,
       status: 200,
       json: async () => mockResponse,
+      headers: new Headers(),
     });
 
     const redactedPrompt = asRedactedText("Test prompt");
@@ -294,6 +301,7 @@ describe("AI Provider (Groq)", () => {
       ok: true,
       status: 200,
       json: async () => mockResponse,
+      headers: new Headers(),
     });
 
     const redactedPrompt = asRedactedText("User message");
@@ -325,6 +333,7 @@ describe("AI Provider (Groq)", () => {
       ok: true,
       status: 200,
       json: async () => mockResponse,
+      headers: new Headers(),
     });
 
     const redactedPrompt = asRedactedText("Test");
@@ -346,6 +355,7 @@ describe("AI Provider (Groq)", () => {
       ok: true,
       status: 200,
       json: async () => mockResponse,
+      headers: new Headers(),
     });
 
     // This should cause a TypeScript error
@@ -353,5 +363,240 @@ describe("AI Provider (Groq)", () => {
     await callAI("This is a plain string, not RedactedText");
 
     // Test passes if TypeScript compilation catches the error
+  });
+
+  describe("OpenRouter Fallback", () => {
+    beforeEach(() => {
+      // Set up OpenRouter env vars for fallback tests
+      process.env.OPENROUTER_API_KEY = "test-openrouter-key";
+      process.env.OPENROUTER_MODEL = "openai/gpt-oss-120b";
+    });
+
+    it("should fallback to OpenRouter on 429 from Groq", async () => {
+      const redactedPrompt = asRedactedText("Test prompt");
+
+      // First call to Groq fails with 429
+      fetchMock.mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        statusText: "Too Many Requests",
+        text: async () => JSON.stringify({ error: "Rate limit exceeded" }),
+        headers: new Headers(),
+      });
+
+      // Second call to OpenRouter succeeds
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [{ message: { content: "Response from OpenRouter" } }],
+        }),
+        headers: new Headers(),
+      });
+
+      const result = await callAI(redactedPrompt);
+
+      expect(result).toBe("Response from OpenRouter");
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+
+      // Verify first call was to Groq
+      const [groqUrl] = fetchMock.mock.calls[0];
+      expect(groqUrl).toBe("https://api.groq.com/openai/v1/chat/completions");
+
+      // Verify second call was to OpenRouter
+      const [openRouterUrl, openRouterOptions] = fetchMock.mock.calls[1];
+      expect(openRouterUrl).toBe("https://openrouter.ai/api/v1/chat/completions");
+      expect(openRouterOptions.headers.Authorization).toBe("Bearer test-openrouter-key");
+    });
+
+    it("should fallback to OpenRouter on 5xx from Groq", async () => {
+      const redactedPrompt = asRedactedText("Test prompt");
+
+      // First call to Groq fails with 503
+      fetchMock.mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        statusText: "Service Unavailable",
+        text: async () => JSON.stringify({ error: "Service temporarily unavailable" }),
+        headers: new Headers(),
+      });
+
+      // Second call to OpenRouter succeeds
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [{ message: { content: "Response from OpenRouter" } }],
+        }),
+        headers: new Headers(),
+      });
+
+      const result = await callAI(redactedPrompt);
+
+      expect(result).toBe("Response from OpenRouter");
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("should NOT fallback to OpenRouter when OPENROUTER_API_KEY is not set", async () => {
+      delete process.env.OPENROUTER_API_KEY;
+
+      const redactedPrompt = asRedactedText("Test prompt");
+
+      // Groq fails with 429
+      fetchMock.mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        statusText: "Too Many Requests",
+        text: async () => JSON.stringify({ error: "Rate limit exceeded" }),
+        headers: new Headers(),
+      });
+
+      try {
+        await callAI(redactedPrompt);
+        expect.fail("Should have thrown AIProviderError");
+      } catch (error) {
+        expect(error).toBeInstanceOf(AIProviderError);
+        if (error instanceof AIProviderError) {
+          expect(error.statusCode).toBe(429);
+        }
+      }
+
+      // Only one call should have been made (to Groq)
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("should NOT fallback on non-429/5xx errors (e.g., 400)", async () => {
+      const redactedPrompt = asRedactedText("Test prompt");
+
+      // Groq fails with 400 (bad request)
+      fetchMock.mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        statusText: "Bad Request",
+        text: async () => JSON.stringify({ error: "Invalid request" }),
+        headers: new Headers(),
+      });
+
+      try {
+        await callAI(redactedPrompt);
+        expect.fail("Should have thrown AIProviderError");
+      } catch (error) {
+        expect(error).toBeInstanceOf(AIProviderError);
+        if (error instanceof AIProviderError) {
+          expect(error.statusCode).toBe(400);
+        }
+      }
+
+      // Only one call should have been made (to Groq) - no fallback
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("should propagate OpenRouter error if fallback also fails", async () => {
+      const redactedPrompt = asRedactedText("Test prompt");
+
+      // First call to Groq fails with 429
+      fetchMock.mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        statusText: "Too Many Requests",
+        text: async () => JSON.stringify({ error: "Rate limit exceeded" }),
+        headers: new Headers(),
+      });
+
+      // Second call to OpenRouter also fails
+      fetchMock.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        statusText: "Internal Server Error",
+        text: async () => JSON.stringify({ error: "OpenRouter error" }),
+        headers: new Headers(),
+      });
+
+      try {
+        await callAI(redactedPrompt);
+        expect.fail("Should have thrown AIProviderError");
+      } catch (error) {
+        expect(error).toBeInstanceOf(AIProviderError);
+        if (error instanceof AIProviderError) {
+          expect(error.statusCode).toBe(500);
+          expect(error.message).toContain("OpenRouter");
+        }
+      }
+
+      // Both calls should have been made
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("should use OPENROUTER_MODEL env var for fallback", async () => {
+      process.env.OPENROUTER_MODEL = "custom/model";
+
+      const redactedPrompt = asRedactedText("Test prompt");
+
+      // First call to Groq fails with 429
+      fetchMock.mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        statusText: "Too Many Requests",
+        text: async () => JSON.stringify({ error: "Rate limit exceeded" }),
+        headers: new Headers(),
+      });
+
+      // Second call to OpenRouter succeeds
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [{ message: { content: "Response" } }],
+        }),
+        headers: new Headers(),
+      });
+
+      await callAI(redactedPrompt);
+
+      const [, openRouterOptions] = fetchMock.mock.calls[1];
+      const body = JSON.parse(openRouterOptions.body);
+
+      expect(body.model).toBe("custom/model");
+    });
+
+    it("should preserve all options when falling back to OpenRouter", async () => {
+      const redactedPrompt = asRedactedText("Test prompt");
+
+      // First call to Groq fails with 429
+      fetchMock.mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        statusText: "Too Many Requests",
+        text: async () => JSON.stringify({ error: "Rate limit exceeded" }),
+        headers: new Headers(),
+      });
+
+      // Second call to OpenRouter succeeds
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [{ message: { content: "Response" } }],
+        }),
+        headers: new Headers(),
+      });
+
+      await callAI(redactedPrompt, {
+        systemPrompt: "You are a helpful assistant",
+        temperature: 0.3,
+        jsonMode: true,
+      });
+
+      // Verify OpenRouter request has the same options
+      const [, openRouterOptions] = fetchMock.mock.calls[1];
+      const body = JSON.parse(openRouterOptions.body);
+
+      expect(body.messages).toEqual([
+        { role: "system", content: "You are a helpful assistant" },
+        { role: "user", content: "Test prompt" },
+      ]);
+      expect(body.temperature).toBe(0.3);
+      expect(body.response_format).toEqual({ type: "json_object" });
+    });
   });
 });

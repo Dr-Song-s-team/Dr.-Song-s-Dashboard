@@ -32,6 +32,12 @@ import type { RedactedText } from "@/lib/redaction";
 export const DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b";
 
 /**
+ * Default OpenRouter model for fallback.
+ * Can be overridden via OPENROUTER_MODEL environment variable.
+ */
+export const DEFAULT_OPENROUTER_MODEL = "openai/gpt-oss-120b";
+
+/**
  * Default timeout for API calls in milliseconds (30 seconds).
  */
 const DEFAULT_TIMEOUT_MS = 30000;
@@ -45,6 +51,11 @@ const DEFAULT_TEMPERATURE = 0.7;
  * Groq API endpoint (OpenAI-compatible).
  */
 const GROQ_API_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
+
+/**
+ * OpenRouter API endpoint (OpenAI-compatible).
+ */
+const OPENROUTER_API_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 
 /**
  * Options for AI provider calls.
@@ -126,7 +137,174 @@ function getSafeGroqErrorDetails(errorBody: string): Record<string, string> {
 }
 
 /**
- * Calls the Groq AI API with redacted text.
+ * Helper function to call an OpenAI-compatible API endpoint.
+ *
+ * @param endpoint - API endpoint URL
+ * @param apiKey - API key for authentication
+ * @param model - Model name to use
+ * @param redactedPrompt - The user message (RedactedText)
+ * @param options - Call options
+ * @param providerName - Provider name for logging (e.g., "Groq", "OpenRouter")
+ * @returns Raw model response text
+ * @throws {AIProviderError} If the API call fails
+ */
+async function callOpenAICompatibleAPI(
+  endpoint: string,
+  apiKey: string,
+  model: string,
+  redactedPrompt: RedactedText,
+  options: CallAIOptions,
+  providerName: string
+): Promise<string> {
+  const {
+    systemPrompt,
+    temperature = DEFAULT_TEMPERATURE,
+    jsonMode = false,
+    jsonSchema,
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+  } = options;
+
+  // Build messages array
+  const messages: Array<{ role: string; content: string }> = [];
+  if (systemPrompt) {
+    messages.push({ role: "system", content: systemPrompt });
+  }
+  messages.push({ role: "user", content: redactedPrompt });
+
+  // Build request body
+  const requestBody: Record<string, unknown> = {
+    model,
+    messages,
+    temperature,
+    max_completion_tokens: 1500,
+  };
+
+  if (jsonSchema) {
+    requestBody.response_format = {
+      type: "json_schema",
+      json_schema: {
+        name: jsonSchema.name,
+        strict: jsonSchema.strict ?? true,
+        schema: jsonSchema.schema,
+      },
+    };
+  } else if (jsonMode) {
+    requestBody.response_format = {
+      type: "json_object",
+    };
+  }
+
+  // Create abort controller for timeout
+  const abortController = new AbortController();
+  const timeoutId = setTimeout(() => abortController.abort(), timeoutMs);
+
+  try {
+    const serializedBody = JSON.stringify(requestBody);
+
+    console.log(`[${providerName}] Request size:`, {
+      characters: serializedBody.length,
+      kb: Math.round(serializedBody.length / 1024),
+      model,
+      promptCharacters: redactedPrompt.length,
+      systemCharacters: systemPrompt?.length ?? 0,
+    });
+
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: serializedBody,
+      signal: abortController.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    // Log rate limit headers (for tier verification)
+    const rateLimitHeaders = {
+      limit: response.headers.get("x-ratelimit-limit-tokens"),
+      remaining: response.headers.get("x-ratelimit-remaining-tokens"),
+      reset: response.headers.get("x-ratelimit-reset-tokens"),
+    };
+    if (rateLimitHeaders.limit) {
+      console.log(`[${providerName}] Rate limit headers:`, rateLimitHeaders);
+    }
+
+    // Handle non-OK responses
+    if (!response.ok) {
+      const errorBody = await response.text();
+      console.error(`[${providerName}] Request rejected:`, {
+        status: response.status,
+        statusText: response.statusText,
+        ...getSafeGroqErrorDetails(errorBody),
+      });
+      throw new AIProviderError(
+        `${providerName} API request failed: ${response.status} ${response.statusText}`,
+        response.status,
+        errorBody
+      );
+    }
+
+    // Parse response
+    const data = await response.json();
+
+    // Extract content from response
+    const content = data?.choices?.[0]?.message?.content;
+    if (typeof content !== "string") {
+      throw new AIProviderError(
+        "Invalid response format: missing content in response",
+        response.status,
+        JSON.stringify(data)
+      );
+    }
+
+    console.log(`[${providerName}] Request succeeded`);
+    return content;
+  } catch (error) {
+    clearTimeout(timeoutId);
+
+    // Handle abort/timeout
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new AIProviderError(
+        `${providerName} API request timed out after ${timeoutMs}ms`
+      );
+    }
+
+    // Re-throw AIProviderError as-is
+    if (error instanceof AIProviderError) {
+      throw error;
+    }
+
+    // Handle network errors
+    if (error instanceof Error) {
+      throw new AIProviderError(`${providerName} API request failed: ${error.message}`);
+    }
+
+    // Unknown error
+    throw new AIProviderError(`${providerName} API request failed with unknown error`);
+  }
+}
+
+/**
+ * Checks if an error is a rate limit (429) or server error (5xx).
+ */
+function shouldFallbackToOpenRouter(error: unknown): boolean {
+  if (!(error instanceof AIProviderError)) {
+    return false;
+  }
+
+  const statusCode = error.statusCode;
+  if (!statusCode) {
+    return false;
+  }
+
+  // 429 = rate limit, 5xx = server errors
+  return statusCode === 429 || (statusCode >= 500 && statusCode < 600);
+}
+
+/**
+ * Calls the Groq AI API with redacted text, with automatic OpenRouter fallback.
  *
  * @param redactedPrompt - The user message (must be RedactedText branded type)
  * @param options - Optional configuration for the API call
@@ -148,131 +326,57 @@ export async function callAI(
   options?: CallAIOptions
 ): Promise<string> {
   // Validate API key at call time (not import time)
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) {
+  const groqApiKey = process.env.GROQ_API_KEY;
+  if (!groqApiKey) {
     throw new Error(
       "GROQ_API_KEY environment variable is not set. Please configure it in your .env file."
     );
   }
 
-  const {
-    systemPrompt,
-    temperature = DEFAULT_TEMPERATURE,
-    jsonMode = false,
-    jsonSchema,
-    timeoutMs = DEFAULT_TIMEOUT_MS,
-    maxCompletionTokens: _maxCompletionTokens = 1500,
-  } = options ?? {};
+  const groqModel = process.env.GROQ_MODEL?.trim() || DEFAULT_GROQ_MODEL;
+  const opts = options ?? {};
 
-  const model = process.env.GROQ_MODEL?.trim() || DEFAULT_GROQ_MODEL;
-
-  // Build messages array
-  const messages: Array<{ role: string; content: string }> = [];
-  if (systemPrompt) {
-    messages.push({ role: "system", content: systemPrompt });
-  }
-  messages.push({ role: "user", content: redactedPrompt });
-
-  // Build request body
-  const requestBody: Record<string, unknown> = {
-    model,
-    messages,
-    temperature,
-    max_completion_tokens: 1500,
-  };
-
-  if (jsonSchema) {
-  requestBody.response_format = {
-    type: "json_schema",
-    json_schema: {
-      name: jsonSchema.name,
-      strict: jsonSchema.strict ?? true,
-      schema: jsonSchema.schema,
-    },
-  };
-} else if (jsonMode) {
-  requestBody.response_format = {
-    type: "json_object",
-  };
-}
-
-  // Create abort controller for timeout
-  const abortController = new AbortController();
-  const timeoutId = setTimeout(() => abortController.abort(), timeoutMs);
-
+  // Try Groq first
   try {
-    const serializedBody = JSON.stringify(requestBody);
+    return await callOpenAICompatibleAPI(
+      GROQ_API_ENDPOINT,
+      groqApiKey,
+      groqModel,
+      redactedPrompt,
+      opts,
+      "Groq"
+    );
+  } catch (groqError) {
+    // Check if we should fallback to OpenRouter
+    if (!shouldFallbackToOpenRouter(groqError)) {
+      // Non-retriable error or not a 429/5xx - propagate immediately
+      throw groqError;
+    }
 
-    console.log("[Groq] Request size:", {
-      characters: serializedBody.length,
-      kb: Math.round(serializedBody.length / 1024),
-      model,
-      promptCharacters: redactedPrompt.length,
-      systemCharacters: systemPrompt?.length ?? 0,
-    });
+    // Check if OpenRouter fallback is configured
+    const openRouterApiKey = process.env.OPENROUTER_API_KEY;
+    if (!openRouterApiKey) {
+      console.log("[OpenRouter] Fallback skipped: OPENROUTER_API_KEY not set");
+      throw groqError;
+    }
 
-    const response = await fetch(GROQ_API_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(requestBody),
-      signal: abortController.signal,
-    });
+    // Fallback to OpenRouter
+    const openRouterModel = process.env.OPENROUTER_MODEL?.trim() || DEFAULT_OPENROUTER_MODEL;
+    console.log(`[OpenRouter] Falling back after Groq ${groqError instanceof AIProviderError ? groqError.statusCode : "error"}`);
 
-    clearTimeout(timeoutId);
-
-    // Handle non-OK responses
-    if (!response.ok) {
-      const errorBody = await response.text();
-      console.error("[Groq] Request rejected:", {
-        status: response.status,
-        statusText: response.statusText,
-        ...getSafeGroqErrorDetails(errorBody),
-      });
-      throw new AIProviderError(
-        `Groq API request failed: ${response.status} ${response.statusText}`,
-        response.status,
-        errorBody
+    try {
+      return await callOpenAICompatibleAPI(
+        OPENROUTER_API_ENDPOINT,
+        openRouterApiKey,
+        openRouterModel,
+        redactedPrompt,
+        opts,
+        "OpenRouter"
       );
+    } catch (openRouterError) {
+      // OpenRouter also failed - throw the OpenRouter error
+      console.error("[OpenRouter] Fallback failed");
+      throw openRouterError;
     }
-
-    // Parse response
-    const data = await response.json();
-
-    // Extract content from response
-    const content = data?.choices?.[0]?.message?.content;
-    if (typeof content !== "string") {
-      throw new AIProviderError(
-        "Invalid response format: missing content in response",
-        response.status,
-        JSON.stringify(data)
-      );
-    }
-
-    return content;
-  } catch (error) {
-    clearTimeout(timeoutId);
-
-    // Handle abort/timeout
-    if (error instanceof Error && error.name === "AbortError") {
-      throw new AIProviderError(
-        `Groq API request timed out after ${timeoutMs}ms`
-      );
-    }
-
-    // Re-throw AIProviderError as-is
-    if (error instanceof AIProviderError) {
-      throw error;
-    }
-
-    // Handle network errors
-    if (error instanceof Error) {
-      throw new AIProviderError(`Groq API request failed: ${error.message}`);
-    }
-
-    // Unknown error
-    throw new AIProviderError("Groq API request failed with unknown error");
   }
 }
