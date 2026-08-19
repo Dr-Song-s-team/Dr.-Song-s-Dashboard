@@ -140,13 +140,13 @@ export async function POST(request: Request): Promise<NextResponse> {
   // Load entities for redaction
   const entities = await loadEntities();
 
-  // === Fetch message history (last 4 messages for intent call) ===
+  // === Fetch message history (last 10 messages for detecting expansion requests) ===
   let intentHistory: { role: string; content: string }[] = [];
   try {
     const messages = await prisma.chatMessage.findMany({
       where: { sessionId },
       orderBy: { createdAt: "desc" },
-      take: 5, // 4 + 1 (the user message we just added)
+      take: 11, // 10 + 1 (the user message we just added)
       select: { role: true, content: true },
     });
     // Reverse to get chronological order, exclude the last one (current user message)
@@ -154,6 +154,49 @@ export async function POST(request: Request): Promise<NextResponse> {
   } catch (err) {
     console.error("[chat] Failed to fetch history for intent:", err);
     // Continue without history
+  }
+
+  // === Detect if this is a progressive search expansion request ===
+  const userMessageLower = userMessage.toLowerCase();
+  const isExpandingSearch =
+    (userMessageLower.includes("search") || userMessageLower.includes("look")) &&
+    (userMessageLower.includes("more") ||
+      userMessageLower.includes("further") ||
+      userMessageLower.includes("deeper") ||
+      userMessageLower.includes("all") ||
+      userMessageLower.includes("back")) ||
+    userMessageLower === "yes" ||
+    userMessageLower === "yeah" ||
+    userMessageLower === "sure";
+
+  const previousAssistantMessage = intentHistory.length > 0 && intentHistory[intentHistory.length - 1].role === "assistant"
+    ? intentHistory[intentHistory.length - 1].content
+    : null;
+
+  const wasOfferedDeeperSearch =
+    previousAssistantMessage &&
+    (previousAssistantMessage.includes("search further back") ||
+      previousAssistantMessage.includes("search more") ||
+      previousAssistantMessage.includes("Want me to"));
+
+  // If expanding search, extract original query from history (user message before the offer)
+  let overrideSearchTermsForExpansion: string[] | null = null;
+  if (isExpandingSearch && wasOfferedDeeperSearch && intentHistory.length >= 2) {
+    // Find the user message that triggered the original search
+    // intentHistory doesn't include the current message, so:
+    // intentHistory = [..., userQuery, assistantOffer]
+    // We want the message at length-2 (the user query before the assistant offer)
+    const originalUserQuery = intentHistory[intentHistory.length - 2];
+    if (originalUserQuery && originalUserQuery.role === "user") {
+      // Extract key terms from the original query (simple word extraction)
+      const words = originalUserQuery.content
+        .toLowerCase()
+        .replace(/[^\w\s]/g, '') // Remove punctuation
+        .split(/\s+/)
+        .filter(w => w.length > 3 && !["what", "when", "where", "there", "about", "emails", "email", "any", "are"].includes(w));
+      overrideSearchTermsForExpansion = words.slice(0, 5);
+      console.log("[chat] Detected expansion request. Original query:", originalUserQuery.content, "| Extracted terms:", overrideSearchTermsForExpansion);
+    }
   }
 
   // === CALL 1: Intent classification ===
@@ -298,29 +341,12 @@ Response: {"searchTerms": ["authorization", "denials"], "scope": "all"}`;
     }
   }
 
-  console.log("[chat] Intent - scope:", intent.scope, "| Search terms - original:", intent.searchTerms, "unredacted:", unredactedSearchTerms);
+  // If this is an expansion request, use the original query's search terms instead of the affirmation words
+  const finalSearchTerms = overrideSearchTermsForExpansion || unredactedSearchTerms;
+
+  console.log("[chat] Intent - scope:", intent.scope, "| Search terms - original:", intent.searchTerms, "unredacted:", unredactedSearchTerms, "final:", finalSearchTerms);
 
   // === Determine search depth (progressive search) ===
-  // Check if user is asking to "search more" based on message content
-  const userMessageLower = userMessage.toLowerCase();
-  const isExpandingSearch =
-    (userMessageLower.includes("search") || userMessageLower.includes("look")) &&
-    (userMessageLower.includes("more") ||
-      userMessageLower.includes("further") ||
-      userMessageLower.includes("deeper") ||
-      userMessageLower.includes("all") ||
-      userMessageLower.includes("back"));
-
-  // Also check if previous assistant message offered to search more
-  const previousAssistantMessage = intentHistory.length > 0 && intentHistory[intentHistory.length - 1].role === "assistant"
-    ? intentHistory[intentHistory.length - 1].content
-    : null;
-
-  const wasOfferedDeeperSearch =
-    previousAssistantMessage &&
-    (previousAssistantMessage.includes("search further back") ||
-      previousAssistantMessage.includes("search more") ||
-      previousAssistantMessage.includes("Want me to"));
 
   // Determine email search limit based on context
   let emailSearchLimit = 20; // Default
@@ -351,15 +377,15 @@ Response: {"searchTerms": ["authorization", "denials"], "scope": "all"}`;
 
   if (intent.scope !== "none") {
     try {
-      // Use UNREDACTED search terms for Prisma queries
+      // Use finalSearchTerms (original query terms on expansion, current terms otherwise)
       if (intent.scope === "emails" || intent.scope === "all") {
-        retrievedEmails = await searchEmails(unredactedSearchTerms, emailSearchLimit);
+        retrievedEmails = await searchEmails(finalSearchTerms, emailSearchLimit);
       }
       if (intent.scope === "patients" || intent.scope === "all") {
-        retrievedPatients = await searchPatients(unredactedSearchTerms);
+        retrievedPatients = await searchPatients(finalSearchTerms);
       }
       if (intent.scope === "documents" || intent.scope === "all") {
-        retrievedDocuments = await searchDocuments(unredactedSearchTerms);
+        retrievedDocuments = await searchDocuments(finalSearchTerms);
       }
     } catch (err) {
       console.error("[chat] Retrieval failed:", err);

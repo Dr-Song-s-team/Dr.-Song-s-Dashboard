@@ -485,6 +485,48 @@ describe("Chat Flow Integration Tests", () => {
     );
   });
 
+  it("Progressive search: uses ORIGINAL query terms on affirmation, not affirmation words", async () => {
+    const retrievalModule = await import("@/lib/chat/retrieval");
+
+    vi.mocked(prisma.chatSession.findUnique).mockResolvedValue({ id: "session-1" } as never);
+    vi.mocked(prisma.chatMessage.create).mockResolvedValue({} as never);
+
+    // Mock history: messages returned in DESC order (newest first)
+    // The current message "Yes, search more" has just been persisted
+    // After reverse() and slice(0, -1), we get [userQuery, assistantOffer]
+    const mockHistory = [
+      { role: "user", content: "Yes, search more" }, // Current - will be excluded by slice(0, -1)
+      { role: "assistant", content: "I didn't find any matching emails in the 20 most recent emails. Want me to search further back?" },
+      { role: "user", content: "Are there emails about claim denials?" },
+    ];
+    vi.mocked(prisma.chatMessage.findMany).mockResolvedValue(mockHistory as never);
+
+    // Intent will extract from the affirmation message
+    vi.mocked(callAI)
+      .mockResolvedValueOnce(JSON.stringify({ searchTerms: ["search", "more"], scope: "emails" }))
+      .mockResolvedValueOnce("Searching deeper...");
+
+    vi.mocked(retrievalModule.searchEmails).mockResolvedValue([]);
+
+    const req = makePostRequest({
+      sessionId: "session-1",
+      message: "Yes, search more",
+    });
+    await POST(req);
+
+    // searchEmails should be called with ORIGINAL query terms ["claim", "denials"],
+    // NOT affirmation words ["search", "more"]
+    expect(retrievalModule.searchEmails).toHaveBeenCalledWith(
+      expect.arrayContaining(["claim", "denials"]),
+      50
+    );
+
+    // Should NOT contain affirmation words
+    const searchArgs = vi.mocked(retrievalModule.searchEmails).mock.calls[0][0];
+    expect(searchArgs).not.toContain("search");
+    expect(searchArgs).not.toContain("more");
+  });
+
   it("Progressive search: expands to all when user affirms after 50-email search", async () => {
     const retrievalModule = await import("@/lib/chat/retrieval");
 
