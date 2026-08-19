@@ -7,11 +7,18 @@ import type { Email, Patient, Document } from "@/app/generated/prisma/client";
 
 const MAX_CONTEXT_CHARS = 6000;
 
+export interface ContextMetadata {
+  emailCount: number;
+  oldestEmailDate: string | null; // ISO date string or null if no emails
+}
+
 /**
  * Build a plain-text context block from retrieved data.
  * Sections: === EMAILS ===, === PATIENTS ===, === DOCUMENTS ===
  * Each record is compact (a few lines).
  * Cap total at ~6000 chars, truncating oldest first.
+ *
+ * Returns: { context: string, metadata: ContextMetadata }
  */
 export function buildContext(
   emails: Email[],
@@ -22,7 +29,7 @@ export function buildContext(
     }
   >,
   documents: Document[]
-): string {
+): { context: string; metadata: ContextMetadata } {
   const sections: string[] = [];
 
   // === EMAILS ===
@@ -73,10 +80,22 @@ export function buildContext(
 
   const fullContext = sections.join("\n\n");
 
-  // Truncate if too long (oldest first means we truncate from the end)
-  if (fullContext.length > MAX_CONTEXT_CHARS) {
-    return fullContext.slice(0, MAX_CONTEXT_CHARS) + "\n...(truncated)";
-  }
+  // Calculate metadata
+  const oldestEmailDate =
+    emails.length > 0
+      ? emails[emails.length - 1].receivedAt.toISOString().split("T")[0]
+      : null;
 
-  return fullContext;
+  const metadata: ContextMetadata = {
+    emailCount: emails.length,
+    oldestEmailDate,
+  };
+
+  // Truncate if too long (oldest first means we truncate from the end)
+  const finalContext =
+    fullContext.length > MAX_CONTEXT_CHARS
+      ? fullContext.slice(0, MAX_CONTEXT_CHARS) + "\n...(truncated)"
+      : fullContext;
+
+  return { context: finalContext, metadata };
 }

@@ -140,13 +140,13 @@ export async function POST(request: Request): Promise<NextResponse> {
   // Load entities for redaction
   const entities = await loadEntities();
 
-  // === Fetch message history (last 4 messages for intent call) ===
+  // === Fetch message history (last 10 messages for detecting expansion requests) ===
   let intentHistory: { role: string; content: string }[] = [];
   try {
     const messages = await prisma.chatMessage.findMany({
       where: { sessionId },
       orderBy: { createdAt: "desc" },
-      take: 5, // 4 + 1 (the user message we just added)
+      take: 11, // 10 + 1 (the user message we just added)
       select: { role: true, content: true },
     });
     // Reverse to get chronological order, exclude the last one (current user message)
@@ -154,6 +154,49 @@ export async function POST(request: Request): Promise<NextResponse> {
   } catch (err) {
     console.error("[chat] Failed to fetch history for intent:", err);
     // Continue without history
+  }
+
+  // === Detect if this is a progressive search expansion request ===
+  const userMessageLower = userMessage.toLowerCase();
+  const isExpandingSearch =
+    (userMessageLower.includes("search") || userMessageLower.includes("look")) &&
+    (userMessageLower.includes("more") ||
+      userMessageLower.includes("further") ||
+      userMessageLower.includes("deeper") ||
+      userMessageLower.includes("all") ||
+      userMessageLower.includes("back")) ||
+    userMessageLower === "yes" ||
+    userMessageLower === "yeah" ||
+    userMessageLower === "sure";
+
+  const previousAssistantMessage = intentHistory.length > 0 && intentHistory[intentHistory.length - 1].role === "assistant"
+    ? intentHistory[intentHistory.length - 1].content
+    : null;
+
+  const wasOfferedDeeperSearch =
+    previousAssistantMessage &&
+    (previousAssistantMessage.includes("search further back") ||
+      previousAssistantMessage.includes("search more") ||
+      previousAssistantMessage.includes("Want me to"));
+
+  // If expanding search, extract original query from history (user message before the offer)
+  let overrideSearchTermsForExpansion: string[] | null = null;
+  if (isExpandingSearch && wasOfferedDeeperSearch && intentHistory.length >= 2) {
+    // Find the user message that triggered the original search
+    // intentHistory doesn't include the current message, so:
+    // intentHistory = [..., userQuery, assistantOffer]
+    // We want the message at length-2 (the user query before the assistant offer)
+    const originalUserQuery = intentHistory[intentHistory.length - 2];
+    if (originalUserQuery && originalUserQuery.role === "user") {
+      // Extract key terms from the original query (simple word extraction)
+      const words = originalUserQuery.content
+        .toLowerCase()
+        .replace(/[^\w\s]/g, '') // Remove punctuation
+        .split(/\s+/)
+        .filter(w => w.length > 3 && !["what", "when", "where", "there", "about", "emails", "email", "any", "are"].includes(w));
+      overrideSearchTermsForExpansion = words.slice(0, 5);
+      console.log("[chat] Detected expansion request. Original query:", originalUserQuery.content, "| Extracted terms:", overrideSearchTermsForExpansion);
+    }
   }
 
   // === CALL 1: Intent classification ===
@@ -298,7 +341,34 @@ Response: {"searchTerms": ["authorization", "denials"], "scope": "all"}`;
     }
   }
 
-  console.log("[chat] Intent - scope:", intent.scope, "| Search terms - original:", intent.searchTerms, "unredacted:", unredactedSearchTerms);
+  // If this is an expansion request, use the original query's search terms instead of the affirmation words
+  const finalSearchTerms = overrideSearchTermsForExpansion || unredactedSearchTerms;
+
+  console.log("[chat] Intent - scope:", intent.scope, "| Search terms - original:", intent.searchTerms, "unredacted:", unredactedSearchTerms, "final:", finalSearchTerms);
+
+  // === Determine search depth (progressive search) ===
+
+  // Determine email search limit based on context
+  let emailSearchLimit = 20; // Default
+
+  if (isExpandingSearch && wasOfferedDeeperSearch) {
+    // User is affirming a deeper search offer
+    // Check what limit was used before by counting emails in context
+    const previousEmailCount = previousAssistantMessage?.match(/(\d+) (?:most recent )?emails?/)?.[1];
+    if (previousEmailCount) {
+      const prevLimit = parseInt(previousEmailCount, 10);
+      if (prevLimit === 20) {
+        emailSearchLimit = 50; // Second level
+      } else if (prevLimit === 50) {
+        emailSearchLimit = 999999; // All emails (effectively no limit)
+      }
+    } else {
+      // Fallback: expand to 50
+      emailSearchLimit = 50;
+    }
+  }
+
+  console.log("[chat] Email search limit:", emailSearchLimit);
 
   // === Retrieval phase ===
   let retrievedEmails: Awaited<ReturnType<typeof searchEmails>> = [];
@@ -307,15 +377,15 @@ Response: {"searchTerms": ["authorization", "denials"], "scope": "all"}`;
 
   if (intent.scope !== "none") {
     try {
-      // Use UNREDACTED search terms for Prisma queries
+      // Use finalSearchTerms (original query terms on expansion, current terms otherwise)
       if (intent.scope === "emails" || intent.scope === "all") {
-        retrievedEmails = await searchEmails(unredactedSearchTerms);
+        retrievedEmails = await searchEmails(finalSearchTerms, emailSearchLimit);
       }
       if (intent.scope === "patients" || intent.scope === "all") {
-        retrievedPatients = await searchPatients(unredactedSearchTerms);
+        retrievedPatients = await searchPatients(finalSearchTerms);
       }
       if (intent.scope === "documents" || intent.scope === "all") {
-        retrievedDocuments = await searchDocuments(unredactedSearchTerms);
+        retrievedDocuments = await searchDocuments(finalSearchTerms);
       }
     } catch (err) {
       console.error("[chat] Retrieval failed:", err);
@@ -329,13 +399,13 @@ Response: {"searchTerms": ["authorization", "denials"], "scope": "all"}`;
     }
   }
 
-  const context = buildContext(
+  const { context, metadata } = buildContext(
     retrievedEmails,
     retrievedPatients,
     retrievedDocuments
   );
 
-  console.log("[chat] Built context length:", context.length, "chars");
+  console.log("[chat] Built context length:", context.length, "chars | Emails searched:", metadata.emailCount, "| Oldest:", metadata.oldestEmailDate);
 
   // === Fetch message history (last 6 messages) ===
   let history: { role: string; content: string }[] = [];
@@ -373,6 +443,14 @@ Response: {"searchTerms": ["authorization", "denials"], "scope": "all"}`;
 
   console.log("[chat] Redacted prompt length:", fullRedaction.redactedText.length, "chars, tokens:", fullRedaction.tokenMap.size);
 
+  // Build search scope note for AI
+  const searchScopeNote =
+    metadata.emailCount > 0
+      ? `\n\nSEARCH SCOPE: You searched ${metadata.emailCount} emails (most recent through ${metadata.oldestEmailDate}).`
+      : intent.scope === "emails" || intent.scope === "all"
+        ? `\n\nSEARCH SCOPE: You searched ${emailSearchLimit} most recent emails, but none matched the query.`
+        : "";
+
   const ANSWER_SYSTEM = `You are a clinic admin assistant for Dr. Song's acupuncture clinic.
 
 Answer naturally as the clinic's assistant. Never refer to "the provided data", "the context", or "the records I can see"—just state the information.
@@ -381,7 +459,13 @@ If the asked-for detail is present in the clinic data below, answer it directly 
 
 Placeholder tokens like {{PATIENT_NAME_1}}, {{DOB_2}}, etc. are privacy placeholders that refer to real people—treat identical tokens as the same person.
 
-Be concise, professional, and use markdown for formatting. Use headers only for multi-part answers; single-fact answers should be one or two plain sentences.`;
+**IMPORTANT - Honesty about search scope:**
+- When you find NO matches for an email query, state the search scope clearly:
+  "I didn't find any matching emails in the ${metadata.emailCount > 0 ? metadata.emailCount : emailSearchLimit} most recent emails${metadata.oldestEmailDate ? ` (dating back to ${metadata.oldestEmailDate})` : ""}. Want me to search further back?"
+- This offers the user a chance to expand the search.
+- If they respond affirmatively (e.g., "yes", "search more", "look further"), the system will automatically expand the search window.
+
+Be concise, professional, and use markdown for formatting. Use headers only for multi-part answers; single-fact answers should be one or two plain sentences.${searchScopeNote}`;
 
   let answerResponse: string;
   try {
