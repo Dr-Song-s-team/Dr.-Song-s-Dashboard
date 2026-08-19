@@ -49,3 +49,6 @@ next-env.d.ts
 /.claude/
 /.windsurf/
 /skills-lock.json
+
+# Evaluation results (generated reports)
+/eval/redteam/results-*.md
