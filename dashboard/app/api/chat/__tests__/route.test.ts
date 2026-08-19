@@ -100,7 +100,10 @@ describe("POST /api/chat", () => {
 
     // Mock buildContext to return empty string
     const retrievalModule = await import("@/lib/chat/retrieval");
-    vi.mocked(retrievalModule.buildContext).mockReturnValue("");
+    vi.mocked(retrievalModule.buildContext).mockReturnValue({
+      context: "",
+      metadata: { emailCount: 0, oldestEmailDate: null },
+    });
     vi.mocked(retrievalModule.searchEmails).mockResolvedValue([]);
     vi.mocked(retrievalModule.searchPatients).mockResolvedValue([]);
     vi.mocked(retrievalModule.searchDocuments).mockResolvedValue([]);
@@ -252,14 +255,17 @@ describe("POST /api/chat", () => {
       .mockResolvedValueOnce("Found billing emails");
 
     vi.mocked(retrievalModule.searchEmails).mockResolvedValue([{} as never]);
-    vi.mocked(retrievalModule.buildContext).mockReturnValue("Email context");
+    vi.mocked(retrievalModule.buildContext).mockReturnValue({
+      context: "Email context",
+      metadata: { emailCount: 1, oldestEmailDate: "2024-01-01" },
+    });
 
     const req = makePostRequest({ message: "Show billing emails" });
     const res = await POST(req);
     const data = await res.json();
 
     expect(res.status).toBe(200);
-    expect(retrievalModule.searchEmails).toHaveBeenCalledWith(["billing"]);
+    expect(retrievalModule.searchEmails).toHaveBeenCalledWith(["billing"], 20);
     expect(retrievalModule.buildContext).toHaveBeenCalled();
     expect(data.retrievedCounts?.emails).toBe(1);
   });

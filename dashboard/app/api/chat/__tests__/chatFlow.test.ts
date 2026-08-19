@@ -92,7 +92,10 @@ describe("Chat Flow Integration Tests", () => {
     vi.mocked(retrievalModule.searchEmails).mockResolvedValue([]);
     vi.mocked(retrievalModule.searchPatients).mockResolvedValue([]);
     vi.mocked(retrievalModule.searchDocuments).mockResolvedValue([]);
-    vi.mocked(retrievalModule.buildContext).mockReturnValue("");
+    vi.mocked(retrievalModule.buildContext).mockReturnValue({
+      context: "",
+      metadata: { emailCount: 0, oldestEmailDate: null },
+    });
   });
 
   afterEach(() => {
@@ -122,7 +125,10 @@ describe("Chat Flow Integration Tests", () => {
 
     // buildContext returns non-empty text
     const mockContext = "=== EMAILS ===\n- [2024-07-13] From: Claims | Subject: Prior Auth for Alice Vance";
-    vi.mocked(retrievalModule.buildContext).mockReturnValue(mockContext);
+    vi.mocked(retrievalModule.buildContext).mockReturnValue({
+      context: mockContext,
+      metadata: { emailCount: 1, oldestEmailDate: "2024-07-13" },
+    });
 
     // Intent returns scope: "all"
     vi.mocked(callAI)
@@ -193,7 +199,10 @@ describe("Chat Flow Integration Tests", () => {
     vi.mocked(prisma.chatMessage.create).mockResolvedValue({} as never);
 
     const retrievalModule = await import("@/lib/chat/retrieval");
-    vi.mocked(retrievalModule.buildContext).mockReturnValue(""); // Empty context
+    vi.mocked(retrievalModule.buildContext).mockReturnValue({
+      context: "",
+      metadata: { emailCount: 0, oldestEmailDate: null },
+    }); // Empty context
 
     // Intent returns scope: "none"
     vi.mocked(callAI)
@@ -252,7 +261,10 @@ describe("Chat Flow Integration Tests", () => {
 
     // Mock buildContext to return text WITH the raw name
     const contextWithRawName = "=== EMAILS ===\n- Subject: Alice Vance authorization needed";
-    vi.mocked(retrievalModule.buildContext).mockReturnValue(contextWithRawName);
+    vi.mocked(retrievalModule.buildContext).mockReturnValue({
+      context: contextWithRawName,
+      metadata: { emailCount: 1, oldestEmailDate: "2024-01-01" },
+    });
 
     vi.mocked(callAI)
       .mockResolvedValueOnce(JSON.stringify({ searchTerms: ["{{PERSON_1}}"], scope: "all" }))
@@ -386,5 +398,161 @@ describe("Chat Flow Integration Tests", () => {
     expect(searchArgs).toContain("Maria Santos");
     // Should NOT include the token
     expect(searchArgs.some((term: string) => term.includes("{{PERSON"))).toBe(false);
+  });
+
+  it("Progressive search: default limit is 20 emails", async () => {
+    const retrievalModule = await import("@/lib/chat/retrieval");
+
+    vi.mocked(prisma.chatSession.create).mockResolvedValue({ id: "session-1" } as never);
+    vi.mocked(prisma.chatMessage.create).mockResolvedValue({} as never);
+    vi.mocked(prisma.chatMessage.findMany).mockResolvedValue([]);
+
+    vi.mocked(callAI)
+      .mockResolvedValueOnce(JSON.stringify({ searchTerms: ["claim", "denial"], scope: "emails" }))
+      .mockResolvedValueOnce("No claim denials found.");
+
+    vi.mocked(retrievalModule.searchEmails).mockResolvedValue([]);
+
+    const req = makePostRequest({ message: "Are there any emails about claim denials?" });
+    await POST(req);
+
+    // searchEmails should be called with limit 20 (default)
+    expect(retrievalModule.searchEmails).toHaveBeenCalledWith(
+      expect.arrayContaining(["claim", "denial"]),
+      20
+    );
+  });
+
+  it("Progressive search: scope disclosure when no results found", async () => {
+    const retrievalModule = await import("@/lib/chat/retrieval");
+
+    vi.mocked(prisma.chatSession.create).mockResolvedValue({ id: "session-1" } as never);
+    vi.mocked(prisma.chatMessage.create).mockResolvedValue({} as never);
+    vi.mocked(prisma.chatMessage.findMany).mockResolvedValue([]);
+
+    vi.mocked(callAI)
+      .mockResolvedValueOnce(JSON.stringify({ searchTerms: ["claim", "denial"], scope: "emails" }))
+      .mockResolvedValueOnce("No claim denials found.");
+
+    vi.mocked(retrievalModule.searchEmails).mockResolvedValue([]);
+    vi.mocked(retrievalModule.buildContext).mockReturnValue({
+      context: "",
+      metadata: { emailCount: 0, oldestEmailDate: null },
+    });
+
+    const req = makePostRequest({ message: "Are there any emails about claim denials?" });
+    await POST(req);
+
+    // Answer call should include search scope disclosure in system prompt
+    const answerCall = vi.mocked(callAI).mock.calls[1];
+    const answerOptions = answerCall[1];
+
+    expect(answerOptions?.systemPrompt).toContain("Honesty about search scope");
+    expect(answerOptions?.systemPrompt).toContain("Want me to search further back?");
+    expect(answerOptions?.systemPrompt).toContain("20 most recent emails");
+  });
+
+  it("Progressive search: expands to 50 when user affirms after initial search", async () => {
+    const retrievalModule = await import("@/lib/chat/retrieval");
+
+    vi.mocked(prisma.chatSession.findUnique).mockResolvedValue({ id: "session-1" } as never);
+    vi.mocked(prisma.chatMessage.create).mockResolvedValue({} as never);
+
+    // Mock history: previous assistant offered deeper search
+    const mockHistory = [
+      { role: "user", content: "Are there emails about claim denials?" },
+      { role: "assistant", content: "I didn't find any matching emails in the 20 most recent emails. Want me to search further back?" },
+      { role: "user", content: "Yes, search more" },
+    ];
+    vi.mocked(prisma.chatMessage.findMany).mockResolvedValue(mockHistory as never);
+
+    vi.mocked(callAI)
+      .mockResolvedValueOnce(JSON.stringify({ searchTerms: ["search", "more"], scope: "emails" }))
+      .mockResolvedValueOnce("Still no results.");
+
+    vi.mocked(retrievalModule.searchEmails).mockResolvedValue([]);
+
+    const req = makePostRequest({
+      sessionId: "session-1",
+      message: "Yes, search more",
+    });
+    await POST(req);
+
+    // searchEmails should be called with limit 50 (expanded)
+    expect(retrievalModule.searchEmails).toHaveBeenCalledWith(
+      expect.any(Array),
+      50
+    );
+  });
+
+  it("Progressive search: expands to all when user affirms after 50-email search", async () => {
+    const retrievalModule = await import("@/lib/chat/retrieval");
+
+    vi.mocked(prisma.chatSession.findUnique).mockResolvedValue({ id: "session-1" } as never);
+    vi.mocked(prisma.chatMessage.create).mockResolvedValue({} as never);
+
+    // Mock history: previous assistant offered deeper search with 50 emails
+    const mockHistory = [
+      { role: "user", content: "Search more" },
+      { role: "assistant", content: "I didn't find any matching emails in the 50 most recent emails (dating back to 2024-01-01). Want me to search further back?" },
+      { role: "user", content: "Yes, look further" },
+    ];
+    vi.mocked(prisma.chatMessage.findMany).mockResolvedValue(mockHistory as never);
+
+    vi.mocked(callAI)
+      .mockResolvedValueOnce(JSON.stringify({ searchTerms: ["look", "further"], scope: "emails" }))
+      .mockResolvedValueOnce("Found 3 claim denial emails.");
+
+    vi.mocked(retrievalModule.searchEmails).mockResolvedValue([]);
+
+    const req = makePostRequest({
+      sessionId: "session-1",
+      message: "Yes, look further",
+    });
+    await POST(req);
+
+    // searchEmails should be called with limit 999999 (all emails)
+    expect(retrievalModule.searchEmails).toHaveBeenCalledWith(
+      expect.any(Array),
+      999999
+    );
+  });
+
+  it("Relevance ranking: searchEmails called with custom limit", async () => {
+    const retrievalModule = await import("@/lib/chat/retrieval");
+
+    vi.mocked(prisma.chatSession.create).mockResolvedValue({ id: "session-1" } as never);
+    vi.mocked(prisma.chatMessage.create).mockResolvedValue({} as never);
+    vi.mocked(prisma.chatMessage.findMany).mockResolvedValue([]);
+
+    // Mock emails with relevance scores
+    const mockEmails = [
+      {
+        id: "email-1",
+        subject: "Claim denial for patient",
+        fromName: "Insurance",
+        fromEmail: "claims@ins.com",
+        body: "Your claim has been denied",
+        aiSummary: "Denial notice",
+        receivedAt: new Date("2024-07-01"),
+      },
+    ];
+
+    vi.mocked(retrievalModule.searchEmails).mockResolvedValue(mockEmails as never);
+    vi.mocked(retrievalModule.buildContext).mockReturnValue({
+      context: "=== EMAILS ===\n- Claim denial",
+      metadata: { emailCount: 1, oldestEmailDate: "2024-07-01" },
+    });
+
+    vi.mocked(callAI)
+      .mockResolvedValueOnce(JSON.stringify({ searchTerms: ["claim", "denial"], scope: "emails" }))
+      .mockResolvedValueOnce("Found a claim denial email.");
+
+    const req = makePostRequest({ message: "Show me claim denials" });
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.retrievedCounts?.emails).toBe(1);
   });
 });

@@ -300,6 +300,50 @@ Response: {"searchTerms": ["authorization", "denials"], "scope": "all"}`;
 
   console.log("[chat] Intent - scope:", intent.scope, "| Search terms - original:", intent.searchTerms, "unredacted:", unredactedSearchTerms);
 
+  // === Determine search depth (progressive search) ===
+  // Check if user is asking to "search more" based on message content
+  const userMessageLower = userMessage.toLowerCase();
+  const isExpandingSearch =
+    (userMessageLower.includes("search") || userMessageLower.includes("look")) &&
+    (userMessageLower.includes("more") ||
+      userMessageLower.includes("further") ||
+      userMessageLower.includes("deeper") ||
+      userMessageLower.includes("all") ||
+      userMessageLower.includes("back"));
+
+  // Also check if previous assistant message offered to search more
+  const previousAssistantMessage = intentHistory.length > 0 && intentHistory[intentHistory.length - 1].role === "assistant"
+    ? intentHistory[intentHistory.length - 1].content
+    : null;
+
+  const wasOfferedDeeperSearch =
+    previousAssistantMessage &&
+    (previousAssistantMessage.includes("search further back") ||
+      previousAssistantMessage.includes("search more") ||
+      previousAssistantMessage.includes("Want me to"));
+
+  // Determine email search limit based on context
+  let emailSearchLimit = 20; // Default
+
+  if (isExpandingSearch && wasOfferedDeeperSearch) {
+    // User is affirming a deeper search offer
+    // Check what limit was used before by counting emails in context
+    const previousEmailCount = previousAssistantMessage?.match(/(\d+) (?:most recent )?emails?/)?.[1];
+    if (previousEmailCount) {
+      const prevLimit = parseInt(previousEmailCount, 10);
+      if (prevLimit === 20) {
+        emailSearchLimit = 50; // Second level
+      } else if (prevLimit === 50) {
+        emailSearchLimit = 999999; // All emails (effectively no limit)
+      }
+    } else {
+      // Fallback: expand to 50
+      emailSearchLimit = 50;
+    }
+  }
+
+  console.log("[chat] Email search limit:", emailSearchLimit);
+
   // === Retrieval phase ===
   let retrievedEmails: Awaited<ReturnType<typeof searchEmails>> = [];
   let retrievedPatients: Awaited<ReturnType<typeof searchPatients>> = [];
@@ -309,7 +353,7 @@ Response: {"searchTerms": ["authorization", "denials"], "scope": "all"}`;
     try {
       // Use UNREDACTED search terms for Prisma queries
       if (intent.scope === "emails" || intent.scope === "all") {
-        retrievedEmails = await searchEmails(unredactedSearchTerms);
+        retrievedEmails = await searchEmails(unredactedSearchTerms, emailSearchLimit);
       }
       if (intent.scope === "patients" || intent.scope === "all") {
         retrievedPatients = await searchPatients(unredactedSearchTerms);
@@ -329,13 +373,13 @@ Response: {"searchTerms": ["authorization", "denials"], "scope": "all"}`;
     }
   }
 
-  const context = buildContext(
+  const { context, metadata } = buildContext(
     retrievedEmails,
     retrievedPatients,
     retrievedDocuments
   );
 
-  console.log("[chat] Built context length:", context.length, "chars");
+  console.log("[chat] Built context length:", context.length, "chars | Emails searched:", metadata.emailCount, "| Oldest:", metadata.oldestEmailDate);
 
   // === Fetch message history (last 6 messages) ===
   let history: { role: string; content: string }[] = [];
@@ -373,6 +417,14 @@ Response: {"searchTerms": ["authorization", "denials"], "scope": "all"}`;
 
   console.log("[chat] Redacted prompt length:", fullRedaction.redactedText.length, "chars, tokens:", fullRedaction.tokenMap.size);
 
+  // Build search scope note for AI
+  const searchScopeNote =
+    metadata.emailCount > 0
+      ? `\n\nSEARCH SCOPE: You searched ${metadata.emailCount} emails (most recent through ${metadata.oldestEmailDate}).`
+      : intent.scope === "emails" || intent.scope === "all"
+        ? `\n\nSEARCH SCOPE: You searched ${emailSearchLimit} most recent emails, but none matched the query.`
+        : "";
+
   const ANSWER_SYSTEM = `You are a clinic admin assistant for Dr. Song's acupuncture clinic.
 
 Answer naturally as the clinic's assistant. Never refer to "the provided data", "the context", or "the records I can see"—just state the information.
@@ -381,7 +433,13 @@ If the asked-for detail is present in the clinic data below, answer it directly 
 
 Placeholder tokens like {{PATIENT_NAME_1}}, {{DOB_2}}, etc. are privacy placeholders that refer to real people—treat identical tokens as the same person.
 
-Be concise, professional, and use markdown for formatting. Use headers only for multi-part answers; single-fact answers should be one or two plain sentences.`;
+**IMPORTANT - Honesty about search scope:**
+- When you find NO matches for an email query, state the search scope clearly:
+  "I didn't find any matching emails in the ${metadata.emailCount > 0 ? metadata.emailCount : emailSearchLimit} most recent emails${metadata.oldestEmailDate ? ` (dating back to ${metadata.oldestEmailDate})` : ""}. Want me to search further back?"
+- This offers the user a chance to expand the search.
+- If they respond affirmatively (e.g., "yes", "search more", "look further"), the system will automatically expand the search window.
+
+Be concise, professional, and use markdown for formatting. Use headers only for multi-part answers; single-fact answers should be one or two plain sentences.${searchScopeNote}`;
 
   let answerResponse: string;
   try {

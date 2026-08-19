@@ -91,8 +91,8 @@ function createMockPatient(
 
 describe("buildContext", () => {
   it("should return empty string when no data is provided", () => {
-    const context = buildContext([], [], []);
-    expect(context).toBe("");
+    const result = buildContext([], [], []);
+    expect(result.context).toBe("");
   });
 
   it("should format emails section correctly", () => {
@@ -106,13 +106,13 @@ describe("buildContext", () => {
       }),
     ];
 
-    const context = buildContext(emails, [], []);
+    const result = buildContext(emails, [], []);
 
-    expect(context).toContain("=== EMAILS ===");
-    expect(context).toContain("[2024-01-15]");
-    expect(context).toContain("From: John Doe <john@example.com>");
-    expect(context).toContain("Subject: Question about billing");
-    expect(context).toContain("Summary: Patient asking about bill");
+    expect(result.context).toContain("=== EMAILS ===");
+    expect(result.context).toContain("[2024-01-15]");
+    expect(result.context).toContain("From: John Doe <john@example.com>");
+    expect(result.context).toContain("Subject: Question about billing");
+    expect(result.context).toContain("Summary: Patient asking about bill");
   });
 
   it("should format emails without summary", () => {
@@ -126,12 +126,12 @@ describe("buildContext", () => {
       }),
     ];
 
-    const context = buildContext(emails, [], []);
+    const result = buildContext(emails, [], []);
 
-    expect(context).toContain("=== EMAILS ===");
-    expect(context).toContain("From: Jane Doe <jane@example.com>");
-    expect(context).toContain("Subject: Appointment request");
-    expect(context).not.toContain("Summary:");
+    expect(result.context).toContain("=== EMAILS ===");
+    expect(result.context).toContain("From: Jane Doe <jane@example.com>");
+    expect(result.context).toContain("Subject: Appointment request");
+    expect(result.context).not.toContain("Summary:");
   });
 
   it("should format patients section correctly", () => {
@@ -155,18 +155,18 @@ describe("buildContext", () => {
       }),
     ];
 
-    const context = buildContext([], patients, []);
+    const result = buildContext([], patients, []);
 
-    expect(context).toContain("=== PATIENTS ===");
-    expect(context).toContain("Alice Johnson");
-    expect(context).toContain("DOB: 1985-05-15");
-    expect(context).toContain("Insurer: Aetna");
-    expect(context).toContain("Auth: 8/20");
-    expect(context).toContain("Status: Pre-authorized for 20 visits");
-    expect(context).toContain(
+    expect(result.context).toContain("=== PATIENTS ===");
+    expect(result.context).toContain("Alice Johnson");
+    expect(result.context).toContain("DOB: 1985-05-15");
+    expect(result.context).toContain("Insurer: Aetna");
+    expect(result.context).toContain("Auth: 8/20");
+    expect(result.context).toContain("Status: Pre-authorized for 20 visits");
+    expect(result.context).toContain(
       "Recent emails: Follow-up appointment; Billing question"
     );
-    expect(context).toContain("Recent docs: Intake Form 1-1; SOAP Note 2024-01-10");
+    expect(result.context).toContain("Recent docs: Intake Form 1-1; SOAP Note 2024-01-10");
   });
 
   it("should format patients without emails and documents", () => {
@@ -184,16 +184,16 @@ describe("buildContext", () => {
       }),
     ];
 
-    const context = buildContext([], patients, []);
+    const result = buildContext([], patients, []);
 
-    expect(context).toContain("=== PATIENTS ===");
-    expect(context).toContain("Bob Williams");
-    expect(context).toContain("DOB: 1975-03-20");
-    expect(context).toContain("Insurer: Cigna");
-    expect(context).toContain("Auth: 3/15");
-    expect(context).not.toContain("Status:");
-    expect(context).not.toContain("Recent emails:");
-    expect(context).not.toContain("Recent docs:");
+    expect(result.context).toContain("=== PATIENTS ===");
+    expect(result.context).toContain("Bob Williams");
+    expect(result.context).toContain("DOB: 1975-03-20");
+    expect(result.context).toContain("Insurer: Cigna");
+    expect(result.context).toContain("Auth: 3/15");
+    expect(result.context).not.toContain("Status:");
+    expect(result.context).not.toContain("Recent emails:");
+    expect(result.context).not.toContain("Recent docs:");
   });
 
   it("should format documents section correctly", () => {
@@ -206,12 +206,12 @@ describe("buildContext", () => {
       }),
     ];
 
-    const context = buildContext([], [], documents);
+    const result = buildContext([], [], documents);
 
-    expect(context).toContain("=== DOCUMENTS ===");
-    expect(context).toContain("CMS-1500 Form (CMS_1500)");
-    expect(context).toContain("Notes: Submitted to insurance");
-    expect(context).toContain("Content preview: Full text content of the document here...");
+    expect(result.context).toContain("=== DOCUMENTS ===");
+    expect(result.context).toContain("CMS-1500 Form (CMS_1500)");
+    expect(result.context).toContain("Notes: Submitted to insurance");
+    expect(result.context).toContain("Content preview: Full text content of the document here...");
   });
 
   it("should format documents without notes and content", () => {
@@ -224,12 +224,12 @@ describe("buildContext", () => {
       }),
     ];
 
-    const context = buildContext([], [], documents);
+    const result = buildContext([], [], documents);
 
-    expect(context).toContain("=== DOCUMENTS ===");
-    expect(context).toContain("Intake Form (INTAKE_1_1)");
-    expect(context).not.toContain("Notes:");
-    expect(context).not.toContain("Content preview:");
+    expect(result.context).toContain("=== DOCUMENTS ===");
+    expect(result.context).toContain("Intake Form (INTAKE_1_1)");
+    expect(result.context).not.toContain("Notes:");
+    expect(result.context).not.toContain("Content preview:");
   });
 
   it("should truncate content preview at 100 characters", () => {
@@ -241,9 +241,9 @@ describe("buildContext", () => {
       }),
     ];
 
-    const context = buildContext([], [], documents);
+    const result = buildContext([], [], documents);
 
-    expect(context).toContain("Content preview: " + "a".repeat(100) + "...");
+    expect(result.context).toContain("Content preview: " + "a".repeat(100) + "...");
   });
 
   it("should combine all three sections with proper spacing", () => {
@@ -251,15 +251,19 @@ describe("buildContext", () => {
     const patients = [createMockPatient({ firstName: "Test", lastName: "Patient" })];
     const documents = [createMockDocument({ title: "Test Doc" })];
 
-    const context = buildContext(emails, patients, documents);
+    const result = buildContext(emails, patients, documents);
 
-    expect(context).toContain("=== EMAILS ===");
-    expect(context).toContain("=== PATIENTS ===");
-    expect(context).toContain("=== DOCUMENTS ===");
+    expect(result.context).toContain("=== EMAILS ===");
+    expect(result.context).toContain("=== PATIENTS ===");
+    expect(result.context).toContain("=== DOCUMENTS ===");
 
     // Sections should be separated by double newlines
-    const sections = context.split("\n\n");
+    const sections = result.context.split("\n\n");
     expect(sections.length).toBeGreaterThanOrEqual(3);
+
+    // Check metadata
+    expect(result.metadata.emailCount).toBe(1); // One email in the array
+    expect(result.metadata.oldestEmailDate).not.toBeNull();
   });
 
   it("should truncate context at 6000 chars with marker", () => {
@@ -273,10 +277,13 @@ describe("buildContext", () => {
       });
     });
 
-    const context = buildContext(emails, [], []);
+    const result = buildContext(emails, [], []);
 
-    expect(context.length).toBeLessThanOrEqual(6020); // 6000 + truncation marker
-    expect(context).toContain("...(truncated)");
+    expect(result.context.length).toBeLessThanOrEqual(6020); // 6000 + truncation marker
+    expect(result.context).toContain("...(truncated)");
+    expect(result.metadata.emailCount).toBe(50);
+    // Oldest email should be one of the generated dates
+    expect(result.metadata.oldestEmailDate).not.toBeNull();
   });
 
   it("should not truncate context under 6000 chars", () => {
@@ -287,10 +294,11 @@ describe("buildContext", () => {
       }),
     ];
 
-    const context = buildContext(emails, [], []);
+    const result = buildContext(emails, [], []);
 
-    expect(context.length).toBeLessThan(6000);
-    expect(context).not.toContain("...(truncated)");
+    expect(result.context.length).toBeLessThan(6000);
+    expect(result.context).not.toContain("...(truncated)");
+    expect(result.metadata.emailCount).toBe(1);
   });
 
   it("should handle multiple patients with nested data", () => {
@@ -309,13 +317,14 @@ describe("buildContext", () => {
       }),
     ];
 
-    const context = buildContext([], patients, []);
+    const result = buildContext([], patients, []);
 
-    expect(context).toContain("Patient One");
-    expect(context).toContain("Patient Two");
-    expect(context).toContain("Recent emails: Email 1");
-    expect(context).toContain("Recent emails: Email 2");
-    expect(context).toContain("Recent docs: Doc 1");
-    expect(context).toContain("Recent docs: Doc 2");
+    expect(result.context).toContain("Patient One");
+    expect(result.context).toContain("Patient Two");
+    expect(result.context).toContain("Recent emails: Email 1");
+    expect(result.context).toContain("Recent emails: Email 2");
+    expect(result.context).toContain("Recent docs: Doc 1");
+    expect(result.context).toContain("Recent docs: Doc 2");
+    expect(result.metadata.emailCount).toBe(0); // No emails in top-level array
   });
 });
