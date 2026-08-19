@@ -642,4 +642,107 @@ describe("Redaction Test Suite", () => {
       expect(unredacted.originalText).toBe(text);
     });
   });
+
+  // ================================================================
+  // GENERIC PII DETECTION (emails/phones not in entity database)
+  // ================================================================
+
+  describe("Generic email and phone detection", () => {
+    it("should redact unknown email addresses", () => {
+      resetTokenCounter();
+
+      const text = "Contact attacker@malicious.com for more information";
+      const result = redact(text, entityData);
+
+      // Email should be redacted
+      expect(result.redactedText).not.toContain("attacker@malicious.com");
+      expect(result.redactedText).toContain("{{EMAIL_");
+
+      // Round-trip should restore original
+      const unredacted = unredact(result.redactedText, result.tokenMap);
+      expect(unredacted.originalText).toBe(text);
+    });
+
+    it("should redact unknown phone numbers", () => {
+      resetTokenCounter();
+
+      const text = "Call me at 555-9999 or (555) 888-7777";
+      const result = redact(text, entityData);
+
+      // Phones should be redacted
+      expect(result.redactedText).not.toContain("555-9999");
+      expect(result.redactedText).not.toContain("(555) 888-7777");
+      expect(result.redactedText).toContain("{{PHONE_");
+
+      // Round-trip should restore original
+      const unredacted = unredact(result.redactedText, result.tokenMap);
+      expect(unredacted.originalText).toBe(text);
+    });
+
+    it("should use entity tokens for known patient emails", () => {
+      resetTokenCounter();
+
+      const text = `Email alex.thompson@example-patient.dev or contact attacker@malicious.com`;
+      const result = redact(text, entityData);
+
+      // Both emails should be redacted
+      expect(result.redactedText).not.toContain("alex.thompson@example-patient.dev");
+      expect(result.redactedText).not.toContain("attacker@malicious.com");
+
+      // Should have tokens
+      const emailTokens = result.redactedText.match(/\{\{[A-Z_]+_\d+\}\}/g) || [];
+      expect(emailTokens.length).toBeGreaterThanOrEqual(2);
+
+      // Round-trip should restore both emails
+      const unredacted = unredact(result.redactedText, result.tokenMap);
+      expect(unredacted.originalText).toBe(text);
+    });
+
+    it("should not redact text without PII", () => {
+      resetTokenCounter();
+
+      const text = "This is a normal message with no PII";
+      const result = redact(text, entityData);
+
+      // Text should be unchanged
+      expect(result.redactedText).toBe(text);
+      expect(result.tokenMap.size).toBe(0);
+    });
+
+    it("should not double-redact already-tokenized text", () => {
+      resetTokenCounter();
+
+      // First redaction
+      const text1 = "Email attacker@malicious.com for info";
+      const result1 = redact(text1, entityData);
+
+      // Second redaction of already-redacted text (should be idempotent)
+      const result2 = redact(result1.redactedText, entityData);
+
+      // Should not create new tokens from existing tokens
+      expect(result2.redactedText).toBe(result1.redactedText);
+    });
+
+    it("should handle mixed known and unknown PII", () => {
+      resetTokenCounter();
+
+      const text = `Patient Maria Santos (maria.santos@example-patient.dev)
+was contacted by unknown@external.com and called at 555-9999`;
+      const result = redact(text, entityData);
+
+      // All PII should be redacted
+      expect(result.redactedText).not.toContain("Maria Santos");
+      expect(result.redactedText).not.toContain("maria.santos@example-patient.dev");
+      expect(result.redactedText).not.toContain("unknown@external.com");
+      expect(result.redactedText).not.toContain("555-9999");
+
+      // Should have tokens
+      const tokens = result.redactedText.match(/\{\{[A-Z_]+_\d+\}\}/g) || [];
+      expect(tokens.length).toBeGreaterThan(0);
+
+      // Round-trip should restore original
+      const unredacted = unredact(result.redactedText, result.tokenMap);
+      expect(unredacted.originalText).toBe(text);
+    });
+  });
 });

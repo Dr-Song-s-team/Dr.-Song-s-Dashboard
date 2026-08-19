@@ -220,17 +220,21 @@ async function main() {
   console.log(`📅 Date: ${formatDate()}`);
   console.log(`⏰ Started: ${new Date().toISOString()}`);
 
+  // Allow custom dataset via command line arg
+  const args = process.argv.slice(2);
+  const datasetFile = args.find(arg => arg.endsWith('.json')) || 'cases.json';
+
   // Verify dataset exists
-  const datasetPath = join(process.cwd(), "eval", "redteam", "cases.json");
+  const datasetPath = join(process.cwd(), "eval", "redteam", datasetFile);
   if (!existsSync(datasetPath)) {
-    console.error(`❌ Missing required dataset: cases.json`);
+    console.error(`❌ Missing required dataset: ${datasetFile}`);
     process.exit(1);
   }
 
-  console.log("\n✅ Dataset found");
+  console.log(`\n✅ Dataset found: ${datasetFile}`);
 
   // Load dataset
-  const dataset = await loadDataset<RedTeamDataset>("cases.json");
+  const dataset = await loadDataset<RedTeamDataset>(datasetFile);
   console.log(`✅ Loaded ${dataset.cases.length} test cases`);
   console.log(`   Categories: PROMPT_INJECTION, PHI_LEAK, OUT_OF_SCOPE, HALLUCINATION, EDGE_CASE`);
 
