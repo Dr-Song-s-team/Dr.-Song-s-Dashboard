@@ -132,7 +132,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     entities
   );
 
-  const _tokenMap = new Map<string, string>([
+  const mergedTokenMap = new Map<string, string>([
     ...senderRedaction.tokenMap,
     ...subjectRedaction.tokenMap,
     ...bodyRedaction.tokenMap,
@@ -161,7 +161,7 @@ ${bodyRedaction.redactedText}`;
   // Identify sender token for draft response greeting (only for human senders)
   let senderToken: string | null = null;
   if (!isOrgSender) {
-    for (const [token, value] of finalRedaction.tokenMap.entries()) {
+    for (const [token, value] of mergedTokenMap.entries()) {
       if (value === email.fromName) {
         senderToken = token;
         break;
@@ -397,7 +397,7 @@ OUTPUT ONLY THE VALID JSON OBJECT.
   // Correction pass: fix hallucinated token indices before unredacting
   const { correctedText, corrections } = correctTokenIndices(
     aiResponse,
-    finalRedaction.tokenMap
+    mergedTokenMap
   );
 
   // Log corrections if any were made
@@ -408,10 +408,11 @@ OUTPUT ONLY THE VALID JSON OBJECT.
     );
   }
 
-  // Unredact the corrected AI response
+  // Unredact the corrected AI response using the merged token map
+  // (NOT finalRedaction.tokenMap, which is empty because prompt is already redacted)
   const { originalText: unredactedResponse } = unredact(
     correctedText,
-    finalRedaction.tokenMap
+    mergedTokenMap
   );
 
   // Parse JSON response

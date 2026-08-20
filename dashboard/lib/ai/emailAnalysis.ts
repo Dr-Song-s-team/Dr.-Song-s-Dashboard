@@ -632,7 +632,7 @@ export async function translateEmailContent(
   );
 
   // Merge token maps
-  const _tokenMap = new Map<string, string>([
+  const mergedTokenMap = new Map<string, string>([
     ...summaryRedaction.tokenMap,
     ...bodyRedaction.tokenMap,
   ]);
@@ -670,10 +670,11 @@ ${bodyRedaction.redactedText}`;
     timeoutMs: 60000,
   });
 
-  // Unredact the AI response
+  // Unredact the AI response using the merged token map
+  // (NOT finalRedaction.tokenMap, which is empty because prompt is already redacted)
   const { originalText: unredactedResponse } = unredact(
     aiResponse,
-    finalRedaction.tokenMap
+    mergedTokenMap
   );
 
   // Remove accidental Markdown code fences if the model still adds them.
