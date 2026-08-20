@@ -196,6 +196,17 @@ export function fixDraftGreeting(
     // Replace "Dear [anything]" or "Hello [anything]" with "Hello,"
     return draftResponse.replace(greetingPattern, "Hello,");
   } else {
+    // For human senders, fix if greeting contains email address
+    if (recipientPart.includes("@")) {
+      // Email address in greeting - replace with first name or neutral greeting
+      const firstName = senderName.trim().split(/\s+/)[0];
+      if (!firstName || firstName.includes("@")) {
+        return draftResponse.replace(greetingPattern, "Hello,");
+      }
+      const comma = hasComma ? "," : "";
+      return draftResponse.replace(greetingPattern, `${greetingWord} ${firstName}${comma}`);
+    }
+
     // For human senders, only fix if it's [unavailable]
     if (recipientPart === "[unavailable]") {
       // Extract first name from full name (e.g., "John Doe" → "John")
