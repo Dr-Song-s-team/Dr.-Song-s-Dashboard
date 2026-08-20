@@ -147,4 +147,34 @@ describe("fixDraftGreeting - human senders", () => {
       "Dear Chris,\n\nWe received your form. Please contact [unavailable] for more info."
     );
   });
+
+  it("fixes greeting with raw email address using first name", () => {
+    const draft = "Dear diana.textor@example.com,\n\nThank you for your inquiry.";
+    const senderName = "Diana Textor";
+    const senderEmail = "diana.textor@example.com";
+
+    const result = fixDraftGreeting(draft, senderName, senderEmail);
+
+    expect(result).toBe("Dear Diana,\n\nThank you for your inquiry.");
+  });
+
+  it("fixes greeting with email address + empty senderName to neutral greeting", () => {
+    const draft = "Dear unknown@example.com,\n\nThank you.";
+    const senderName = "";
+    const senderEmail = "unknown@example.com";
+
+    const result = fixDraftGreeting(draft, senderName, senderEmail);
+
+    expect(result).toBe("Hello,\n\nThank you.");
+  });
+
+  it("regression: [unavailable] still replaced with first name (untouched)", () => {
+    const draft = "Dear [unavailable],\n\nThank you for reaching out.";
+    const senderName = "Jane Smith";
+    const senderEmail = "jane.smith@example.com";
+
+    const result = fixDraftGreeting(draft, senderName, senderEmail);
+
+    expect(result).toBe("Dear Jane,\n\nThank you for reaching out.");
+  });
 });
